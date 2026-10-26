@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Global Multi-Language Bot is running! 🚀"
+    return "TRX Global Multi-Language Bot with Language Selector is running! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -81,7 +81,7 @@ def start(message):
             conn.commit()
         conn.close()
 
-        # رسالة البطف الخارجية باللغة الإنجليزية العالمية الاحترافية
+        # رسالة البوت الخارجية باللغة الإنجليزية بالكامل
         terms_message = (
             "📜 **TRX Earn Bot Terms & Conditions:**\n\n"
             "1. Using Wi-Fi or VPN is strictly prohibited.\n"
@@ -231,7 +231,20 @@ def webapp():
                 border-radius: 15px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             }
-            h2 { color: #38bdf8; font-size: 20px; text-align: center; }
+            .lang-selector {
+                text-align: right;
+                margin-bottom: 10px;
+            }
+            .lang-selector select {
+                background: #334155;
+                color: white;
+                border: 1px solid #475569;
+                padding: 5px 10px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            h2 { color: #38bdf8; font-size: 20px; text-align: center; margin-top: 5px; }
             .section { display: none; }
             .section.active { display: block; }
             .card {
@@ -327,6 +340,21 @@ def webapp():
         </div>
 
         <div class="container">
+            <!-- قائمة اختيار اللغة -->
+            <div class="lang-selector">
+                <select id="language-select" onchange="changeLanguage(this.value)">
+                    <option value="en">🇬🇧 English</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="pt">🇧🇷/🇵🇹 Português</option>
+                    <option value="nl">🇳🇱 Nederlands</option>
+                    <option value="pl">🇵🇱 Polski</option>
+                    <option value="ar">🇸🇦 العربية</option>
+                </select>
+            </div>
+
             <h2 id="page-title">💰 Balance</h2>
             <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
 
@@ -390,41 +418,32 @@ def webapp():
         </div>
 
         <div class="nav-bar">
-            <button class="nav-item active" onclick="switchTab('balance', t.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
-            <button class="nav-item" onclick="switchTab('ref', t.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
-            <button class="nav-item" onclick="switchTab('offers', t.offers, this)"><span>🎯</span><span id="nav-txt-offers">Offers</span></button>
-            <button class="nav-item" onclick="switchTab('wallet', t.wallet, this)"><span>💳</span><span id="nav-txt-wallet">Wallet</span></button>
-            <button class="nav-item" onclick="switchTab('withdraw', t.withdraw, this)"><span>💸</span><span id="nav-txt-withdraw">Withdraw</span></button>
-            <button class="nav-item" onclick="switchTab('terms', t.terms, this)"><span>📜</span><span id="nav-txt-terms">Terms</span></button>
+            <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
+            <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
+            <button class="nav-item" onclick="switchTab('offers', currentTitles.offers, this)"><span>🎯</span><span id="nav-txt-offers">Offers</span></button>
+            <button class="nav-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span>💳</span><span id="nav-txt-wallet">Wallet</span></button>
+            <button class="nav-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span>💸</span><span id="nav-txt-withdraw">Withdraw</span></button>
+            <button class="nav-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span><span id="nav-txt-terms">Terms</span></button>
         </div>
 
         <script>
             let tg = window.Telegram.WebApp;
             tg.expand();
 
-            // التعرف على لغة هاتف المستخدم وتحديد القاموس المناسب من اللغات العالمية الكبرى
-            let langCode = 'en';
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) {
-                langCode = tg.initDataUnsafe.user.language_code.toLowerCase();
-            } else {
-                langCode = navigator.language.toLowerCase();
-            }
-
-            // قاموس اللغات العالمية الشاملة التي طلبتها (عربي، إنجليزي، إسباني، ألماني، فرنسي، روسي، برتغالي برازيلي، هولندي، بولندي، إلخ)
             const translations = {
-                ar: { // عربي
-                    balance: "💰 الرصيد", ref: "👥 الإحالة", offers: "🎯 العروض", wallet: "💳 المحفظة", withdraw: "💸 السحب", terms: "📜 الشروط",
-                    welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي",
-                    balTitle: "رصيدك الحالي من TRX", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
-                    refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
-                    offerTitle: "🎯 عروض تجميع النقاط", offerDesc: "قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:", openOffer: "فتح رابط العرض 🚀", confirmOffer: "تأكيد إتمام العرض ✅",
-                    walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير المحفظة لتعديله):",
-                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم بإضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
-                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
-                    warnTitle: "⚠️ تنبيه شبكة الاتصال", warnDesc: "عذراً! يمنع استخدام الواي فاي أو الـ VPN. يرجى استخدام بيانات الهاتف المحمول (Mobile Data) فقط.",
-                    navBal: "الرصيد", navRef: "الإحالة", navOffers: "العروض", navWallet: "المحفظة", navWithdraw: "السحب", navTerms: "الشروط"
+                en: { // English (Default)
+                    balance: "💰 Balance", ref: "👥 Referrals", offers: "🎯 Offers", wallet: "💳 Wallet", withdraw: "💸 Withdraw", terms: "📜 Terms",
+                    welcome: "Welcome: ", preview: "Preview Mode",
+                    balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
+                    refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
+                    offerTitle: "🎯 Point Earning Offers", offerDesc: "Complete the verification offer below to make your referral active:", openOffer: "Open Offer 🚀", confirmOffer: "Confirm Completion ✅",
+                    walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
+                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
+                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime.",
+                    warnTitle: "⚠️ Network Connection Warning", warnDesc: "Wi-Fi or VPN usage is strictly prohibited. Please use your Mobile Data only to proceed.",
+                    navBal: "Balance", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Withdraw", navTerms: "Terms"
                 },
-                es: { // إسباني (إسبانيا وأمريكا اللاتينية)
+                es: { // Spanish
                     balance: "💰 Saldo", ref: "👥 Referidos", offers: "🎯 Ofertas", wallet: "💳 Billetera", withdraw: "💸 Retirar", terms: "📜 Términos",
                     welcome: "Bienvenido: ", preview: "Modo de Vista Previa",
                     balTitle: "Tu Saldo Actual de TRX", balDesc: "Las ganancias continuas permiten el retiro instantáneo al alcanzar el mínimo.",
@@ -436,7 +455,7 @@ def webapp():
                     warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi o VPN está prohibido! Usa tus datos móviles (Mobile Data).",
                     navBal: "Saldo", navRef: "Referidos", navOffers: "Ofertas", navWallet: "Billetera", navWithdraw: "Retirar", navTerms: "Términos"
                 },
-                de: { // أماني (ألمانيا، سويسرا، النمسا)
+                de: { // German
                     balance: "💰 Guthaben", ref: "👥 Empfehlungen", offers: "🎯 Angebote", wallet: "💳 Geldbörse", withdraw: "💸 Auszahlen", terms: "📜 AGB",
                     welcome: "Willkommen: ", preview: "Vorschau-Modus",
                     balTitle: "Ihr aktuelles TRX-Guthaben", balDesc: "Kontinuierliches Verdienen ermöglicht sofortige Auszahlung.",
@@ -448,7 +467,7 @@ def webapp():
                     warnTitle: "⚠️ Netzwerk-Warnung", warnDesc: "WLAN oder VPN sind verboten! Bitte nutzen Sie mobile Daten (Mobile Data).",
                     navBal: "Guthaben", navRef: "Empfehl.", navOffers: "Angebote", navWallet: "Wallet", navWithdraw: "Auszahlen", navTerms: "AGB"
                 },
-                fr: { // فرنسي (فرنسا، كندا)
+                fr: { // French
                     balance: "💰 Solde", ref: "👥 Parrainages", offers: "🎯 Offres", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", terms: "📜 Conditions",
                     welcome: "Bienvenue : ", preview: "Mode Aperçu",
                     balTitle: "Votre solde TRX actuel", balDesc: "Gagnez et retirez instantanément.",
@@ -460,7 +479,7 @@ def webapp():
                     warnTitle: "⚠️ Alerte Réseau", warnDesc: "Le Wi-Fi et les VPN sont interdits ! Utilisez vos données mobiles (Mobile Data).",
                     navBal: "Solde", navRef: "Parrainage", navOffers: "Offres", navWallet: "Portefeuille", navWithdraw: "Retirer", navTerms: "Termes"
                 },
-                ru: { // روسي
+                ru: { // Russian
                     balance: "💰 Баланс", ref: "👥 Рефералы", offers: "🎯 Офферы", wallet: "💳 Кошелек", withdraw: "💸 Вывод", terms: "📜 Условия",
                     welcome: "Добро пожаловать: ", preview: "Режим предпросмотра",
                     balTitle: "Ваш текущий баланс TRX", balDesc: "Накапливайте и выводите мгновенно.",
@@ -472,7 +491,7 @@ def webapp():
                     warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi или VPN запрещено! Используйте мобильные данные (Mobile Data).",
                     navBal: "Баланс", navRef: "Рефералы", navOffers: "Офферы", navWallet: "Кошелек", navWithdraw: "Вывод", navTerms: "Условия"
                 },
-                pt: { // برتغالي (البرتغال والبرازيل)
+                pt: { // Portuguese / Brazilian
                     balance: "💰 Saldo", ref: "👥 Indicações", offers: "🎯 Ofertas", wallet: "💳 Carteira", withdraw: "💸 Sacar", terms: "📜 Termos",
                     welcome: "Bem-vindo: ", preview: "Modo de Visualização",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
@@ -484,7 +503,7 @@ def webapp():
                     warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
-                nl: { // هولندي (هولندا)
+                nl: { // Dutch
                     balance: "💰 Saldo", ref: "👥 Referrals", offers: "🎯 Aanbiedingen", wallet: "💳 Portemonnee", withdraw: "💸 Opnemen", terms: "📜 Voorwaarden",
                     welcome: "Welkom: ", preview: "Voorbeeldmodus",
                     balTitle: "Jouw TRX Saldo", balDesc: "Direct opnemen bij het minimum.",
@@ -496,7 +515,7 @@ def webapp():
                     warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi of VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
                     navBal: "Saldo", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Opnemen", navTerms: "Voorwaarde"
                 },
-                pl: { // بولندي (بولندا)
+                pl: { // Polish
                     balance: "💰 Saldo", ref: "👥 Polecenia", offers: "🎯 Oferty", wallet: "💳 Portfel", withdraw: "💸 Wypłata", terms: "📜 Regulamin",
                     welcome: "Witaj: ", preview: "Tryb podglądu",
                     balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
@@ -508,76 +527,91 @@ def webapp():
                     warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
                 },
-                en: { // الإنجليزية الافتراضية العالمية (لبريطانيا، أمريكا، كندا، استراليا، سويسرا، وبقية دول العالم)
-                    balance: "💰 Balance", ref: "👥 Referrals", offers: "🎯 Offers", wallet: "💳 Wallet", withdraw: "💸 Withdraw", terms: "📜 Terms",
-                    welcome: "Welcome: ", preview: "Preview Mode",
-                    balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
-                    refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
-                    offerTitle: "🎯 Point Earning Offers", offerDesc: "Complete the verification offer below to make your referral active:", openOffer: "Open Offer 🚀", confirmOffer: "Confirm Completion ✅",
-                    walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
-                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
-                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime.",
-                    warnTitle: "⚠️ Network Connection Warning", warnDesc: "Wi-Fi or VPN usage is strictly prohibited. Please use your Mobile Data only to proceed.",
-                    navBal: "Balance", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Withdraw", navTerms: "Terms"
+                ar: { // Arabic
+                    balance: "💰 الرصيد", ref: "👥 الإحالة", offers: "🎯 العروض", wallet: "💳 المحفظة", withdraw: "💸 السحب", terms: "📜 الشروط",
+                    welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي",
+                    balTitle: "رصيدك الحالي من TRX", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
+                    refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
+                    offerTitle: "🎯 عروض تجميع النقاط", offerDesc: "قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:", openOffer: "فتح رابط العرض 🚀", confirmOffer: "تأكيد إتمام العرض ✅",
+                    walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً:",
+                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم بإضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
+                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
+                    warnTitle: "⚠️ تنبيه شبكة الاتصال", warnDesc: "عذراً! يمنع استخدام الواي فاي أو الـ VPN. يرجى استخدام بيانات الهاتف المحمول (Mobile Data) فقط.",
+                    navBal: "الرصيد", navRef: "الإحالة", navOffers: "العروض", navWallet: "المحفظة", navWithdraw: "السحب", navTerms: "الشروط"
                 }
             };
 
-            // مطابقة لغة الهاتف مع القاموس أو العودة للإنجليزية الافتراضية
-            let langKey = 'en';
-            for (let key in translations) {
-                if (langCode.startsWith(key)) {
-                    langKey = key;
-                    break;
+            let currentLang = 'en';
+            let currentTitles = translations[currentLang];
+
+            function changeLanguage(lang) {
+                currentLang = lang;
+                let t = translations[lang];
+                currentTitles = t;
+
+                if (lang === 'ar') {
+                    document.getElementById('html-root').setAttribute('dir', 'rtl');
+                    document.getElementById('html-root').setAttribute('lang', 'ar');
+                } else {
+                    document.getElementById('html-root').setAttribute('dir', 'ltr');
+                    document.getElementById('html-root').setAttribute('lang', lang);
+                }
+
+                document.getElementById('page-title').innerText = t.balance;
+                document.getElementById('txt-bal-title').innerText = t.balTitle;
+                document.getElementById('txt-bal-desc').innerText = t.balDesc;
+                document.getElementById('txt-ref-title').innerText = t.refTitle;
+                document.getElementById('txt-ref-count-label').innerText = t.refCountLbl;
+                document.getElementById('txt-ref-desc').innerText = t.refDesc;
+                document.getElementById('txt-copy-btn').innerText = t.copyBtn;
+                document.getElementById('txt-offer-title').innerText = t.offerTitle;
+                document.getElementById('txt-offer-desc').innerText = t.offerDesc;
+                document.getElementById('txt-open-offer').innerText = t.openOffer;
+                document.getElementById('txt-confirm-offer').innerText = t.confirmOffer;
+                document.getElementById('txt-wallet-title').innerText = t.walletTitle;
+                document.getElementById('wallet-desc').innerText = t.walletDesc;
+                document.getElementById('trx-input').placeholder = t.walletPlaceholder;
+                document.getElementById('wallet-btn').innerText = t.saveBtn;
+                document.getElementById('txt-withdraw-title').innerText = t.withdrawTitle;
+                document.getElementById('txt-wallet-label').innerText = t.walletLabel;
+                document.getElementById('txt-withdraw-btn').innerText = t.withdrawBtn;
+                document.getElementById('txt-terms-title').innerText = t.termsTitle;
+                document.getElementById('txt-terms-content').innerHTML = t.termsContent;
+                document.getElementById('warn-title').innerText = t.warnTitle;
+                document.getElementById('warn-desc').innerText = t.warnDesc;
+                document.getElementById('nav-txt-bal').innerText = t.navBal;
+                document.getElementById('nav-txt-ref').innerText = t.navRef;
+                document.getElementById('nav-txt-offers').innerText = t.navOffers;
+                document.getElementById('nav-txt-wallet').innerText = t.navWallet;
+                document.getElementById('nav-txt-withdraw').innerText = t.navWithdraw;
+                document.getElementById('nav-txt-terms').innerText = t.navTerms;
+
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    document.getElementById('welcome').innerText = t.welcome + (tg.initDataUnsafe.user.first_name || "User");
+                } else {
+                    document.getElementById('welcome').innerText = t.preview;
+                }
+
+                loadUserData();
+            }
+
+            // ضبط اللغة الافتراضية تلقائياً بناءً على لغة الهاتف إن وجدت في القاموس، وإلا إنجليزي
+            let initialLang = 'en';
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) {
+                let code = tg.initDataUnsafe.user.language_code.toLowerCase();
+                for (let key in translations) {
+                    if (code.startsWith(key)) {
+                        initialLang = key;
+                        break;
+                    }
                 }
             }
-
-            let t = translations[langKey];
-
-            // اتجاه النصوص (اللغة العربية وحدها يمين ليسار، والبقية يسار ليمين)
-            if (langKey === 'ar') {
-                document.getElementById('html-root').setAttribute('dir', 'rtl');
-                document.getElementById('html-root').setAttribute('lang', 'ar');
-            } else {
-                document.getElementById('html-root').setAttribute('dir', 'ltr');
-                document.getElementById('html-root').setAttribute('lang', langKey);
-            }
-
-            // تطبيق الترجمات على الواجهة
-            document.getElementById('page-title').innerText = t.balance;
-            document.getElementById('txt-bal-title').innerText = t.balTitle;
-            document.getElementById('txt-bal-desc').innerText = t.balDesc;
-            document.getElementById('txt-ref-title').innerText = t.refTitle;
-            document.getElementById('txt-ref-count-label').innerText = t.refCountLbl;
-            document.getElementById('txt-ref-desc').innerText = t.refDesc;
-            document.getElementById('txt-copy-btn').innerText = t.copyBtn;
-            document.getElementById('txt-offer-title').innerText = t.offerTitle;
-            document.getElementById('txt-offer-desc').innerText = t.offerDesc;
-            document.getElementById('txt-open-offer').innerText = t.openOffer;
-            document.getElementById('txt-confirm-offer').innerText = t.confirmOffer;
-            document.getElementById('txt-wallet-title').innerText = t.walletTitle;
-            document.getElementById('wallet-desc').innerText = t.walletDesc;
-            document.getElementById('trx-input').placeholder = t.walletPlaceholder;
-            document.getElementById('wallet-btn').innerText = t.saveBtn;
-            document.getElementById('txt-withdraw-title').innerText = t.withdrawTitle;
-            document.getElementById('txt-wallet-label').innerText = t.walletLabel;
-            document.getElementById('txt-withdraw-btn').innerText = t.withdrawBtn;
-            document.getElementById('txt-terms-title').innerText = t.termsTitle;
-            document.getElementById('txt-terms-content').innerHTML = t.termsContent;
-            document.getElementById('warn-title').innerText = t.warnTitle;
-            document.getElementById('warn-desc').innerText = t.warnDesc;
-            document.getElementById('nav-txt-bal').innerText = t.navBal;
-            document.getElementById('nav-txt-ref').innerText = t.navRef;
-            document.getElementById('nav-txt-offers').innerText = t.navOffers;
-            document.getElementById('nav-txt-wallet').innerText = t.navWallet;
-            document.getElementById('nav-txt-withdraw').innerText = t.navWithdraw;
-            document.getElementById('nav-txt-terms').innerText = t.navTerms;
+            document.getElementById('language-select').value = initialLang;
+            changeLanguage(initialLang);
 
             let userId = 123456789;
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 userId = tg.initDataUnsafe.user.id;
-                document.getElementById('welcome').innerText = t.welcome + (tg.initDataUnsafe.user.first_name || "User");
-            } else {
-                document.getElementById('welcome').innerText = t.preview;
             }
 
             function checkNetwork() {
@@ -597,6 +631,7 @@ def webapp():
             let savedTrxAddress = "";
 
             function loadUserData() {
+                let t = translations[currentLang];
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
                     .then(data => {
@@ -628,15 +663,14 @@ def webapp():
                     .catch(err => console.error("Error:", err));
             }
 
-            loadUserData();
-
             function handleWalletAction() {
+                let t = translations[currentLang];
                 let input = document.getElementById('trx-input');
                 let btn = document.getElementById('wallet-btn');
                 let address = input.value.trim();
 
                 if (!address) {
-                    alert(langKey === 'ar' ? "الرجاء إدخال عنوان صحيح!" : "Please enter a valid address!");
+                    alert(currentLang === 'ar' ? "الرجاء إدخال عنوان صحيح!" : "Please enter a valid address!");
                     return;
                 }
 
@@ -673,7 +707,7 @@ def webapp():
                 copyText.select();
                 copyText.setSelectionRange(0, 99999);
                 navigator.clipboard.writeText(copyText.value);
-                alert(langKey === 'ar' ? "تم نسخ رابط الإحالة بنجاح! 📋" : "Referral link copied successfully! 📋");
+                alert(currentLang === 'ar' ? "تم نسخ رابط الإحالة بنجاح! 📋" : "Referral link copied successfully! 📋");
             }
 
             function completeOffer() {
