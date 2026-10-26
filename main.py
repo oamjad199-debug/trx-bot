@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot is running successfully! 🚀"
+    return "TRX Bot with Dynamic Wallet Lock/Change is running successfully! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -86,7 +86,7 @@ def start(message):
             "1. يلتزم المستخدم بقوانين الاستخدام وعدم إنشاء حسابات وهمية.\n"
             "2. لا تُحتسب الإحالة نشطة إلا بعد أن يقوم الشخص المدعو **بإتمام عرض ناجح**.\n"
             "3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء.\n"
-            "4. يمكنك تغيير وتحديث عنوان محفظة TRX الخاص بك بأي وقت من قسم المحفظة.\n\n"
+            "4. يمكنك حفظ أو تغيير عنوان محفظة TRX الخاص بك بأي وقت من قسم المحفظة.\n\n"
             "اضغط على الزر أدناه للموافقة وفتح التطبيق المصغر:"
         )
 
@@ -142,7 +142,7 @@ def update_address():
     cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
     conn.commit()
     conn.close()
-    return jsonify({"success": True, "message": "تم تغيير محفظة TRX بنجاح!"})
+    return jsonify({"success": True, "message": "تم حفظ وتحديث محفظة TRX بنجاح!"})
 
 @server.route('/api/complete_offer', methods=['POST'])
 def complete_offer():
@@ -263,6 +263,11 @@ def webapp():
                 margin-top: 8px;
                 box-sizing: border-box;
             }
+            input:read-only {
+                background: #1e293b;
+                color: #94a3b8;
+                border-color: #334155;
+            }
             .nav-bar {
                 position: fixed;
                 bottom: 0;
@@ -332,9 +337,9 @@ def webapp():
             <div id="tab-wallet" class="section">
                 <div class="card">
                     <h3>💳 إدارة المحفظة</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">إذا خربطت في العنوان، يمكنك تعديله وإدخال عنوان TRX الصحيح هنا:</p>
-                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX الصحيح...">
-                    <button class="btn" onclick="saveAddress()">تغيير المحفظة 🔄</button>
+                    <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">أدخل عنوان محفظة TRX الخاصة بك:</p>
+                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX هنا...">
+                    <button id="wallet-btn" class="btn" onclick="handleWalletAction()">حفظ العنوان 💾</button>
                 </div>
             </div>
 
@@ -353,7 +358,7 @@ def webapp():
                     <div class="terms-text">
                         1. لا تُحتسب الإحالة نشطة وتضاف لمجموعك إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
                         2. نسبة الإحالة (3%) تُحتسب وتُضاف للأبد بناءً على نشاط الإحالات.<br>
-                        3. يمكنك تغيير عنوان محفظة TRX في قسم المحفظة بأي وقت إذا أخطأت فيه.<br>
+                        3. يمكنك حفظ أو تغيير عنوان محفظة TRX في قسم المحفظة بأي وقت.<br>
                         4. يمنع منعاً باتاً استخدام الحسابات الوهمية لتجنب الحظر النهائي.
                     </div>
                 </div>
@@ -382,6 +387,8 @@ def webapp():
                 document.getElementById('welcome').innerText = "وضع المعاينة التجريبي";
             }
 
+            let savedTrxAddress = "";
+
             function loadUserData() {
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
@@ -389,13 +396,63 @@ def webapp():
                         document.getElementById('balance-val').innerText = data.balance.toFixed(2) + " TRX";
                         document.getElementById('ref-count').innerText = data.active_referrals;
                         document.getElementById('ref-link').value = data.ref_link;
-                        document.getElementById('trx-input').value = data.trx_address || "";
-                        document.getElementById('current-address').innerText = data.trx_address ? data.trx_address : "لم تقم بإضافة عنوان بعد!";
+                        
+                        savedTrxAddress = data.trx_address || "";
+                        let input = document.getElementById('trx-input');
+                        let btn = document.getElementById('wallet-btn');
+                        let desc = document.getElementById('wallet-desc');
+
+                        if (savedTrxAddress) {
+                            input.value = savedTrxAddress;
+                            input.readOnly = true;
+                            btn.innerText = "تغيير المحفظة 🔄";
+                            btn.style.background = "#0284c7";
+                            desc.innerText = "العنوان المحفوظ حالياً (اضغط تغيير المحفظة لتعديله):";
+                        } else {
+                            input.value = "";
+                            input.readOnly = false;
+                            btn.innerText = "حفظ العنوان 💾";
+                            btn.style.background = "#16a34a";
+                            desc.innerText = "أدخل عنوان محفظة TRX الخاصة بك:";
+                        }
+
+                        document.getElementById('current-address').innerText = savedTrxAddress ? savedTrxAddress : "لم تقم بإضافة عنوان بعد!";
                     })
                     .catch(err => console.error("Error:", err));
             }
 
             loadUserData();
+
+            function handleWalletAction() {
+                let input = document.getElementById('trx-input');
+                let btn = document.getElementById('wallet-btn');
+                let address = input.value.trim();
+
+                if (!address) {
+                    alert("الرجاء إدخال عنوان صحيح!");
+                    return;
+                }
+
+                if (input.readOnly) {
+                    // إذا كان مقفلاً، عند الضغط على "تغيير المحفظة" يتم فتح الحقل ليتمكن من التعديل
+                    input.readOnly = false;
+                    input.focus();
+                    btn.innerText = "حفظ التغيير 💾";
+                    btn.style.background = "#16a34a";
+                } else {
+                    // حفظ العنوان الجديد في السيرفر
+                    fetch('/api/update_address', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({user_id: userId, address: address})
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message);
+                        loadUserData();
+                    });
+                }
+            }
 
             function switchTab(tabName, titleText, btnElement) {
                 document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
@@ -412,24 +469,6 @@ def webapp():
                 copyText.setSelectionRange(0, 99999);
                 navigator.clipboard.writeText(copyText.value);
                 alert("تم نسخ رابط الإحالة بنجاح! 📋");
-            }
-
-            function saveAddress() {
-                let address = document.getElementById('trx-input').value.trim();
-                if(!address) {
-                    alert("الرجاء إدخال عنوان صحيح!");
-                    return;
-                }
-                fetch('/api/update_address', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId, address: address})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    loadUserData();
-                });
             }
 
             function completeOffer() {
