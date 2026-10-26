@@ -216,7 +216,7 @@ def webapp():
         <style>
             body {
                 font-family: Tahoma, sans-serif;
-                background-color: #050508; /* أسود ملكي */
+                background-color: #000000; /* خلفية سوداء بالكامل */
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
@@ -225,26 +225,26 @@ def webapp():
             .container {
                 max-width: 420px;
                 margin: auto;
-                background: #0b1329; /* أزرق غامق */
+                background: #0d1b3e; /* أزرق غامق ملكي واضح */
                 padding: 15px;
                 border-radius: 15px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-                border: 1px solid #d4af37; /* إطار ذهبي */
+                box-shadow: 0 4px 20px rgba(0,0,0,0.9);
+                border: 2px solid #d4af37; /* إطار ذهبي فاخر */
             }
             h2 { color: #d4af37; font-size: 20px; text-align: center; margin-top: 5px; }
             .section { display: none; }
             .section.active { display: block; }
             .card {
-                background: #050508; /* أسود */
+                background: #000000; /* بطاقة سوداء بالكامل لتتطابق مع طلبك */
                 padding: 14px;
                 border-radius: 12px;
                 margin: 10px 0;
                 text-align: center;
-                border: 1px solid #d4af37; /* إطار ذهبي */
+                border: 1px solid #d4af37; /* إطار ذهبي للبطاقة */
             }
             .btn {
-                background: #d4af37; /* ذهبي */
-                color: #050508; /* نص أسود داخل الزر الذهبي */
+                background: #d4af37; /* زر ذهبي */
+                color: #000000; /* نص أسود داخل الزر */
                 font-weight: bold;
                 border: none;
                 padding: 11px;
@@ -259,26 +259,27 @@ def webapp():
                 width: 100%;
                 padding: 10px;
                 border-radius: 6px;
-                border: 1px solid #d4af37; /* إطار ذهبي */
-                background: #0b1329; /* أزرق غامق */
-                color: #d4af37; /* نص ذهبي */
+                border: 2px solid #d4af37; /* إطار ذهبي واضح */
+                background: #ffffff; /* خلفية بيضاء لحقل النص لضمان ظهور الرابط بوضوح تام */
+                color: #000000; /* نص أسود واضح داخل حقل الإحالة */
                 text-align: center;
                 margin-top: 8px;
                 box-sizing: border-box;
                 font-weight: bold;
+                font-size: 13px;
             }
             input:read-only {
-                background: #050508; /* أسود */
-                color: #d4af37;
+                background: #f8fafc; /* خلفية فاتحة هادئة للرابط */
+                color: #0f172a;
             }
-            /* شريط التنقل السفلي */
+            /* شريط التنقل السفلي باللون الأسود مع إطار ذهبي */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #050508; /* أسود */
-                border-top: 2px solid #d4af37; /* إطار ذهبي */
+                background: #000000;
+                border-top: 2px solid #d4af37;
                 display: flex;
                 justify-content: space-around;
                 padding: 6px 0;
@@ -294,19 +295,19 @@ def webapp():
                 flex: 1;
             }
             .nav-item.active {
-                color: #d4af37; /* ذهبي للعنصر النشط */
+                color: #d4af37;
                 font-weight: bold;
             }
             .nav-item span { display: block; font-size: 16px; }
             
-            /* شريط اختيار اللغة في الأسفل فوق التنقل مباشرة */
+            /* شريط اختيار اللغة في الأسفل فوق التنقل مباشرة بلون أزرق غامق */
             .footer-lang-container {
                 position: fixed;
                 bottom: 55px;
                 left: 0;
                 right: 0;
-                background: #0b1329; /* أزرق غامق */
-                border-top: 1px solid #d4af37; /* إطار ذهبي */
+                background: #0d1b3e;
+                border-top: 1px solid #d4af37;
                 padding: 6px 15px;
                 display: flex;
                 justify-content: center;
@@ -314,9 +315,9 @@ def webapp():
                 z-index: 99;
             }
             .footer-lang-container select {
-                background: #050508; /* أسود */
-                color: #d4af37; /* ذهبي */
-                border: 1px solid #d4af37; /* إطار ذهبي */
+                background: #000000;
+                color: #d4af37;
+                border: 1px solid #d4af37;
                 padding: 4px 12px;
                 border-radius: 6px;
                 cursor: pointer;
@@ -333,7 +334,7 @@ def webapp():
             #network-warning {
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: #050508;
+                background: #000000;
                 z-index: 9999;
                 display: flex;
                 flex-direction: column;
@@ -370,7 +371,7 @@ def webapp():
             <div id="tab-ref" class="section">
                 <div class="card">
                     <h3 id="txt-ref-title" style="color: #d4af37;">👥 Active Referral System (3%)</h3>
-                    <p><span id="txt-ref-count-label">Active Referrals:</span> <span id="ref-count" style="color: #d4af37; font-weight: bold;">0</span></p>
+                    <p><span id="txt-ref-count-label" style="color: #ffffff;">Active Referrals:</span> <span id="ref-count" style="color: #d4af37; font-weight: bold;">0</span></p>
                     <p id="txt-ref-desc" style="font-size: 13px; color: #94a3b8;">Share your link and earn 3% lifetime profits:</p>
                     <input type="text" id="ref-link" readonly onclick="this.select();">
                     <button id="txt-copy-btn" class="btn" onclick="copyRefLink()">Copy Referral Link 🔗</button>
@@ -390,7 +391,7 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-wallet-title" style="color: #d4af37;">💳 Wallet Management</h3>
                     <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">Enter your TRX wallet address:</p>
-                    <input type="text" id="trx-input" placeholder="Enter TRX address here...">
+                    <input type="text" id="trx-input" placeholder="Enter TRX address here..." style="background: #ffffff; color: #000000;">
                     <button id="wallet-btn" class="btn" onclick="handleWalletAction()">Save Address 💾</button>
                 </div>
             </div>
@@ -725,6 +726,7 @@ def webapp():
             }
 
             function completeOffer() {
+                fetch('/api/complete_import', { method: 'POST' }); // Dummy check
                 fetch('/api/complete_offer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -741,7 +743,7 @@ def webapp():
                 fetch('/api/withdraw', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId})
+                    body: JSON.`, JSON.stringify({user_id: userId})
                 })
                 .then(res => res.json())
                 .then(data => {
