@@ -216,7 +216,7 @@ def webapp():
         <style>
             body {
                 font-family: Tahoma, sans-serif;
-                background-color: #000000; /* خلفية سوداء بالكامل */
+                background-color: #050508;
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
@@ -225,26 +225,26 @@ def webapp():
             .container {
                 max-width: 420px;
                 margin: auto;
-                background: #0d1b3e; /* أزرق غامق ملكي واضح */
+                background: #0b1329;
                 padding: 15px;
                 border-radius: 15px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.9);
-                border: 2px solid #d4af37; /* إطار ذهبي فاخر */
+                border: 2px solid #d4af37;
             }
             h2 { color: #d4af37; font-size: 20px; text-align: center; margin-top: 5px; }
             .section { display: none; }
             .section.active { display: block; }
             .card {
-                background: #000000; /* بطاقة سوداء بالكامل لتتطابق مع طلبك */
+                background: #050508;
                 padding: 14px;
                 border-radius: 12px;
                 margin: 10px 0;
                 text-align: center;
-                border: 1px solid #d4af37; /* إطار ذهبي للبطاقة */
+                border: 1px solid #d4af37;
             }
             .btn {
-                background: #d4af37; /* زر ذهبي */
-                color: #000000; /* نص أسود داخل الزر */
+                background: #d4af37;
+                color: #050508;
                 font-weight: bold;
                 border: none;
                 padding: 11px;
@@ -259,9 +259,9 @@ def webapp():
                 width: 100%;
                 padding: 10px;
                 border-radius: 6px;
-                border: 2px solid #d4af37; /* إطار ذهبي واضح */
-                background: #ffffff; /* خلفية بيضاء لحقل النص لضمان ظهور الرابط بوضوح تام */
-                color: #000000; /* نص أسود واضح داخل حقل الإحالة */
+                border: 2px solid #d4af37;
+                background: #ffffff;
+                color: #000000;
                 text-align: center;
                 margin-top: 8px;
                 box-sizing: border-box;
@@ -269,16 +269,15 @@ def webapp():
                 font-size: 13px;
             }
             input:read-only {
-                background: #f8fafc; /* خلفية فاتحة هادئة للرابط */
+                background: #f8fafc;
                 color: #0f172a;
             }
-            /* شريط التنقل السفلي باللون الأسود مع إطار ذهبي */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #000000;
+                background: #050508;
                 border-top: 2px solid #d4af37;
                 display: flex;
                 justify-content: space-around;
@@ -300,13 +299,12 @@ def webapp():
             }
             .nav-item span { display: block; font-size: 16px; }
             
-            /* شريط اختيار اللغة في الأسفل فوق التنقل مباشرة بلون أزرق غامق */
             .footer-lang-container {
                 position: fixed;
                 bottom: 55px;
                 left: 0;
                 right: 0;
-                background: #0d1b3e;
+                background: #0b1329;
                 border-top: 1px solid #d4af37;
                 padding: 6px 15px;
                 display: flex;
@@ -315,7 +313,7 @@ def webapp():
                 z-index: 99;
             }
             .footer-lang-container select {
-                background: #000000;
+                background: #050508;
                 color: #d4af37;
                 border: 1px solid #d4af37;
                 padding: 4px 12px;
@@ -334,7 +332,7 @@ def webapp():
             #network-warning {
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: #000000;
+                background: #050508;
                 z-index: 9999;
                 display: flex;
                 flex-direction: column;
@@ -347,7 +345,6 @@ def webapp():
     </head>
     <body>
 
-        <!-- شاشة حظر الواي فاي والـ VPN -->
         <div id="network-warning" style="display: none;">
             <h2 id="warn-title" style="color: #d4af37;">⚠️ Network Warning</h2>
             <p id="warn-desc" style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin: 15px 0;">
@@ -419,7 +416,6 @@ def webapp():
 
         </div>
 
-        <!-- اختيار اللغة في الأسفل تماماً -->
         <div class="footer-lang-container">
             <span style="font-size: 12px; color: #d4af37; margin-inline-end: 8px;">🌐 Language:</span>
             <select id="language-select" onchange="changeLanguage(this.value)">
@@ -435,7 +431,6 @@ def webapp():
             </select>
         </div>
 
-        <!-- شريط التنقل السفلي -->
         <div class="nav-bar">
             <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
             <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
@@ -726,7 +721,6 @@ def webapp():
             }
 
             function completeOffer() {
-                fetch('/api/complete_import', { method: 'POST' }); // Dummy check
                 fetch('/api/complete_offer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -743,7 +737,7 @@ def webapp():
                 fetch('/api/withdraw', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.`, JSON.stringify({user_id: userId})
+                    body: JSON.stringify({user_id: userId})
                 })
                 .then(res => res.json())
                 .then(data => {
