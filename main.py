@@ -38,4 +38,38 @@ def home():
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
     try:
-        json_str = request.
+        json_str = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_str)
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"WEBHOOK ERROR: {e}")
+    return 'OK', 200
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    try:
+        markup = telebot.types.InlineKeyboardMarkup()
+        web_app = telebot.types.WebAppInfo(url="http://bc.vc/Dc4Boi8")
+        webapp_button = telebot.types.InlineKeyboardButton(
+            "فتح التطبيق المصغر 🚀", 
+            web_app=web_app
+        )
+        markup.add(webapp_button)
+        
+        bot.reply_to(
+            message, 
+            "أهلاً بك يا عمر! اضغط أدناه لإتمام التحقق وفتح التطبيق المصغر:", 
+            reply_markup=markup
+        )
+    except Exception as e:
+        print(f"START HANDLER ERROR: {e}")
+
+if __name__ == '__main__':
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    except Exception as e:
+        print(f"WEBHOOK SETUP ERROR: {e}")
+        
+    port = int(os.environ.get('PORT', 10000))
+    server.run(host='0.0.0.0', port=port)
