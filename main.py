@@ -20,7 +20,8 @@ def init_db():
             balance REAL DEFAULT 0.0,
             referred_by INTEGER,
             active_referrals INTEGER DEFAULT 0,
-            trx_address TEXT DEFAULT ''
+            trx_address TEXT DEFAULT '',
+            completed_offer INTEGER DEFAULT 0
         )
     ''')
     conn.commit()
@@ -30,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot with Terms on Start is running successfully! 🚀"
+    return "TRX Bot with Advanced Referral & Wallet system is running successfully! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -42,7 +43,7 @@ def webhook():
         print(f"Error processing update: {e}", flush=True)
     return 'OK', 200
 
-# أمر /start يرسل الشروط والأحكام أولاً في المحادثة
+# أمر /start
 @bot.message_handler(commands=['start'])
 def start(message):
     try:
@@ -62,15 +63,13 @@ def start(message):
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if not cursor.fetchone():
             if referrer_id and referrer_id != user_id:
+                # التحقق أن المُحيل موجود
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
                 if cursor.fetchone():
+                    # نسجل المستخدم ونربطه بالمُحيل (لكن لا نضيفه للإحالات النشطة إلا بعد إتمام العرض)
                     cursor.execute(
                         "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
                         (user_id, username, referrer_id)
-                    )
-                    cursor.execute(
-                        "UPDATE users SET active_referrals = active_referrals + 1 WHERE user_id = ?",
-                        (referrer_id,)
                     )
                 else:
                     cursor.execute(
@@ -85,14 +84,13 @@ def start(message):
             conn.commit()
         conn.close()
 
-        # نص الشروط والأحكام الذي يظهر قبل الدخول للتطبيق
         terms_message = (
             "📜 **شروط وأحكام استخدام بوت TRX Earn:**\n\n"
             "1. يلتزم المستخدم بقوانين الاستخدام وعدم إنشاء حسابات وهمية.\n"
-            "2. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء المدعوين.\n"
-            "3. يجب التأكد من صحة عنوان محفظة TRX الخاصة بك قبل طلب السحب.\n"
-            "4. الاستمرار في استخدام البوت يعني موافقتك التامة على كافة الشروط.\n\n"
-            "اضغط على الزر أدناه للموافقة وفتح لوحة التحكم والتطبيق المصغر:"
+            "2. لا تُحتسب الإحالة نشطة إلا بعد أن يقوم الشخص المدعو **بإتمام عرض ناجح**.\n"
+            "3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء.\n"
+            "4. تأكد من عنوان محفظة TRX الخاص بك (يمكنك تعديله بأي وقت من قسم المحفظة).\n\n"
+            "اضغط على الزر أدناه للموافقة وفتح التطبيق المصغر:"
         )
 
         markup = telebot.types.InlineKeyboardMarkup()
@@ -104,12 +102,12 @@ def start(message):
     except Exception as e:
         print(f"Error in start handler: {e}", flush=True)
 
-# --- مسارات الـ API والتطبيق المصغر ---
+# --- مسارات الـ API للتطبيق المصغر ---
 @server.route('/api/user/<int:user_id>')
 def get_user_data(user_id):
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("SELECT balance, active_referrals, trx_address FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT balance, active_referrals, trx_address, completed_offer FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     
     if not row:
@@ -118,8 +116,9 @@ def get_user_data(user_id):
         balance = 0.0
         active_referrals = 0
         trx_address = ""
+        completed_offer = 0
     else:
-        balance, active_referrals, trx_address = row
+        balance, active_referrals, trx_address, completed_offer = row
     conn.close()
 
     bot_info = bot.get_me()
@@ -130,9 +129,11 @@ def get_user_data(user_id):
         "balance": balance,
         "active_referrals": active_referrals,
         "ref_link": ref_link,
-        "trx_address": trx_address or ""
+        "trx_address": trx_address or "",
+        "completed_offer": completed_offer
     })
 
+# تحديث وتغيير عنوان المحفظة (إذا خربط فيه المستخدم يقدر يعدله بأي وقت)
 @server.route('/api/update_address', methods=['POST'])
 def update_address():
     data = request.json
@@ -146,7 +147,44 @@ def update_address():
     cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
     conn.commit()
     conn.close()
-    return jsonify({"success": True, "message": "تم حفظ عنوان المحفظة بنجاح!"})
+    return jsonify({"success": True, "message": "تم تحديث وحفظ عنوان المحفظة بنجاح!"})
+
+# محاكاة إتمام العرض الناجح (لتفعيل الإحالة وزيادة عداد المُحيل)
+@server.route('/api/complete_offer', methods=['POST'])
+def complete_offer():
+    data = request.json
+    user_id = data.get('user_id')
+    
+    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    cursor = conn.cursor()
+    
+    # فحص إذا كان المستخدم قد أتم العرض مسبقاً
+    cursor.execute("SELECT completed_offer, referred_by FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return jsonify({"success": False, "message": "المستخدم غير موجود"})
+    
+    completed_offer, referred_by = row
+    if completed_offer == 1:
+        conn.close()
+        return jsonify({"success": False, "message": "لقد قمت بإتمام العرض مسبقاً!"})
+    
+    # تحديث حالة المستخدم أنه أتم العرض وزيادة رصيد تجريبي مثلاً
+    cursor.execute("UPDATE users SET completed_offer = 1, balance = balance + 1.0 WHERE user_id = ?", (user_id,))
+    
+    # إذا كان لديه مُحيل ولم يحتسب بعد، نزيد عدد الإحالات النشطة للمُحيل
+    if referred_by:
+        cursor.execute(
+            "UPDATE users SET active_referrals = active_referrals + 1 WHERE user_id = ?",
+            (referred_by,)
+        )
+        
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"success": True, "message": "تهانينا! تم التحقق وإتمام العرض بنجاح، وإضافة المكافأة لرصيدك!"})
 
 @server.route('/api/withdraw', methods=['POST'])
 def withdraw():
@@ -177,6 +215,7 @@ def withdraw():
     
     return jsonify({"success": True, "message": "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريبًا!"})
 
+# --- واجهة التطبيق المصغر ---
 @server.route('/webapp')
 def webapp():
     html_content = """
@@ -286,9 +325,9 @@ def webapp():
 
             <div id="tab-ref" class="section">
                 <div class="card">
-                    <h3>نظام الإحالات الأبدي (3%)</h3>
-                    <p>الإحالات النشطة: <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
-                    <p style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح أصدقائك للأبد:</p>
+                    <h3>👥 نظام الإحالات النشطة (3%)</h3>
+                    <p>عدد إحالاتك النشطة (التي أكملت العروض): <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
+                    <p style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح للأبد (لا تُسحب الإحالة إلا بعد إتمام أصدقائك للعرض):</p>
                     <input type="text" id="ref-link" readonly onclick="this.select();">
                     <button class="btn" onclick="copyRefLink()">نسخ رابط الإحالة 🔗</button>
                 </div>
@@ -297,24 +336,25 @@ def webapp():
             <div id="tab-offers" class="section">
                 <div class="card">
                     <h3>🎯 عروض تجميع النقاط</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">قم بإتمام المهام والعروض أدناه لزيادة رصيدك:</p>
-                    <button class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">فتح عرض التحقق والربح 🚀</button>
+                    <p style="font-size: 13px; color: #cbd5e1;">قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:</p>
+                    <button class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">فتح رابط العرض 🚀</button>
+                    <button class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">تأكيد إتمام العرض ✅</button>
                 </div>
             </div>
 
             <div id="tab-wallet" class="section">
                 <div class="card">
-                    <h3>💳 إدارة محفظة السحب</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">أدخل عنوان محفظة TRX الخاصة بك لتتمكن من السحب عليها:</p>
-                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX هنا...">
-                    <button class="btn" onclick="saveAddress()">حفظ العنوان 💾</button>
+                    <h3>💳 تعديل وإدارة المحفظة</h3>
+                    <p style="font-size: 13px; color: #94a3b8;">إذا خربطت في العنوان، يمكنك تعديله وإدخال عنوان TRX الصحيح هنا:</p>
+                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX الصحيح...">
+                    <button class="btn" onclick="saveAddress()">تحديث / حفظ العنوان 💾</button>
                 </div>
             </div>
 
             <div id="tab-withdraw" class="section">
                 <div class="card">
                     <h3>💸 سحب الأرباح</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل:</p>
+                    <p style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
                     <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all;"></p>
                     <button class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
                 </div>
@@ -324,10 +364,10 @@ def webapp():
                 <div class="card">
                     <h3>📜 الشروط والأحكام</h3>
                     <div class="terms-text">
-                        1. يلتزم المستخدم بقوانين الاستخدام وعدم استنساخ الحسابات الوهمية.<br>
-                        2. نسبة الإحالة (3%) تُحتسب وتُضاف للأبد بناءً على نشاط الإحالات النشطة.<br>
-                        3. يجب التأكد من صحة عنوان محفظة TRX قبل طلب السحب، فالإدارة غير مسؤولة عن العناوين الخاطئة.<br>
-                        4. يحق لإدارة البوت تعديل أو تحديث القوانين والشروط في أي وقت لضمان استمرارية المنصة.
+                        1. لا تُحتسب الإحالة نشطة وتضاف لمجموعك إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
+                        2. نسبة الإحالة (3%) تُحتسب وتُضاف للأبد بناءً على نشاط الإحالات.<br>
+                        3. يمكنك تعديل عنوان محفظة TRX في قسم المحفظة بأي وقت إذا قمت بخطأ فيه.<br>
+                        4. يمنع منعاً باتاً استخدام الحسابات الوهمية لتجنب الحظر النهائي.
                     </div>
                 </div>
             </div>
@@ -355,13 +395,10 @@ def webapp():
                 document.getElementById('welcome').innerText = "وضع المعاينة التجريبي";
             }
 
-            let globalData = {};
-
             function loadUserData() {
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
                     .then(data => {
-                        globalData = data;
                         document.getElementById('balance-val').innerText = data.balance.toFixed(2) + " TRX";
                         document.getElementById('ref-count').innerText = data.active_referrals;
                         document.getElementById('ref-link').value = data.ref_link;
@@ -400,6 +437,19 @@ def webapp():
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({user_id: userId, address: address})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    loadUserData();
+                });
+            }
+
+            function completeOffer() {
+                fetch('/api/complete_offer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user_id: userId})
                 })
                 .then(res => res.json())
                 .then(data => {
