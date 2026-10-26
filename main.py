@@ -1,12 +1,11 @@
 import os
-from flask import Flask, request
+import threading
+from flask import Flask
 import telebot
 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
-
-RENDER_URL = "https://trx-bot-e61j.onrender.com"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -35,16 +34,6 @@ HTML_TEMPLATE = """
 def home():
     return HTML_TEMPLATE
 
-@server.route('/' + TOKEN, methods=['POST'])
-def webhook():
-    try:
-        json_str = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_str)
-        bot.process_new_updates([update])
-    except Exception as e:
-        print(f"WEBHOOK ERROR: {e}")
-    return 'OK', 200
-
 @bot.message_handler(commands=['start'])
 def start(message):
     try:
@@ -62,14 +51,22 @@ def start(message):
             reply_markup=markup
         )
     except Exception as e:
-        print(f"START HANDLER ERROR: {e}")
+        print(f"START ERROR: {e}")
+
+def run_bot():
+    try:
+        # إلغاء أي ويب هوك قديم لمنع التعارض نهائياً
+        bot.remove_webhook()
+        print("Bot started polling...")
+        bot.infinity_polling(skip_pending=True)
+    except Exception as e:
+        print(f"Polling error: {e}")
 
 if __name__ == '__main__':
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    except Exception as e:
-        print(f"WEBHOOK SETUP ERROR: {e}")
-        
+    # تشغيل البوت في خلفية السيرفر ليعمل بشكل دائم وسلس
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
+    
     port = int(os.environ.get('PORT', 10000))
     server.run(host='0.0.0.0', port=port)
