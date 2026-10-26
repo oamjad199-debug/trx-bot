@@ -30,7 +30,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot & Mini App with Full Menu is running successfully! 🚀"
+    return "TRX Bot with Terms on Start is running successfully! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -42,7 +42,7 @@ def webhook():
         print(f"Error processing update: {e}", flush=True)
     return 'OK', 200
 
-# أمر /start النظيف
+# أمر /start يرسل الشروط والأحكام أولاً في المحادثة
 @bot.message_handler(commands=['start'])
 def start(message):
     try:
@@ -85,20 +85,26 @@ def start(message):
             conn.commit()
         conn.close()
 
+        # نص الشروط والأحكام الذي يظهر قبل الدخول للتطبيق
+        terms_message = (
+            "📜 **شروط وأحكام استخدام بوت TRX Earn:**\n\n"
+            "1. يلتزم المستخدم بقوانين الاستخدام وعدم إنشاء حسابات وهمية.\n"
+            "2. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء المدعوين.\n"
+            "3. يجب التأكد من صحة عنوان محفظة TRX الخاصة بك قبل طلب السحب.\n"
+            "4. الاستمرار في استخدام البوت يعني موافقتك التامة على كافة الشروط.\n\n"
+            "اضغط على الزر أدناه للموافقة وفتح لوحة التحكم والتطبيق المصغر:"
+        )
+
         markup = telebot.types.InlineKeyboardMarkup()
         web_app = telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")
-        webapp_button = telebot.types.InlineKeyboardButton("فتح التطبيق المصغر 🚀", web_app=web_app)
+        webapp_button = telebot.types.InlineKeyboardButton("أوافق وفتح التطبيق المصغر 🚀", web_app=web_app)
         markup.add(webapp_button)
         
-        bot.reply_to(
-            message, 
-            "أهلاً بك يا عمر في بوت مكافآت TRX! 🚀\nاضغط على الزر أدناه لفتح لوحة التحكم والقوائم الكاملة:", 
-            reply_markup=markup
-        )
+        bot.reply_to(message, terms_message, parse_mode="Markdown", reply_markup=markup)
     except Exception as e:
         print(f"Error in start handler: {e}", flush=True)
 
-# --- مسارات الـ API للتطبيق المصغر ---
+# --- مسارات الـ API والتطبيق المصغر ---
 @server.route('/api/user/<int:user_id>')
 def get_user_data(user_id):
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
@@ -171,7 +177,6 @@ def withdraw():
     
     return jsonify({"success": True, "message": "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريبًا!"})
 
-# --- واجهة التطبيق المصغر المتكاملة مع القوائم ---
 @server.route('/webapp')
 def webapp():
     html_content = """
@@ -232,7 +237,6 @@ def webapp():
                 margin-top: 8px;
                 box-sizing: border-box;
             }
-            /* شريط التنقل السفلي */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
@@ -272,7 +276,6 @@ def webapp():
             <h2 id="page-title">💰 الرصيد</h2>
             <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
 
-            <!-- قسم الرصيد -->
             <div id="tab-balance" class="section active">
                 <div class="card">
                     <h3>رصيدك الحالي من TRX</h3>
@@ -281,7 +284,6 @@ def webapp():
                 </div>
             </div>
 
-            <!-- قسم الإحالة -->
             <div id="tab-ref" class="section">
                 <div class="card">
                     <h3>نظام الإحالات الأبدي (3%)</h3>
@@ -292,7 +294,6 @@ def webapp():
                 </div>
             </div>
 
-            <!-- قسم العروض -->
             <div id="tab-offers" class="section">
                 <div class="card">
                     <h3>🎯 عروض تجميع النقاط</h3>
@@ -301,7 +302,6 @@ def webapp():
                 </div>
             </div>
 
-            <!-- قسم المحفظة -->
             <div id="tab-wallet" class="section">
                 <div class="card">
                     <h3>💳 إدارة محفظة السحب</h3>
@@ -311,7 +311,6 @@ def webapp():
                 </div>
             </div>
 
-            <!-- قسم السحب -->
             <div id="tab-withdraw" class="section">
                 <div class="card">
                     <h3>💸 سحب الأرباح</h3>
@@ -321,7 +320,6 @@ def webapp():
                 </div>
             </div>
 
-            <!-- قسم الشروط والأحكام -->
             <div id="tab-terms" class="section">
                 <div class="card">
                     <h3>📜 الشروط والأحكام</h3>
@@ -336,7 +334,6 @@ def webapp():
 
         </div>
 
-        <!-- شريط التنقل السفلي للقوائم -->
         <div class="nav-bar">
             <button class="nav-item active" onclick="switchTab('balance', '💰 الرصيد', this)"><span>💰</span>الرصيد</button>
             <button class="nav-item" onclick="switchTab('ref', '👥 الإحالات', this)"><span>👥</span>الإحالة</button>
