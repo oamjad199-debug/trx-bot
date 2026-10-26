@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Luxury Bot is running perfectly! 🚀"
+    return "TRX Bot is running! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -216,7 +216,7 @@ def webapp():
         <style>
             body {
                 font-family: Tahoma, sans-serif;
-                background-color: #050508;
+                background-color: #0f172a;
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
@@ -225,63 +225,59 @@ def webapp():
             .container {
                 max-width: 420px;
                 margin: auto;
-                background: #0b1329;
+                background: #1e293b;
                 padding: 15px;
                 border-radius: 15px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.9);
-                border: 2px solid #d4af37;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             }
-            h2 { color: #d4af37; font-size: 20px; text-align: center; margin-top: 5px; }
+            h2 { color: #38bdf8; font-size: 20px; text-align: center; }
             .section { display: none; }
             .section.active { display: block; }
             .card {
-                background: #050508;
-                padding: 14px;
-                border-radius: 12px;
+                background: #334155;
+                padding: 12px;
+                border-radius: 10px;
                 margin: 10px 0;
                 text-align: center;
-                border: 1px solid #d4af37;
             }
             .btn {
-                background: #d4af37;
-                color: #050508;
-                font-weight: bold;
+                background: #0284c7;
+                color: white;
                 border: none;
-                padding: 11px;
+                padding: 10px;
                 border-radius: 8px;
                 cursor: pointer;
                 font-size: 15px;
                 width: 100%;
                 margin-top: 8px;
             }
-            .btn:active { opacity: 0.9; }
+            .btn:active { background: #0369a1; }
             input {
                 width: 100%;
                 padding: 10px;
-                border-radius: 6px;
-                border: 2px solid #d4af37;
-                background: #ffffff;
-                color: #000000;
+                border-radius: 5px;
+                border: 1px solid #475569;
+                background: #0f172a;
+                color: white;
                 text-align: center;
                 margin-top: 8px;
                 box-sizing: border-box;
-                font-weight: bold;
-                font-size: 13px;
             }
             input:read-only {
-                background: #f8fafc;
-                color: #0f172a;
+                background: #1e293b;
+                color: #ffffff;
+                border-color: #475569;
             }
             .nav-bar {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #050508;
-                border-top: 2px solid #d4af37;
+                background: #0f172a;
+                border-top: 1px solid #334155;
                 display: flex;
                 justify-content: space-around;
-                padding: 6px 0;
+                padding: 8px 0;
                 z-index: 100;
             }
             .nav-item {
@@ -294,7 +290,7 @@ def webapp():
                 flex: 1;
             }
             .nav-item.active {
-                color: #d4af37;
+                color: #38bdf8;
                 font-weight: bold;
             }
             .nav-item span { display: block; font-size: 16px; }
@@ -304,8 +300,8 @@ def webapp():
                 bottom: 55px;
                 left: 0;
                 right: 0;
-                background: #0b1329;
-                border-top: 1px solid #d4af37;
+                background: #1e293b;
+                border-top: 1px solid #334155;
                 padding: 6px 15px;
                 display: flex;
                 justify-content: center;
@@ -313,14 +309,13 @@ def webapp():
                 z-index: 99;
             }
             .footer-lang-container select {
-                background: #050508;
-                color: #d4af37;
-                border: 1px solid #d4af37;
-                padding: 4px 12px;
+                background: #0f172a;
+                color: white;
+                border: 1px solid #475569;
+                padding: 4px 10px;
                 border-radius: 6px;
                 cursor: pointer;
                 font-size: 12px;
-                font-weight: bold;
             }
 
             .terms-text {
@@ -332,7 +327,7 @@ def webapp():
             #network-warning {
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: #050508;
+                background: rgba(15, 23, 42, 0.95);
                 z-index: 9999;
                 display: flex;
                 flex-direction: column;
@@ -346,29 +341,29 @@ def webapp():
     <body>
 
         <div id="network-warning" style="display: none;">
-            <h2 id="warn-title" style="color: #d4af37;">⚠️ Network Warning</h2>
+            <h2 id="warn-title" style="color: #ef4444;">⚠️ Network Warning</h2>
             <p id="warn-desc" style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin: 15px 0;">
                 Wi-Fi or VPN usage is strictly prohibited. Please use your Mobile Data only to proceed.
             </p>
-            <button class="btn" onclick="checkNetwork()">Re-check 🔄</button>
+            <button class="btn" style="background: #e11d48;" onclick="checkNetwork()">Re-check 🔄</button>
         </div>
 
         <div class="container">
             <h2 id="page-title">💰 Balance</h2>
-            <p id="welcome" style="text-align:center; font-size: 13px; color: #d4af37;"></p>
+            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
 
             <div id="tab-balance" class="section active">
                 <div class="card">
-                    <h3 id="txt-bal-title" style="color: #d4af37;">Your Current TRX Balance</h3>
-                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #d4af37;">0.0 TRX</p>
+                    <h3 id="txt-bal-title">Your Current TRX Balance</h3>
+                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">Continuous earning allows instant withdrawal upon reaching the minimum limit.</p>
                 </div>
             </div>
 
             <div id="tab-ref" class="section">
                 <div class="card">
-                    <h3 id="txt-ref-title" style="color: #d4af37;">👥 Active Referral System (3%)</h3>
-                    <p><span id="txt-ref-count-label" style="color: #ffffff;">Active Referrals:</span> <span id="ref-count" style="color: #d4af37; font-weight: bold;">0</span></p>
+                    <h3 id="txt-ref-title">👥 Active Referral System (3%)</h3>
+                    <p><span id="txt-ref-count-label">Active Referrals:</span> <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
                     <p id="txt-ref-desc" style="font-size: 13px; color: #94a3b8;">Share your link and earn 3% lifetime profits:</p>
                     <input type="text" id="ref-link" readonly onclick="this.select();">
                     <button id="txt-copy-btn" class="btn" onclick="copyRefLink()">Copy Referral Link 🔗</button>
@@ -377,34 +372,34 @@ def webapp():
 
             <div id="tab-offers" class="section">
                 <div class="card">
-                    <h3 id="txt-offer-title" style="color: #d4af37;">🎯 Point Earning Offers</h3>
+                    <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    <button id="txt-open-offer" class="btn" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">Open Offer 🚀</button>
-                    <button id="txt-confirm-offer" class="btn" style="margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
+                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">Open Offer 🚀</button>
+                    <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
             </div>
 
             <div id="tab-wallet" class="section">
                 <div class="card">
-                    <h3 id="txt-wallet-title" style="color: #d4af37;">💳 Wallet Management</h3>
+                    <h3 id="txt-wallet-title">💳 Wallet Management</h3>
                     <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">Enter your TRX wallet address:</p>
-                    <input type="text" id="trx-input" placeholder="Enter TRX address here..." style="background: #ffffff; color: #000000;">
+                    <input type="text" id="trx-input" placeholder="Enter TRX address here...">
                     <button id="wallet-btn" class="btn" onclick="handleWalletAction()">Save Address 💾</button>
                 </div>
             </div>
 
             <div id="tab-withdraw" class="section">
                 <div class="card">
-                    <h3 id="txt-withdraw-title" style="color: #d4af37;">💸 Withdraw Earnings</h3>
+                    <h3 id="txt-withdraw-title">💸 Withdraw Earnings</h3>
                     <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">Registered Wallet Address:</p>
-                    <p id="current-address" style="font-size: 12px; color: #d4af37; word-break: break-all;"></p>
-                    <button id="txt-withdraw-btn" class="btn" onclick="requestWithdraw()">Confirm Withdrawal 🚀</button>
+                    <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all;"></p>
+                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">Confirm Withdrawal 🚀</button>
                 </div>
             </div>
 
             <div id="tab-terms" class="section">
                 <div class="card">
-                    <h3 id="txt-terms-title" style="color: #d4af37;">📜 Terms & Conditions</h3>
+                    <h3 id="txt-terms-title">📜 Terms & Conditions</h3>
                     <div id="txt-terms-content" class="terms-text">
                         1. Using Wi-Fi or VPN is strictly prohibited.<br>
                         2. Referrals are active only after the invited user completes an offer.<br>
@@ -417,7 +412,7 @@ def webapp():
         </div>
 
         <div class="footer-lang-container">
-            <span style="font-size: 12px; color: #d4af37; margin-inline-end: 8px;">🌐 Language:</span>
+            <span style="font-size: 12px; color: #94a3b8; margin-inline-end: 8px;">🌐 Language:</span>
             <select id="language-select" onchange="changeLanguage(this.value)">
                 <option value="en">🇬🇧 English</option>
                 <option value="es">🇪🇸 Español</option>
