@@ -117,7 +117,6 @@ def get_user_data(user_id):
         balance, active_referrals, trx_address, completed_offer = row
     conn.close()
 
-    # استبدل TRXEarnBot بمعرف بوتك الفعلي على تيليجرام إن أردت للتأكد تماماً
     bot_username = "TRXEarnBot"
     try:
         bot_info = bot.get_me()
@@ -228,7 +227,7 @@ def webapp():
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
-                padding-bottom: 110px;
+                padding-bottom: 125px;
             }
             .container {
                 max-width: 420px;
@@ -309,7 +308,7 @@ def webapp():
             
             .footer-lang-container {
                 position: fixed;
-                bottom: 55px;
+                bottom: 50px;
                 left: 0;
                 right: 0;
                 background: #1e293b;
@@ -521,7 +520,7 @@ def webapp():
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
                     termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi أو VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
