@@ -21,13 +21,12 @@ HTML_TEMPLATE = """
         .card { background: #1e293b; padding: 25px; border-radius: 12px; display: inline-block; width: 85%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         h2 { color: #38bdf8; }
         p { color: #94a3b8; line-height: 1.6; }
-        .btn { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #38bdf8; color: #0f172a; text-decoration: none; border-radius: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>تطبيق أرباح TRX 🚀</h2>
-        <p>أهلاً بك يا عمر! تم التحقق بنجاح. يمكنك الآن البدء وتصفح الأرباح.</p>
+        <p>أهلاً بك يا عمر! تم التحقق بنجاح، يمكنك الآن متابعة الأرباح.</p>
     </div>
 </body>
 </html>
@@ -41,25 +40,18 @@ def home():
 def start(message):
     markup = telebot.types.InlineKeyboardMarkup()
     
-    # 1. زر التحقق (رابط التحقق الخاص بك)
-    verify_button = telebot.types.InlineKeyboardButton(
-        "تحقق أنك إنسان 🤖", 
-        url="http://bc.vc/GnhfJyX"
-    )
-    
-    # 2. زر فتح التطبيق المصغر (تأكد أن الرابط أدناه مطابق لرابط مشروعك الفعلي على رندر)
-    web_app = telebot.types.WebAppInfo(url="https://trx-earn-bot-1.onrender.com")
+    # ربط زر التطبيق المصغر بالرابط الجديد مباشرة أو برابط الـ Web App المطلوب
+    web_app = telebot.types.WebAppInfo(url="http://bc.vc/Dc4Boi8")
     webapp_button = telebot.types.InlineKeyboardButton(
         "فتح التطبيق المصغر 🚀", 
         web_app=web_app
     )
     
-    markup.add(verify_button)
     markup.add(webapp_button)
     
     bot.reply_to(
         message, 
-        "أهلاً بك يا عمر! يرجى إتمام التحقق أولاً عبر الرابط، ثم افتح التطبيق المصغر:", 
+        "أهلاً بك يا عمر! اضغط أدناه لإتمام التحقق وفتح التطبيق المصغر:", 
         reply_markup=markup
     )
 
