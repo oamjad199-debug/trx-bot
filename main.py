@@ -227,7 +227,7 @@ def webapp():
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
-                padding-bottom: 130px;
+                padding-bottom: 135px;
             }
             .container {
                 max-width: 420px;
@@ -274,11 +274,14 @@ def webapp():
                 background: #ffffff !important;
                 color: #0f172a !important;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 11px;
+                direction: ltr !important;
+                text-align: center !important;
             }
             input:read-only {
                 border-color: #475569;
             }
+            /* شريط التنقل السفلي ليحتوي الـ 6 خيارات بانتظام */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
@@ -287,24 +290,27 @@ def webapp():
                 background: #0f172a;
                 border-top: 1px solid #334155;
                 display: flex;
-                justify-content: space-around;
-                padding: 8px 0;
+                justify-content: space-between;
+                padding: 6px 2px;
                 z-index: 100;
             }
             .nav-item {
                 background: none;
                 border: none;
                 color: #94a3b8;
-                font-size: 10px;
+                font-size: 9px;
                 cursor: pointer;
                 text-align: center;
                 flex: 1;
+                padding: 0 1px;
+                white-space: nowrap;
+                overflow: hidden;
             }
             .nav-item.active {
                 color: #38bdf8;
                 font-weight: bold;
             }
-            .nav-item span { display: block; font-size: 16px; }
+            .nav-item span { display: block; font-size: 14px; margin-bottom: 2px; }
             
             .footer-lang-container {
                 position: fixed;
@@ -313,7 +319,7 @@ def webapp():
                 right: 0;
                 background: #1e293b;
                 border-top: 1px solid #334155;
-                padding: 6px 15px;
+                padding: 5px 15px;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -323,10 +329,10 @@ def webapp():
                 background: #0f172a;
                 color: white;
                 border: 1px solid #475569;
-                padding: 4px 10px;
+                padding: 3px 8px;
                 border-radius: 6px;
                 cursor: pointer;
-                font-size: 12px;
+                font-size: 11px;
             }
 
             .terms-text {
@@ -423,7 +429,7 @@ def webapp():
         </div>
 
         <div class="footer-lang-container">
-            <span style="font-size: 12px; color: #94a3b8; margin-inline-end: 8px;">🌐 Language:</span>
+            <span style="font-size: 11px; color: #94a3b8; margin-inline-end: 6px;">🌐 Language:</span>
             <select id="language-select" onchange="changeLanguage(this.value)">
                 <option value="en">🇬🇧 English</option>
                 <option value="es">🇪🇸 Español</option>
@@ -437,6 +443,7 @@ def webapp():
             </select>
         </div>
 
+        <!-- الشريط السفلي يضم الخيارات الستة بالكامل -->
         <div class="nav-bar">
             <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
             <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
@@ -476,8 +483,8 @@ def webapp():
                     offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Abrir Oferta 🚀", confirmOffer: "Confirmar Oferta ✅",
                     walletTitle: "💳 Gestión de Billetera", walletDesc: "Ingresa tu dirección de billetera TRX:", walletPlaceholder: "Ingresa TRX aquí...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar Cambios 💾", walletSavedDesc: "Dirección guardada actual:",
                     withdrawTitle: "💸 Retirar Ganancias", walletLabel: "Dirección registrada:", noAddress: "¡Aún no hay dirección!", withdrawBtn: "Confirmar Retiro 🚀",
-                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi أو VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
-                    warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi أو VPN está prohibido! Usa tus datos móviles (Mobile Data).",
+                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi o VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
+                    warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi o VPN está prohibido! Usa tus datos móviles (Mobile Data).",
                     navBal: "Saldo", navRef: "Referidos", navOffers: "Ofertas", navWallet: "Billetera", navWithdraw: "Retirar", navTerms: "Términos"
                 },
                 de: { 
@@ -501,7 +508,7 @@ def webapp():
                     walletTitle: "💳 Gestion du portefeuille", walletDesc: "Entrez votre adresse TRX :", walletPlaceholder: "Entrez l'adresse TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse enregistrée :",
                     withdrawTitle: "💸 Retirer les gains", walletLabel: "Adresse enregistrée :", noAddress: "Aucune adresse !", withdrawBtn: "Confirmer le retrait 🚀",
                     termsTitle: "📜 Conditions Générales", termsContent: "1. L'utilisation du Wi-Fi ou d'un VPN est interdite.<br>2. Les parrainages sont actifs après une offre.<br>3. Bonus de 3% à vie.<br>4. Modifiez votre portefeuille à tout moment.",
-                    warnTitle: "⚠️ Alerte Réseau", warnDesc: "Le Wi-Fi et les VPN sont interdits ! Utilisez vos données mobiles (Mobile Data).",
+                    warnTitle: "⚠️ Alerte Réseau", warnDesc: "Le Wi-Fi ou les VPN sont interdits ! Utilisez vos données mobiles (Mobile Data).",
                     navBal: "Solde", navRef: "Parrainage", navOffers: "Offres", navWallet: "Portefeuille", navWithdraw: "Retirer", navTerms: "Termes"
                 },
                 ru: { 
@@ -513,7 +520,7 @@ def webapp():
                     walletTitle: "💳 Управление кошельком", walletDesc: "Введите адрес вашего TRX кошелька:", walletPlaceholder: "Введите TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Текущий адрес:",
                     withdrawTitle: "💸 Вывод средств", walletLabel: "Зарегистрированный адрес:", noAddress: "Адрес не добавлен!", withdrawBtn: "Подтвердить вывод 🚀",
                     termsTitle: "📜 Условия использования", termsContent: "1. Использование Wi-Fi или VPN строго запрещено.<br>2. Рефералы активируются после выполнения оффера.<br>3. 3% бонус навсегда.<br>4. Изменяйте кошелек в любое время.",
-                    warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi یا VPN запрещено! Используйте мобильные данные (Mobile Data).",
+                    warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi или VPN запрещено! Используйте мобильные данные (Mobile Data).",
                     navBal: "Баланс", navRef: "Рефералы", navOffers: "Офферы", navWallet: "Кошелек", navWithdraw: "Вывод", navTerms: "Условия"
                 },
                 pt: { 
@@ -525,7 +532,7 @@ def webapp():
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
                     termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi یا VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
@@ -537,7 +544,7 @@ def webapp():
                     walletTitle: "💳 Portemonnee Beheer", walletDesc: "Voer je TRX adres in:", walletPlaceholder: "Voer TRX adres in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Huidig adres:",
                     withdrawTitle: "💸 Saldo Opnemen", walletLabel: "Geregistreerd adres:", noAddress: "Geen adres toegevoegd!", withdrawBtn: "Bevestig Opname 🚀",
                     termsTitle: "📜 Voorwaarden", termsContent: "1. Wi-Fi of VPN gebruik is streng verboden.<br>2. Referrals zijn actief na voltooiing.<br>3. 3% levenslange bonus.<br>4. Wijzig je wallet wanneer je wilt.",
-                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi یا VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
+                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi of VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
                     navBal: "Saldo", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Opnemen", navTerms: "Voorwaarde"
                 },
                 pl: { 
@@ -549,7 +556,7 @@ def webapp():
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
                     withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowany adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
                     termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi lub VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
-                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi یا VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
+                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
                 },
                 ar: { 
@@ -748,7 +755,7 @@ def webapp():
                 .then(res => res.json())
                 .then(data => {
                     alert(data.message);
-                    loadUserData.loadUserData();
+                    loadUserData();
                 });
             }
         </script>
