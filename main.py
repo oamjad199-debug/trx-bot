@@ -219,6 +219,8 @@ def webapp():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TRX Earn Mini App</title>
+        <!-- كود Monetag SDK الذي أرسلته -->
+        <script src='//libtl.com/sdk.js' data-zone='12130531' data-sdk='show_12130531'></script>
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
             body {
@@ -281,7 +283,6 @@ def webapp():
             input:read-only {
                 border-color: #475569;
             }
-            /* شريط التنقل السفلي ليحتوي الـ 6 خيارات بانتظام */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
@@ -391,7 +392,8 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">Open Offer 🚀</button>
+                    <!-- تم ربط زر فتح العرض بعرض إعلان المكافأة الذي أرسلته -->
+                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="watchAdAndComplete()">Watch Ad & Earn 🚀</button>
                     <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
             </div>
@@ -443,7 +445,6 @@ def webapp():
             </select>
         </div>
 
-        <!-- الشريط السفلي يضم الخيارات الستة بالكامل -->
         <div class="nav-bar">
             <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
             <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
@@ -468,7 +469,7 @@ def webapp():
                     welcome: "Welcome: ", preview: "Preview Mode",
                     balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
                     refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
-                    offerTitle: "🎯 Point Earning Offers", offerDesc: "Complete the verification offer below to make your referral active:", openOffer: "Open Offer 🚀", confirmOffer: "Confirm Completion ✅",
+                    offerTitle: "🎯 Point Earning Offers", offerDesc: "Complete the verification offer below to make your referral active:", openOffer: "Watch Ad & Earn 🚀", confirmOffer: "Confirm Completion ✅",
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime.",
@@ -480,7 +481,7 @@ def webapp():
                     welcome: "Bienvenido: ", preview: "Modo de Vista Previa",
                     balTitle: "Tu Saldo Actual de TRX", balDesc: "Las ganancias continuas permiten el retiro instantáneo al alcanzar el mínimo.",
                     refTitle: "👥 Sistema de Referidos Activos (3%)", refCountLbl: "Referidos Activos:", refDesc: "Comparte tu enlace y gana 3% de por vida:", copyBtn: "Copiar Enlace 🔗",
-                    offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Abrir Oferta 🚀", confirmOffer: "Confirmar Oferta ✅",
+                    offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Ver Anuncio y Ganar 🚀", confirmOffer: "Confirmar Oferta ✅",
                     walletTitle: "💳 Gestión de Billetera", walletDesc: "Ingresa tu dirección de billetera TRX:", walletPlaceholder: "Ingresa TRX aquí...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar Cambios 💾", walletSavedDesc: "Dirección guardada actual:",
                     withdrawTitle: "💸 Retirar Ganancias", walletLabel: "Dirección registrada:", noAddress: "¡Aún no hay dirección!", withdrawBtn: "Confirmar Retiro 🚀",
                     termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi o VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
@@ -492,7 +493,7 @@ def webapp():
                     welcome: "Willkommen: ", preview: "Vorschau-Modus",
                     balTitle: "Ihr aktuelles TRX-Guthaben", balDesc: "Kontinuierliches Verdienen ermöglicht sofortige Auszahlung.",
                     refTitle: "👥 Aktives Empfehlungssystem (3%)", refCountLbl: "Aktive Empfehlungen:", refDesc: "Teilen Sie Ihren Link und verdienen Sie 3%:", copyBtn: "Link kopieren 🔗",
-                    offerTitle: "🎯 Punkte-Angebote", offerDesc: "Schließen Sie das Verifizierungsangebot ab:", openOffer: "Angebot öffnen 🚀", confirmOffer: "Bestätigen ✅",
+                    offerTitle: "🎯 Punkte-Angebote", offerDesc: "Schließen Sie das Verifizierungsangebot ab:", openOffer: "Anzeige ansehen 🚀", confirmOffer: "Bestätigen ✅",
                     walletTitle: "💳 Wallet-Verwaltung", walletDesc: "Geben Sie Ihre TRX-Adresse ein:", walletPlaceholder: "TRX-Adresse eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Änderung speichern 💾", walletSavedDesc: "Aktuelle Adresse:",
                     withdrawTitle: "💸 Guthaben auszahlen", walletLabel: "Registrierte Adresse:", noAddress: "Keine Adresse hinzugefügt!", withdrawBtn: "Auszahlung bestätigen 🚀",
                     termsTitle: "📜 Geschäftsbedingungen", termsContent: "1. WLAN oder VPN ist strengstens verboten.<br>2. Empfehlungen gelten nach erfolgreichem Angebot.<br>3. 3% Bonus auf Lebenszeit.<br>4. Wallet jederzeit änderbar.",
@@ -504,7 +505,7 @@ def webapp():
                     welcome: "Bienvenue : ", preview: "Mode Aperçu",
                     balTitle: "Votre solde TRX actuel", balDesc: "Gagnez et retirez instantanément.",
                     refTitle: "👥 Système de parrainage (3%)", refCountLbl: "Filleuls actifs :", refDesc: "Partagez votre lien et gagnez 3% à vie :", copyBtn: "Copier le lien 🔗",
-                    offerTitle: "🎯 Offres de points", offerDesc: "Complétez l'offre de vérification ci-dessous :", openOffer: "Ouvrir l'offre 🚀", confirmOffer: "Confirmer ✅",
+                    offerTitle: "🎯 Offres de points", offerDesc: "Complétez l'offre de vérification ci-dessous :", openOffer: "Voir l'annonce 🚀", confirmOffer: "Confirmer ✅",
                     walletTitle: "💳 Gestion du portefeuille", walletDesc: "Entrez votre adresse TRX :", walletPlaceholder: "Entrez l'adresse TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse enregistrée :",
                     withdrawTitle: "💸 Retirer les gains", walletLabel: "Adresse enregistrée :", noAddress: "Aucune adresse !", withdrawBtn: "Confirmer le retrait 🚀",
                     termsTitle: "📜 Conditions Générales", termsContent: "1. L'utilisation du Wi-Fi ou d'un VPN est interdite.<br>2. Les parrainages sont actifs après une offre.<br>3. Bonus de 3% à vie.<br>4. Modifiez votre portefeuille à tout moment.",
@@ -516,7 +517,7 @@ def webapp():
                     welcome: "Добро пожаловать: ", preview: "Режим предпросмотра",
                     balTitle: "Ваш текущий баланс TRX", balDesc: "Накапливайте и выводите мгновенно.",
                     refTitle: "👥 Реферальная система (3%)", refCountLbl: "Активные рефералы:", refDesc: "Делитесь ссылкой и получайте 3% навсегда:", copyBtn: "Копировать ссылку 🔗",
-                    offerTitle: "🎯 Зарабатывайте баллы", offerDesc: "Выполните верификационный оффер ниже:", openOffer: "Открыть оффер 🚀", confirmOffer: "Подтвердить ✅",
+                    offerTitle: "🎯 Зарабатывайте баллы", offerDesc: "Выполните верификационный оффер ниже:", openOffer: "Смотреть рекламу 🚀", confirmOffer: "Подтвердить ✅",
                     walletTitle: "💳 Управление кошельком", walletDesc: "Введите адрес вашего TRX кошелька:", walletPlaceholder: "Введите TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Текущий адрес:",
                     withdrawTitle: "💸 Вывод средств", walletLabel: "Зарегистрированный адрес:", noAddress: "Адрес не добавлен!", withdrawBtn: "Подтвердить вывод 🚀",
                     termsTitle: "📜 Условия использования", termsContent: "1. Использование Wi-Fi или VPN строго запрещено.<br>2. Рефералы активируются после выполнения оффера.<br>3. 3% бонус навсегда.<br>4. Изменяйте кошелек в любое время.",
@@ -528,11 +529,11 @@ def webapp():
                     welcome: "Bem-vindo: ", preview: "Modo de Visualização",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
                     refTitle: "👥 Sistema de Indicações (3%)", refCountLbl: "Indicações Ativas:", refDesc: "Compartilhe seu link وganhe 3% vitalício:", copyBtn: "Copiar Link 🔗",
-                    offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Abrir Oferta 🚀", confirmOffer: "Confirmar ✅",
+                    offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Ver Anúncio 🚀", confirmOffer: "Confirmar ✅",
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
-                    termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi أو VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi أو VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
@@ -540,11 +541,11 @@ def webapp():
                     welcome: "Welkom: ", preview: "Voorbeeldmodus",
                     balTitle: "Jouw TRX Saldo", balDesc: "Direct opnemen bij het minimum.",
                     refTitle: "👥 Referral Systeem (3%)", refCountLbl: "Actieve Referrals:", refDesc: "Deel je link en verdien 3%:", copyBtn: "Kopieer Link 🔗",
-                    offerTitle: "🎯 Verdien Aanbiedingen", offerDesc: "Voltooi de verificatie hieronder:", openOffer: "Open Aanbieding 🚀", confirmOffer: "Bevestigen ✅",
+                    offerTitle: "🎯 Verdien Aanbiedingen", offerDesc: "Voltooi de verificatie hieronder:", openOffer: "Bekijk Advertentie 🚀", confirmOffer: "Bevestigen ✅",
                     walletTitle: "💳 Portemonnee Beheer", walletDesc: "Voer je TRX adres in:", walletPlaceholder: "Voer TRX adres in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Huidig adres:",
                     withdrawTitle: "💸 Saldo Opnemen", walletLabel: "Geregistreerd adres:", noAddress: "Geen adres toegevoegd!", withdrawBtn: "Bevestig Opname 🚀",
-                    termsTitle: "📜 Voorwaarden", termsContent: "1. Wi-Fi of VPN gebruik is streng verboden.<br>2. Referrals zijn actief na voltooiing.<br>3. 3% levenslange bonus.<br>4. Wijzig je wallet wanneer je wilt.",
-                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi of VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
+                    termsTitle: "📜 Voorwaarden", termsContent: "1. Wi-Fi أو VPN gebruik is streng verboden.<br>2. Referrals zijn actief na voltooiing.<br>3. 3% levenslange bonus.<br>4. Wijzig je wallet wanneer je wilt.",
+                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi أو VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
                     navBal: "Saldo", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Opnemen", navTerms: "Voorwaarde"
                 },
                 pl: { 
@@ -552,11 +553,11 @@ def webapp():
                     welcome: "Witaj: ", preview: "Tryb podglądu",
                     balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
                     refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link وzarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
-                    offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Otwórz ofertę 🚀", confirmOffer: "Potwierdź ✅",
+                    offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Oglądaj reklamę 🚀", confirmOffer: "Potwierdź ✅",
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
                     withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowany adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
-                    termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi lub VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
-                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
+                    termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi أو VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
+                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi أو VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
                 },
                 ar: { 
@@ -564,7 +565,7 @@ def webapp():
                     welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي",
                     balTitle: "رصيدك الحالي من TRX", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
                     refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
-                    offerTitle: "🎯 عروض تجميع النقاط", offerDesc: "قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:", openOffer: "فتح رابط العرض 🚀", confirmOffer: "تأكيد إتمام العرض ✅",
+                    offerTitle: "🎯 عروض تجميع النقاط", offerDesc: "قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:", openOffer: "مشاهدة الإعلان والربح 🚀", confirmOffer: "تأكيد إتمام العرض ✅",
                     walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً:",
                     withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم بإضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
                     termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
@@ -731,6 +732,20 @@ def webapp():
                 copyText.setSelectionRange(0, 99999);
                 navigator.clipboard.writeText(copyText.value);
                 alert(currentLang === 'ar' ? "تم نسخ رابط الإحالة بنجاح! 📋" : "Referral link copied successfully! 📋");
+            }
+
+            // وظيفة تشغيل إعلان Monetag وإتمام العرض تلقائياً عند إنهاء المشاهدة
+            function watchAdAndComplete() {
+                if (typeof show_12130531 === 'function') {
+                    show_12130531().then(() => {
+                        // تنفيذ دالة إتمام العرض وإضافة الرصيد بعد مشاهدة الإعلان
+                        completeOffer();
+                    }).catch(err => {
+                        alert("Ad failed to load or was closed. Please try again!");
+                    });
+                } else {
+                    alert("Ad SDK is still loading, please wait a second and try again.");
+                }
             }
 
             function completeOffer() {
