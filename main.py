@@ -8,6 +8,7 @@ TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
+# تصميم صفحة التطبيق المصغر لتظهر داخل التيليجرام بشكل رائع
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -17,14 +18,15 @@ HTML_TEMPLATE = """
     <title>تطبيق الأرباح</title>
     <style>
         body { background: #0f172a; color: #fff; font-family: Tahoma, sans-serif; text-align: center; padding-top: 50px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; display: inline-block; width: 80%; max-width: 400px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 12px; display: inline-block; width: 85%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         h2 { color: #38bdf8; }
+        p { color: #94a3b8; line-height: 1.6; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>مرحباً بك في التطبيق المصغر! 🚀</h2>
-        <p>البوت والتطبيق يعملان بنجاح تام.</p>
+        <h2>تطبيق أرباح TRX 🚀</h2>
+        <p>أهلاً بك يا عمر! التطبيق المصغر يعمل بنجاح تام وجاهز لربط الأزرار وقاعدة البيانات.</p>
     </div>
 </body>
 </html>
@@ -37,7 +39,8 @@ def home():
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = telebot.types.InlineKeyboardMarkup()
-    web_app = telebot.types.WebAppInfo(url="https://trx-bot.onrender.com")
+    # ضع هنا رابط موقعك الصحيح على رندر بالكامل
+    web_app = telebot.types.WebAppInfo(url="https://trx-earn-bot-1.onrender.com")
     markup.add(telebot.types.InlineKeyboardButton("فتح التطبيق المصغر 🚀", web_app=web_app))
     bot.reply_to(message, "أهلاً بك يا عمر! اضغط أدناه لفتح التطبيق المصغر:", reply_markup=markup)
 
