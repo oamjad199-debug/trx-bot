@@ -4,7 +4,7 @@ import telebot
 import threading
 import time
 
-TOKEN = 8742073577:AAFhQIaBwT8m9zJpb1V6QSM8mrm7ldWXKuA
+TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
@@ -37,7 +37,6 @@ def home():
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = telebot.types.InlineKeyboardMarkup()
-    # سيتم ربط رابط التطبيق المصغر لاحقاً
     web_app = telebot.types.WebAppInfo(url="https://trx-bot.onrender.com")
     markup.add(telebot.types.InlineKeyboardButton("فتح التطبيق المصغر 🚀", web_app=web_app))
     bot.reply_to(message, "أهلاً بك يا عمر! اضغط أدناه لفتح التطبيق المصغر:", reply_markup=markup)
@@ -54,5 +53,5 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     server.run(host='0.0.0.0', port=port)
