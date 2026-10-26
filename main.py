@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot with Dynamic Wallet Lock/Change is running successfully! 🚀"
+    return "TRX Bot is running successfully! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -434,13 +434,11 @@ def webapp():
                 }
 
                 if (input.readOnly) {
-                    // إذا كان مقفلاً، عند الضغط على "تغيير المحفظة" يتم فتح الحقل ليتمكن من التعديل
                     input.readOnly = false;
                     input.focus();
                     btn.innerText = "حفظ التغيير 💾";
                     btn.style.background = "#16a34a";
                 } else {
-                    // حفظ العنوان الجديد في السيرفر
                     fetch('/api/update_address', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
