@@ -1,14 +1,14 @@
 import os
-from flask import Flask
+from flask import Flask, request
 import telebot
-import threading
-import time
 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
-# تصميم صفحة التطبيق المصغر داخل التيليجرام
+# ضع رابط موقعك الحقيقي على رندر هنا تماماً
+RENDER_URL = "https://trx-earn-bot-1.onrender.com"
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -36,17 +36,22 @@ HTML_TEMPLATE = """
 def home():
     return HTML_TEMPLATE
 
+# استقبال الرسائل عبر الـ Webhook من تيليجرام
+@server.route('/' + TOKEN, methods=['POST'])
+def webhook():
+    json_str = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return 'OK', 200
+
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = telebot.types.InlineKeyboardMarkup()
-    
-    # ربط زر التطبيق المصغر بالرابط الجديد مباشرة أو برابط الـ Web App المطلوب
     web_app = telebot.types.WebAppInfo(url="http://bc.vc/Dc4Boi8")
     webapp_button = telebot.types.InlineKeyboardButton(
         "فتح التطبيق المصغر 🚀", 
         web_app=web_app
     )
-    
     markup.add(webapp_button)
     
     bot.reply_to(
@@ -56,16 +61,9 @@ def start(message):
     )
 
 if __name__ == '__main__':
-    def run_bot():
-        while True:
-            try:
-                bot.polling(none_stop=True)
-            except Exception as e:
-                time.sleep(5)
-    
-    t = threading.Thread(target=run_bot)
-    t.daemon = True
-    t.start()
+    # ربط الويب هوك تلقائياً عند التشغيل
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
     
     port = int(os.environ.get('PORT', 10000))
     server.run(host='0.0.0.0', port=port)
