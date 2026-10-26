@@ -227,7 +227,7 @@ def webapp():
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
-                padding-bottom: 125px;
+                padding-bottom: 130px;
             }
             .container {
                 max-width: 420px;
@@ -308,7 +308,7 @@ def webapp():
             
             .footer-lang-container {
                 position: fixed;
-                bottom: 50px;
+                bottom: 48px;
                 left: 0;
                 right: 0;
                 background: #1e293b;
@@ -450,6 +450,11 @@ def webapp():
             let tg = window.Telegram.WebApp;
             tg.expand();
 
+            let userId = 123456789;
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                userId = tg.initDataUnsafe.user.id;
+            }
+
             const translations = {
                 en: { 
                     balance: "💰 Balance", ref: "👥 Referrals", offers: "🎯 Offers", wallet: "💳 Wallet", withdraw: "💸 Withdraw", terms: "📜 Terms",
@@ -471,8 +476,8 @@ def webapp():
                     offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Abrir Oferta 🚀", confirmOffer: "Confirmar Oferta ✅",
                     walletTitle: "💳 Gestión de Billetera", walletDesc: "Ingresa tu dirección de billetera TRX:", walletPlaceholder: "Ingresa TRX aquí...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar Cambios 💾", walletSavedDesc: "Dirección guardada actual:",
                     withdrawTitle: "💸 Retirar Ganancias", walletLabel: "Dirección registrada:", noAddress: "¡Aún no hay dirección!", withdrawBtn: "Confirmar Retiro 🚀",
-                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi o VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
-                    warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi o VPN está prohibido! Usa tus datos móviles (Mobile Data).",
+                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi أو VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
+                    warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi أو VPN está prohibido! Usa tus datos móviles (Mobile Data).",
                     navBal: "Saldo", navRef: "Referidos", navOffers: "Ofertas", navWallet: "Billetera", navWithdraw: "Retirar", navTerms: "Términos"
                 },
                 de: { 
@@ -508,19 +513,19 @@ def webapp():
                     walletTitle: "💳 Управление кошельком", walletDesc: "Введите адрес вашего TRX кошелька:", walletPlaceholder: "Введите TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Текущий адрес:",
                     withdrawTitle: "💸 Вывод средств", walletLabel: "Зарегистрированный адрес:", noAddress: "Адрес не добавлен!", withdrawBtn: "Подтвердить вывод 🚀",
                     termsTitle: "📜 Условия использования", termsContent: "1. Использование Wi-Fi или VPN строго запрещено.<br>2. Рефералы активируются после выполнения оффера.<br>3. 3% бонус навсегда.<br>4. Изменяйте кошелек в любое время.",
-                    warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi или VPN запрещено! Используйте мобильные данные (Mobile Data).",
+                    warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi یا VPN запрещено! Используйте мобильные данные (Mobile Data).",
                     navBal: "Баланс", navRef: "Рефералы", navOffers: "Офферы", navWallet: "Кошелек", navWithdraw: "Вывод", navTerms: "Условия"
                 },
                 pt: { 
                     balance: "💰 Saldo", ref: "👥 Indicações", offers: "🎯 Ofertas", wallet: "💳 Carteira", withdraw: "💸 Sacar", terms: "📜 Termos",
                     welcome: "Bem-vindo: ", preview: "Modo de Visualização",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
-                    refTitle: "👥 Sistema de Indicações (3%)", refCountLbl: "Indicações Ativas:", refDesc: "Compartilhe seu link e ganhe 3% vitalício:", copyBtn: "Copiar Link 🔗",
+                    refTitle: "👥 Sistema de Indicações (3%)", refCountLbl: "Indicações Ativas:", refDesc: "Compartilhe seu link وganhe 3% vitalício:", copyBtn: "Copiar Link 🔗",
                     offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Abrir Oferta 🚀", confirmOffer: "Confirmar ✅",
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
                     termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi أو VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi یا VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
@@ -532,19 +537,19 @@ def webapp():
                     walletTitle: "💳 Portemonnee Beheer", walletDesc: "Voer je TRX adres in:", walletPlaceholder: "Voer TRX adres in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Huidig adres:",
                     withdrawTitle: "💸 Saldo Opnemen", walletLabel: "Geregistreerd adres:", noAddress: "Geen adres toegevoegd!", withdrawBtn: "Bevestig Opname 🚀",
                     termsTitle: "📜 Voorwaarden", termsContent: "1. Wi-Fi of VPN gebruik is streng verboden.<br>2. Referrals zijn actief na voltooiing.<br>3. 3% levenslange bonus.<br>4. Wijzig je wallet wanneer je wilt.",
-                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi of VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
+                    warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi یا VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
                     navBal: "Saldo", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Opnemen", navTerms: "Voorwaarde"
                 },
                 pl: { 
                     balance: "💰 Saldo", ref: "👥 Polecenia", offers: "🎯 Oferty", wallet: "💳 Portfel", withdraw: "💸 Wypłata", terms: "📜 Regulamin",
                     welcome: "Witaj: ", preview: "Tryb podglądu",
                     balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
-                    refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link i zarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
+                    refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link وzarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
                     offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Otwórz ofertę 🚀", confirmOffer: "Potwierdź ✅",
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
                     withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowany adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
                     termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi lub VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
-                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
+                    warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi یا VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
                 },
                 ar: { 
@@ -627,11 +632,6 @@ def webapp():
             }
             document.getElementById('language-select').value = initialLang;
             changeLanguage(initialLang);
-
-            let userId = 123456789;
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                userId = tg.initDataUnsafe.user.id;
-            }
 
             function checkNetwork() {
                 let warningScreen = document.getElementById('network-warning');
@@ -748,7 +748,7 @@ def webapp():
                 .then(res => res.json())
                 .then(data => {
                     alert(data.message);
-                    loadUserData();
+                    loadUserData.loadUserData();
                 });
             }
         </script>
