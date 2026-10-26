@@ -117,8 +117,13 @@ def get_user_data(user_id):
         balance, active_referrals, trx_address, completed_offer = row
     conn.close()
 
-    bot_info = bot.get_me()
-    ref_link = f"https://t.me/{bot_info.username}?start={user_id}"
+    try:
+        bot_info = bot.get_me()
+        bot_username = bot_info.username if bot_info and bot_info.username else "TRXEarnBot"
+    except Exception:
+        bot_username = "TRXEarnBot"
+
+    ref_link = f"https://t.me/{bot_username}?start={user_id}"
 
     return jsonify({
         "user_id": user_id,
@@ -262,6 +267,11 @@ def webapp():
                 text-align: center;
                 margin-top: 8px;
                 box-sizing: border-box;
+            }
+            #ref-link {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-weight: bold;
             }
             input:read-only {
                 background: #1e293b;
@@ -531,7 +541,7 @@ def webapp():
                     refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link i zarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
                     offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Otwórz ofertę 🚀", confirmOffer: "Potwierdź ✅",
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
-                    withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowany adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
+                    withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowاني adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
                     termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi lub VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
                     warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
