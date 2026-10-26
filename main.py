@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Global Multi-Language Bot with Language Selector is running! 🚀"
+    return "TRX Luxury Bot with Gold & Dark Blue theme is running! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -81,7 +81,6 @@ def start(message):
             conn.commit()
         conn.close()
 
-        # رسالة البوت الخارجية باللغة الإنجليزية بالكامل
         terms_message = (
             "📜 **TRX Earn Bot Terms & Conditions:**\n\n"
             "1. Using Wi-Fi or VPN is strictly prohibited.\n"
@@ -217,81 +216,73 @@ def webapp():
         <style>
             body {
                 font-family: Tahoma, sans-serif;
-                background-color: #0f172a;
+                background-color: #050508; /* أسود ملكي فاخر */
                 color: #ffffff;
                 margin: 0;
                 padding: 10px;
-                padding-bottom: 70px;
+                padding-bottom: 110px;
             }
             .container {
                 max-width: 420px;
                 margin: auto;
-                background: #1e293b;
+                background: linear-gradient(135deg, #0b1329 0%, #050914 100%); /* تدرج أزرق غامق ملكي */
                 padding: 15px;
                 border-radius: 15px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15); /* ظل ذهبي خفيف */
+                border: 1px solid rgba(212, 175, 55, 0.3); /* إطار ذهبي فاخر */
             }
-            .lang-selector {
-                text-align: right;
-                margin-bottom: 10px;
-            }
-            .lang-selector select {
-                background: #334155;
-                color: white;
-                border: 1px solid #475569;
-                padding: 5px 10px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 13px;
-            }
-            h2 { color: #38bdf8; font-size: 20px; text-align: center; margin-top: 5px; }
+            h2 { color: #d4af37; font-size: 20px; text-align: center; margin-top: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
             .section { display: none; }
             .section.active { display: block; }
             .card {
-                background: #334155;
-                padding: 12px;
-                border-radius: 10px;
+                background: rgba(11, 19, 41, 0.9);
+                padding: 14px;
+                border-radius: 12px;
                 margin: 10px 0;
                 text-align: center;
+                border: 1px solid rgba(212, 175, 55, 0.2);
             }
             .btn {
-                background: #0284c7;
-                color: white;
+                background: linear-gradient(135deg, #d4af37 0%, #aa8c2c 100%); /* زر ذهبي ملكي متدرج */
+                color: #050508;
+                font-weight: bold;
                 border: none;
-                padding: 10px;
+                padding: 11px;
                 border-radius: 8px;
                 cursor: pointer;
                 font-size: 15px;
                 width: 100%;
                 margin-top: 8px;
+                box-shadow: 0 3px 10px rgba(212, 175, 55, 0.3);
             }
-            .btn:active { background: #0369a1; }
+            .btn:active { opacity: 0.9; }
             input {
                 width: 100%;
                 padding: 10px;
-                border-radius: 5px;
-                border: 1px solid #475569;
-                background: #0f172a;
+                border-radius: 6px;
+                border: 1px solid #d4af37;
+                background: #050508;
                 color: white;
                 text-align: center;
                 margin-top: 8px;
                 box-sizing: border-box;
             }
             input:read-only {
-                background: #1e293b;
-                color: #94a3b8;
-                border-color: #334155;
+                background: #0b1329;
+                color: #d4af37;
+                border-color: rgba(212, 175, 55, 0.3);
             }
+            /* شريط التنقل السفلي */
             .nav-bar {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #0f172a;
-                border-top: 1px solid #334155;
+                background: #050508;
+                border-top: 2px solid #d4af37;
                 display: flex;
                 justify-content: space-around;
-                padding: 8px 0;
+                padding: 6px 0;
                 z-index: 100;
             }
             .nav-item {
@@ -304,10 +295,36 @@ def webapp():
                 flex: 1;
             }
             .nav-item.active {
-                color: #38bdf8;
+                color: #d4af37;
                 font-weight: bold;
             }
             .nav-item span { display: block; font-size: 16px; }
+            
+            /* منطقة اختيار اللغة في الأسفل بجانب أزرار التنقل */
+            .footer-lang-container {
+                position: fixed;
+                bottom: 55px;
+                left: 0;
+                right: 0;
+                background: rgba(11, 19, 41, 0.95);
+                border-top: 1px solid rgba(212, 175, 55, 0.2);
+                padding: 6px 15px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 99;
+            }
+            .footer-lang-container select {
+                background: #050508;
+                color: #d4af37;
+                border: 1px solid #d4af37;
+                padding: 4px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: bold;
+            }
+
             .terms-text {
                 font-size: 13px;
                 color: #cbd5e1;
@@ -317,7 +334,7 @@ def webapp():
             #network-warning {
                 position: fixed;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(15, 23, 42, 0.95);
+                background: rgba(5, 5, 8, 0.98);
                 z-index: 9999;
                 display: flex;
                 flex-direction: column;
@@ -336,31 +353,16 @@ def webapp():
             <p id="warn-desc" style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin: 15px 0;">
                 Wi-Fi or VPN usage is strictly prohibited. Please use your Mobile Data only to proceed.
             </p>
-            <button class="btn" style="background: #e11d48;" onclick="checkNetwork()">Re-check 🔄</button>
+            <button class="btn" style="background: #e11d48; color: #fff;" onclick="checkNetwork()">Re-check 🔄</button>
         </div>
 
         <div class="container">
-            <!-- قائمة اختيار اللغة -->
-            <div class="lang-selector">
-                <select id="language-select" onchange="changeLanguage(this.value)">
-                    <option value="en">🇬🇧 English</option>
-                    <option value="es">🇪🇸 Español</option>
-                    <option value="de">🇩🇪 Deutsch</option>
-                    <option value="fr">🇫🇷 Français</option>
-                    <option value="ru">🇷🇺 Русский</option>
-                    <option value="pt">🇧🇷/🇵🇹 Português</option>
-                    <option value="nl">🇳🇱 Nederlands</option>
-                    <option value="pl">🇵🇱 Polski</option>
-                    <option value="ar">🇸🇦 العربية</option>
-                </select>
-            </div>
-
             <h2 id="page-title">💰 Balance</h2>
-            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
+            <p id="welcome" style="text-align:center; font-size: 13px; color: #d4af37;"></p>
 
             <div id="tab-balance" class="section active">
                 <div class="card">
-                    <h3 id="txt-bal-title">Your Current TRX Balance</h3>
+                    <h3 id="txt-bal-title" style="color: #d4af37;">Your Current TRX Balance</h3>
                     <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">Continuous earning allows instant withdrawal upon reaching the minimum limit.</p>
                 </div>
@@ -368,8 +370,8 @@ def webapp():
 
             <div id="tab-ref" class="section">
                 <div class="card">
-                    <h3 id="txt-ref-title">👥 Active Referral System (3%)</h3>
-                    <p><span id="txt-ref-count-label">Active Referrals:</span> <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
+                    <h3 id="txt-ref-title" style="color: #d4af37;">👥 Active Referral System (3%)</h3>
+                    <p><span id="txt-ref-count-label">Active Referrals:</span> <span id="ref-count" style="color: #d4af37; font-weight: bold;">0</span></p>
                     <p id="txt-ref-desc" style="font-size: 13px; color: #94a3b8;">Share your link and earn 3% lifetime profits:</p>
                     <input type="text" id="ref-link" readonly onclick="this.select();">
                     <button id="txt-copy-btn" class="btn" onclick="copyRefLink()">Copy Referral Link 🔗</button>
@@ -378,16 +380,16 @@ def webapp():
 
             <div id="tab-offers" class="section">
                 <div class="card">
-                    <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
+                    <h3 id="txt-offer-title" style="color: #d4af37;">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">Open Offer 🚀</button>
-                    <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
+                    <button id="txt-open-offer" class="btn" style="background: #16a34a; color: #fff;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">Open Offer 🚀</button>
+                    <button id="txt-confirm-offer" class="btn" style="background: #d4af37; color: #050508; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
             </div>
 
             <div id="tab-wallet" class="section">
                 <div class="card">
-                    <h3 id="txt-wallet-title">💳 Wallet Management</h3>
+                    <h3 id="txt-wallet-title" style="color: #d4af37;">💳 Wallet Management</h3>
                     <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">Enter your TRX wallet address:</p>
                     <input type="text" id="trx-input" placeholder="Enter TRX address here...">
                     <button id="wallet-btn" class="btn" onclick="handleWalletAction()">Save Address 💾</button>
@@ -396,16 +398,16 @@ def webapp():
 
             <div id="tab-withdraw" class="section">
                 <div class="card">
-                    <h3 id="txt-withdraw-title">💸 Withdraw Earnings</h3>
+                    <h3 id="txt-withdraw-title" style="color: #d4af37;">💸 Withdraw Earnings</h3>
                     <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">Registered Wallet Address:</p>
-                    <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all;"></p>
-                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">Confirm Withdrawal 🚀</button>
+                    <p id="current-address" style="font-size: 12px; color: #d4af37; word-break: break-all;"></p>
+                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48; color: #fff;" onclick="requestWithdraw()">Confirm Withdrawal 🚀</button>
                 </div>
             </div>
 
             <div id="tab-terms" class="section">
                 <div class="card">
-                    <h3 id="txt-terms-title">📜 Terms & Conditions</h3>
+                    <h3 id="txt-terms-title" style="color: #d4af37;">📜 Terms & Conditions</h3>
                     <div id="txt-terms-content" class="terms-text">
                         1. Using Wi-Fi or VPN is strictly prohibited.<br>
                         2. Referrals are active only after the invited user completes an offer.<br>
@@ -417,6 +419,23 @@ def webapp():
 
         </div>
 
+        <!-- اختيار اللغة مرتب في الأسفل مباشرة فوق شريط التنقل -->
+        <div class="footer-lang-container">
+            <span style="font-size: 12px; color: #d4af37; margin-inline-end: 8px;">🌐 Language:</span>
+            <select id="language-select" onchange="changeLanguage(this.value)">
+                <option value="en">🇬🇧 English</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="pt">🇧🇷/🇵🇹 Português</option>
+                <option value="nl">🇳🇱 Nederlands</option>
+                <option value="pl">🇵🇱 Polski</option>
+                <option value="ar">🇸🇦 العربية</option>
+            </select>
+        </div>
+
+        <!-- شريط التنقل السفلي -->
         <div class="nav-bar">
             <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
             <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
@@ -431,7 +450,7 @@ def webapp():
             tg.expand();
 
             const translations = {
-                en: { // English (Default)
+                en: { 
                     balance: "💰 Balance", ref: "👥 Referrals", offers: "🎯 Offers", wallet: "💳 Wallet", withdraw: "💸 Withdraw", terms: "📜 Terms",
                     welcome: "Welcome: ", preview: "Preview Mode",
                     balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
@@ -443,7 +462,7 @@ def webapp():
                     warnTitle: "⚠️ Network Connection Warning", warnDesc: "Wi-Fi or VPN usage is strictly prohibited. Please use your Mobile Data only to proceed.",
                     navBal: "Balance", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Withdraw", navTerms: "Terms"
                 },
-                es: { // Spanish
+                es: { 
                     balance: "💰 Saldo", ref: "👥 Referidos", offers: "🎯 Ofertas", wallet: "💳 Billetera", withdraw: "💸 Retirar", terms: "📜 Términos",
                     welcome: "Bienvenido: ", preview: "Modo de Vista Previa",
                     balTitle: "Tu Saldo Actual de TRX", balDesc: "Las ganancias continuas permiten el retiro instantáneo al alcanzar el mínimo.",
@@ -455,7 +474,7 @@ def webapp():
                     warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi o VPN está prohibido! Usa tus datos móviles (Mobile Data).",
                     navBal: "Saldo", navRef: "Referidos", navOffers: "Ofertas", navWallet: "Billetera", navWithdraw: "Retirar", navTerms: "Términos"
                 },
-                de: { // German
+                de: { 
                     balance: "💰 Guthaben", ref: "👥 Empfehlungen", offers: "🎯 Angebote", wallet: "💳 Geldbörse", withdraw: "💸 Auszahlen", terms: "📜 AGB",
                     welcome: "Willkommen: ", preview: "Vorschau-Modus",
                     balTitle: "Ihr aktuelles TRX-Guthaben", balDesc: "Kontinuierliches Verdienen ermöglicht sofortige Auszahlung.",
@@ -467,7 +486,7 @@ def webapp():
                     warnTitle: "⚠️ Netzwerk-Warnung", warnDesc: "WLAN oder VPN sind verboten! Bitte nutzen Sie mobile Daten (Mobile Data).",
                     navBal: "Guthaben", navRef: "Empfehl.", navOffers: "Angebote", navWallet: "Wallet", navWithdraw: "Auszahlen", navTerms: "AGB"
                 },
-                fr: { // French
+                fr: { 
                     balance: "💰 Solde", ref: "👥 Parrainages", offers: "🎯 Offres", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", terms: "📜 Conditions",
                     welcome: "Bienvenue : ", preview: "Mode Aperçu",
                     balTitle: "Votre solde TRX actuel", balDesc: "Gagnez et retirez instantanément.",
@@ -479,7 +498,7 @@ def webapp():
                     warnTitle: "⚠️ Alerte Réseau", warnDesc: "Le Wi-Fi et les VPN sont interdits ! Utilisez vos données mobiles (Mobile Data).",
                     navBal: "Solde", navRef: "Parrainage", navOffers: "Offres", navWallet: "Portefeuille", navWithdraw: "Retirer", navTerms: "Termes"
                 },
-                ru: { // Russian
+                ru: { 
                     balance: "💰 Баланс", ref: "👥 Рефералы", offers: "🎯 Офферы", wallet: "💳 Кошелек", withdraw: "💸 Вывод", terms: "📜 Условия",
                     welcome: "Добро пожаловать: ", preview: "Режим предпросмотра",
                     balTitle: "Ваш текущий баланс TRX", balDesc: "Накапливайте и выводите мгновенно.",
@@ -491,7 +510,7 @@ def webapp():
                     warnTitle: "⚠️ Предупреждение сети", warnDesc: "Использование Wi-Fi или VPN запрещено! Используйте мобильные данные (Mobile Data).",
                     navBal: "Баланс", navRef: "Рефералы", navOffers: "Офферы", navWallet: "Кошелек", navWithdraw: "Вывод", navTerms: "Условия"
                 },
-                pt: { // Portuguese / Brazilian
+                pt: { 
                     balance: "💰 Saldo", ref: "👥 Indicações", offers: "🎯 Ofertas", wallet: "💳 Carteira", withdraw: "💸 Sacar", terms: "📜 Termos",
                     welcome: "Bem-vindo: ", preview: "Modo de Visualização",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
@@ -503,7 +522,7 @@ def webapp():
                     warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
-                nl: { // Dutch
+                nl: { 
                     balance: "💰 Saldo", ref: "👥 Referrals", offers: "🎯 Aanbiedingen", wallet: "💳 Portemonnee", withdraw: "💸 Opnemen", terms: "📜 Voorwaarden",
                     welcome: "Welkom: ", preview: "Voorbeeldmodus",
                     balTitle: "Jouw TRX Saldo", balDesc: "Direct opnemen bij het minimum.",
@@ -515,19 +534,19 @@ def webapp():
                     warnTitle: "⚠️ Netwerk Waarschuwing", warnDesc: "Wi-Fi of VPN is verboden! Gebruik uitsluitend mobiele data (Mobile Data).",
                     navBal: "Saldo", navRef: "Referrals", navOffers: "Offers", navWallet: "Wallet", navWithdraw: "Opnemen", navTerms: "Voorwaarde"
                 },
-                pl: { // Polish
+                pl: { 
                     balance: "💰 Saldo", ref: "👥 Polecenia", offers: "🎯 Oferty", wallet: "💳 Portfel", withdraw: "💸 Wypłata", terms: "📜 Regulamin",
                     welcome: "Witaj: ", preview: "Tryb podglądu",
                     balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
                     refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link i zarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
                     offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Otwórz ofertę 🚀", confirmOffer: "Potwierdź ✅",
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
-                    withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowany adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
+                    withdrawTitle: "💸 Wypłata środków", walletLabel: "Zarejestrowاني adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź wypłatę 🚀",
                     termsTitle: "📜 Regulamin", termsContent: "1. Używanie Wi-Fi lub VPN jest surowo zabronione.<br>2. Polecenia aktywne po ukończeniu oferty.<br>3. 3% dożywotniej prowizji.<br>4. Zmieniaj portfel w dowolnym momencie.",
                     warnTitle: "⚠️ Ostrzeżenie sieci", warnDesc: "Używanie Wi-Fi lub VPN jest zabronione! Używaj wyłącznie danych komórkowych (Mobile Data).",
                     navBal: "Saldo", navRef: "Polecenia", navOffers: "Oferty", navWallet: "Portfel", navWithdraw: "Wypłata", navTerms: "Regulamin"
                 },
-                ar: { // Arabic
+                ar: { 
                     balance: "💰 الرصيد", ref: "👥 الإحالة", offers: "🎯 العروض", wallet: "💳 المحفظة", withdraw: "💸 السحب", terms: "📜 الشروط",
                     welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي",
                     balTitle: "رصيدك الحالي من TRX", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
@@ -537,7 +556,7 @@ def webapp():
                     withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم بإضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
                     termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
                     warnTitle: "⚠️ تنبيه شبكة الاتصال", warnDesc: "عذراً! يمنع استخدام الواي فاي أو الـ VPN. يرجى استخدام بيانات الهاتف المحمول (Mobile Data) فقط.",
-                    navBal: "الرصيد", navRef: "الإحالة", navOffers: "العروض", navWallet: "المحفظة", navWithdraw: "السحب", navTerms: "الشروط"
+                    navBal: "الرصيد", navRef: "الإحالة", navOffers: "العروض", navWallet: " المحفظة", navWithdraw: "السحب", navTerms: "الشروط"
                 }
             };
 
@@ -595,7 +614,6 @@ def webapp():
                 loadUserData();
             }
 
-            // ضبط اللغة الافتراضية تلقائياً بناءً على لغة الهاتف إن وجدت في القاموس، وإلا إنجليزي
             let initialLang = 'en';
             if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) {
                 let code = tg.initDataUnsafe.user.language_code.toLowerCase();
@@ -648,13 +666,15 @@ def webapp():
                             input.value = savedTrxAddress;
                             input.readOnly = true;
                             btn.innerText = t.changeBtn;
-                            btn.style.background = "#0284c7";
+                            btn.style.background = "linear-gradient(135deg, #d4af37 0%, #aa8c2c 100%)";
+                            btn.style.color = "#050508";
                             desc.innerText = t.walletSavedDesc;
                         } else {
                             input.value = "";
                             input.readOnly = false;
                             btn.innerText = t.saveBtn;
                             btn.style.background = "#16a34a";
+                            btn.style.color = "#ffffff";
                             desc.innerText = t.walletDesc;
                         }
 
@@ -679,6 +699,7 @@ def webapp():
                     input.focus();
                     btn.innerText = t.saveChangeBtn;
                     btn.style.background = "#16a34a";
+                    btn.style.color = "#ffffff";
                 } else {
                     fetch('/api/update_address', {
                         method: 'POST',
