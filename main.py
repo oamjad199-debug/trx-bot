@@ -6,8 +6,8 @@ TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
-# ضع رابط موقعك الحقيقي على رندر هنا تماماً
-RENDER_URL = "https://trx-earn-bot-1.onrender.com"
+# الرابط الصحيح والفعلي لمشروعك على رندر من السجلات
+RENDER_URL = "https://trx-bot-e61j.onrender.com"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -61,7 +61,7 @@ def start(message):
     )
 
 if __name__ == '__main__':
-    # ربط الويب هوك تلقائياً عند التشغيل
+    # ربط الويب هوك تلقائياً بالرابط الصحيح
     bot.remove_webhook()
     bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
     
