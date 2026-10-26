@@ -392,9 +392,7 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    <!-- الزر الأول: الإعلان العادي -->
                     <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="watchAdAndComplete()">Watch Ad & Earn 🚀</button>
-                    <!-- الزر الثاني: الإعلان المنبثق (Rewarded Popup) الذي طلبته -->
                     <button id="txt-popup-offer" class="btn" style="background: #0284c7; margin-top: 8px;" onclick="watchPopupAdAndComplete()">Watch Popup Ad 🎁</button>
                     <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
@@ -486,7 +484,7 @@ def webapp():
                     offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Ver Anuncio y Ganar 🚀", popupOffer: "Ver Anuncio Popup 🎁", confirmOffer: "Confirmar Oferta ✅",
                     walletTitle: "💳 Gestión de Billetera", walletDesc: "Ingresa tu dirección de billetera TRX:", walletPlaceholder: "Ingresa TRX aquí...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar Cambios 💾", walletSavedDesc: "Dirección guardada actual:",
                     withdrawTitle: "💸 Retirar Ganancias", walletLabel: "Dirección registrada:", noAddress: "¡Aún no hay dirección!", withdrawBtn: "Confirmar Retiro 🚀",
-                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi o VPN está estrictamente prohibido.<br>2. Los referidos son activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
+                    termsTitle: "📜 Términos y Condiciones", termsContent: "1. El uso de Wi-Fi o VPN está estrictamente prohibido.<br>2. Los referidos są activos tras completar una oferta.<br>3. Bono del 3% de por vida.<br>4. Puedes cambiar tu billetera TRX cuando quieras.",
                     warnTitle: "⚠️ Advertencia de Red", warnDesc: "¡El uso de Wi-Fi o VPN está prohibido! Usa tus datos móviles (Mobile Data).",
                     navBal: "Saldo", navRef: "Referidos", navOffers: "Ofertas", navWallet: "Billetera", navWithdraw: "Retirar", navTerms: "Términos"
                 },
@@ -737,7 +735,7 @@ def webapp():
                 alert(currentLang === 'ar' ? "تم نسخ رابط الإحالة بنجاح! 📋" : "Referral link copied successfully! 📋");
             }
 
-            # دالة الإعلان الأول
+            // دالة الإعلان الأول
             function watchAdAndComplete() {
                 if (typeof show_12130531 === 'function') {
                     show_12130531().then(() => {
@@ -750,7 +748,7 @@ def webapp():
                 }
             }
 
-            # دالة الإعلان المنبثق الثاني (Rewarded Popup)
+            // دالة الإعلان المنبثق الثاني (Rewarded Popup)
             function watchPopupAdAndComplete() {
                 if (typeof show_12130531 === 'function') {
                     show_12130531('pop').then(() => {
