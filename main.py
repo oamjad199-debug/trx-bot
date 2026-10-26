@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot with Multi-language & Network Protection is running! 🚀"
+    return "TRX Bot with Multi-language Support is running! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -48,7 +48,11 @@ def start(message):
     try:
         user_id = message.from_user.id
         username = message.from_user.username or "No Username"
+        lang_code = message.from_user.language_code or 'en'
         
+        # تحديد اللغة (عربي أو إنجليزي افتراضي لبقية لغات العالم)
+        is_arabic = lang_code.startswith('ar')
+
         text_parts = message.text.split()
         referrer_id = None
         if len(text_parts) > 1:
@@ -81,18 +85,31 @@ def start(message):
             conn.commit()
         conn.close()
 
-        terms_message = (
-            "📜 **شروط وأحكام استخدام بوت TRX Earn:**\n\n"
-            "1. يمنع استخدام الواي فاي (Wi-Fi) أو برامج الـ (VPN) نهائياً.\n"
-            "2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.\n"
-            "3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء.\n"
-            "4. يمكنك حفظ أو تغيير عنوان محفظة TRX الخاص بك بأي وقت.\n\n"
-            "اضغط على الزر أدناه للموافقة وفتح التطبيق المصغر:"
-        )
+        # نصوص الشروط والأحكام حسب لغة تليجرام الخاصة بالمستخدم
+        if is_arabic:
+            terms_message = (
+                "📜 **شروط وأحكام استخدام بوت TRX Earn:**\n\n"
+                "1. يمنع استخدام الواي فاي (Wi-Fi) أو برامج الـ (VPN) نهائياً.\n"
+                "2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.\n"
+                "3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء.\n"
+                "4. يمكنك حفظ أو تغيير عنوان محفظة TRX الخاص بك بأي وقت.\n\n"
+                "اضغط على الزر أدناه للموافقة وفتح التطبيق المصغر:"
+            )
+            btn_text = "أوافق وفتح التطبيق المصغر 🚀"
+        else:
+            terms_message = (
+                "📜 **TRX Earn Bot Terms & Conditions:**\n\n"
+                "1. Using Wi-Fi or VPN is strictly prohibited.\n"
+                "2. Referrals are active only after the invited user completes an offer.\n"
+                "3. 3% referral bonus is lifetime.\n"
+                "4. You can save or change your TRX wallet anytime.\n\n"
+                "Click the button below to agree and open the Mini App:"
+            )
+            btn_text = "I Agree & Open Mini App 🚀"
 
         markup = telebot.types.InlineKeyboardMarkup()
         web_app = telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")
-        webapp_button = telebot.types.InlineKeyboardButton("أوافق وفتح التطبيق المصغر 🚀", web_app=web_app)
+        webapp_button = telebot.types.InlineKeyboardButton(btn_text, web_app=web_app)
         markup.add(webapp_button)
         
         bot.reply_to(message, terms_message, parse_mode="Markdown", reply_markup=markup)
@@ -411,6 +428,9 @@ def webapp():
             if (userLang === 'en') {
                 document.getElementById('html-root').setAttribute('dir', 'ltr');
                 document.getElementById('html-root').setAttribute('lang', 'en');
+            } else {
+                document.getElementById('html-root').setAttribute('dir', 'rtl');
+                document.getElementById('html-root').setAttribute('lang', 'ar');
             }
 
             const translations = {
@@ -445,7 +465,7 @@ def webapp():
                     noAddress: "لم تقم بإضافة عنوان بعد!",
                     withdrawBtn: "تأكيد طلب السحب 🚀",
                     termsTitle: "📜 الشروط والأحكام",
-                    termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الإحالات.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
+                    termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب وتُضاف للأبد بناءً على نشاط الإحالات.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
                     warnTitle: "⚠️ تنبيه شبكة الاتصال",
                     warnDesc: "عذراً! يمنع استخدام الواي فاي (Wi-Fi) أو برامج الـ (VPN). يرجى استخدام بيانات الهاتف المحمول (Mobile Data) الخاصة بك فقط للمتابعة.",
                     navBal: "الرصيد", navRef: "الإحالة", navOffers: "العروض", navWallet: "المحفظة", navWithdraw: "السحب", navTerms: "الشروط"
