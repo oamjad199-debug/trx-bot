@@ -31,7 +31,7 @@ init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot with Advanced Referral & Wallet system is running successfully! 🚀"
+    return "TRX Bot with Change Wallet button is running successfully! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -43,7 +43,6 @@ def webhook():
         print(f"Error processing update: {e}", flush=True)
     return 'OK', 200
 
-# أمر /start
 @bot.message_handler(commands=['start'])
 def start(message):
     try:
@@ -63,10 +62,8 @@ def start(message):
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if not cursor.fetchone():
             if referrer_id and referrer_id != user_id:
-                # التحقق أن المُحيل موجود
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
                 if cursor.fetchone():
-                    # نسجل المستخدم ونربطه بالمُحيل (لكن لا نضيفه للإحالات النشطة إلا بعد إتمام العرض)
                     cursor.execute(
                         "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
                         (user_id, username, referrer_id)
@@ -89,7 +86,7 @@ def start(message):
             "1. يلتزم المستخدم بقوانين الاستخدام وعدم إنشاء حسابات وهمية.\n"
             "2. لا تُحتسب الإحالة نشطة إلا بعد أن يقوم الشخص المدعو **بإتمام عرض ناجح**.\n"
             "3. نسبة الإحالة (3%) تُحتسب للأبد بناءً على نشاط الأصدقاء.\n"
-            "4. تأكد من عنوان محفظة TRX الخاص بك (يمكنك تعديله بأي وقت من قسم المحفظة).\n\n"
+            "4. يمكنك تغيير وتحديث عنوان محفظة TRX الخاص بك بأي وقت من قسم المحفظة.\n\n"
             "اضغط على الزر أدناه للموافقة وفتح التطبيق المصغر:"
         )
 
@@ -102,7 +99,6 @@ def start(message):
     except Exception as e:
         print(f"Error in start handler: {e}", flush=True)
 
-# --- مسارات الـ API للتطبيق المصغر ---
 @server.route('/api/user/<int:user_id>')
 def get_user_data(user_id):
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
@@ -133,7 +129,6 @@ def get_user_data(user_id):
         "completed_offer": completed_offer
     })
 
-# تحديث وتغيير عنوان المحفظة (إذا خربط فيه المستخدم يقدر يعدله بأي وقت)
 @server.route('/api/update_address', methods=['POST'])
 def update_address():
     data = request.json
@@ -147,9 +142,8 @@ def update_address():
     cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
     conn.commit()
     conn.close()
-    return jsonify({"success": True, "message": "تم تحديث وحفظ عنوان المحفظة بنجاح!"})
+    return jsonify({"success": True, "message": "تم تغيير محفظة TRX بنجاح!"})
 
-# محاكاة إتمام العرض الناجح (لتفعيل الإحالة وزيادة عداد المُحيل)
 @server.route('/api/complete_offer', methods=['POST'])
 def complete_offer():
     data = request.json
@@ -157,8 +151,6 @@ def complete_offer():
     
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
-    
-    # فحص إذا كان المستخدم قد أتم العرض مسبقاً
     cursor.execute("SELECT completed_offer, referred_by FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     
@@ -171,20 +163,16 @@ def complete_offer():
         conn.close()
         return jsonify({"success": False, "message": "لقد قمت بإتمام العرض مسبقاً!"})
     
-    # تحديث حالة المستخدم أنه أتم العرض وزيادة رصيد تجريبي مثلاً
     cursor.execute("UPDATE users SET completed_offer = 1, balance = balance + 1.0 WHERE user_id = ?", (user_id,))
-    
-    # إذا كان لديه مُحيل ولم يحتسب بعد، نزيد عدد الإحالات النشطة للمُحيل
     if referred_by:
         cursor.execute(
             "UPDATE users SET active_referrals = active_referrals + 1 WHERE user_id = ?",
             (referred_by,)
         )
-        
     conn.commit()
     conn.close()
     
-    return jsonify({"success": True, "message": "تهانينا! تم التحقق وإتمام العرض بنجاح، وإضافة المكافأة لرصيدك!"})
+    return jsonify({"success": True, "message": "تهانينا! تم التحقق وإتمام العرض بنجاح!"})
 
 @server.route('/api/withdraw', methods=['POST'])
 def withdraw():
@@ -215,7 +203,6 @@ def withdraw():
     
     return jsonify({"success": True, "message": "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريبًا!"})
 
-# --- واجهة التطبيق المصغر ---
 @server.route('/webapp')
 def webapp():
     html_content = """
@@ -294,192 +281,4 @@ def webapp():
                 color: #94a3b8;
                 font-size: 11px;
                 cursor: pointer;
-                text-align: center;
-                flex: 1;
-            }
-            .nav-item.active {
-                color: #38bdf8;
-                font-weight: bold;
-            }
-            .nav-item span { display: block; font-size: 18px; }
-            .terms-text {
-                font-size: 13px;
-                color: #cbd5e1;
-                text-align: right;
-                line-height: 1.6;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2 id="page-title">💰 الرصيد</h2>
-            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
-
-            <div id="tab-balance" class="section active">
-                <div class="card">
-                    <h3>رصيدك الحالي من TRX</h3>
-                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
-                    <p style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
-                </div>
-            </div>
-
-            <div id="tab-ref" class="section">
-                <div class="card">
-                    <h3>👥 نظام الإحالات النشطة (3%)</h3>
-                    <p>عدد إحالاتك النشطة (التي أكملت العروض): <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
-                    <p style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح للأبد (لا تُسحب الإحالة إلا بعد إتمام أصدقائك للعرض):</p>
-                    <input type="text" id="ref-link" readonly onclick="this.select();">
-                    <button class="btn" onclick="copyRefLink()">نسخ رابط الإحالة 🔗</button>
-                </div>
-            </div>
-
-            <div id="tab-offers" class="section">
-                <div class="card">
-                    <h3>🎯 عروض تجميع النقاط</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:</p>
-                    <button class="btn" style="background: #16a34a;" onclick="window.open('http://bc.vc/Dc4Boi8', '_blank')">فتح رابط العرض 🚀</button>
-                    <button class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">تأكيد إتمام العرض ✅</button>
-                </div>
-            </div>
-
-            <div id="tab-wallet" class="section">
-                <div class="card">
-                    <h3>💳 تعديل وإدارة المحفظة</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">إذا خربطت في العنوان، يمكنك تعديله وإدخال عنوان TRX الصحيح هنا:</p>
-                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX الصحيح...">
-                    <button class="btn" onclick="saveAddress()">تحديث / حفظ العنوان 💾</button>
-                </div>
-            </div>
-
-            <div id="tab-withdraw" class="section">
-                <div class="card">
-                    <h3>💸 سحب الأرباح</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
-                    <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all;"></p>
-                    <button class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
-                </div>
-            </div>
-
-            <div id="tab-terms" class="section">
-                <div class="card">
-                    <h3>📜 الشروط والأحكام</h3>
-                    <div class="terms-text">
-                        1. لا تُحتسب الإحالة نشطة وتضاف لمجموعك إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
-                        2. نسبة الإحالة (3%) تُحتسب وتُضاف للأبد بناءً على نشاط الإحالات.<br>
-                        3. يمكنك تعديل عنوان محفظة TRX في قسم المحفظة بأي وقت إذا قمت بخطأ فيه.<br>
-                        4. يمنع منعاً باتاً استخدام الحسابات الوهمية لتجنب الحظر النهائي.
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="nav-bar">
-            <button class="nav-item active" onclick="switchTab('balance', '💰 الرصيد', this)"><span>💰</span>الرصيد</button>
-            <button class="nav-item" onclick="switchTab('ref', '👥 الإحالات', this)"><span>👥</span>الإحالة</button>
-            <button class="nav-item" onclick="switchTab('offers', '🎯 العروض', this)"><span>🎯</span>العروض</button>
-            <button class="nav-item" onclick="switchTab('wallet', '💳 المحفظة', this)"><span>💳</span>المحفظة</button>
-            <button class="nav-item" onclick="switchTab('withdraw', '💸 السحب', this)"><span>💸</span>السحب</button>
-            <button class="nav-item" onclick="switchTab('terms', '📜 الشروط والأحكام', this)"><span>📜</span>الشروط</button>
-        </div>
-
-        <script>
-            let tg = window.Telegram.WebApp;
-            tg.expand();
-
-            let userId = 123456789;
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                userId = tg.initDataUnsafe.user.id;
-                document.getElementById('welcome').innerText = "مرحباً بك: " + (tg.initDataUnsafe.user.first_name || "مستخدم");
-            } else {
-                document.getElementById('welcome').innerText = "وضع المعاينة التجريبي";
-            }
-
-            function loadUserData() {
-                fetch('/api/user/' + userId)
-                    .then(res => res.json())
-                    .then(data => {
-                        document.getElementById('balance-val').innerText = data.balance.toFixed(2) + " TRX";
-                        document.getElementById('ref-count').innerText = data.active_referrals;
-                        document.getElementById('ref-link').value = data.ref_link;
-                        document.getElementById('trx-input').value = data.trx_address || "";
-                        document.getElementById('current-address').innerText = data.trx_address ? data.trx_address : "لم تقم بإضافة عنوان بعد!";
-                    })
-                    .catch(err => console.error("Error:", err));
-            }
-
-            loadUserData();
-
-            function switchTab(tabName, titleText, btnElement) {
-                document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                
-                document.getElementById('tab-' + tabName).classList.add('active');
-                btnElement.classList.add('active');
-                document.getElementById('page-title').innerText = titleText;
-            }
-
-            function copyRefLink() {
-                var copyText = document.getElementById("ref-link");
-                copyText.select();
-                copyText.setSelectionRange(0, 99999);
-                navigator.clipboard.writeText(copyText.value);
-                alert("تم نسخ رابط الإحالة بنجاح! 📋");
-            }
-
-            function saveAddress() {
-                let address = document.getElementById('trx-input').value.trim();
-                if(!address) {
-                    alert("الرجاء إدخال عنوان صحيح!");
-                    return;
-                }
-                fetch('/api/update_address', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId, address: address})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    loadUserData();
-                });
-            }
-
-            function completeOffer() {
-                fetch('/api/complete_offer', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    loadUserData();
-                });
-            }
-
-            function requestWithdraw() {
-                fetch('/api/withdraw', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    alert(data.message);
-                    loadUserData();
-                });
-            }
-        </script>
-    </body>
-    </html>
-    """
-    return render_template_string(html_content)
-
-if __name__ == '__main__':
-    bot.remove_webhook()
-    webhook_url = f"{RENDER_URL}/{TOKEN}"
-    bot.set_webhook(url=webhook_url)
-    
-    port = int(os.environ.get('PORT', 10000))
-    server.run(host='0.0.0.0', port=port)
+                text-align
