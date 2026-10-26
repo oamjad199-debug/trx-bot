@@ -1,11 +1,12 @@
 import os
-import threading
-from flask import Flask
+from flask import Flask, request
 import telebot
 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
+
+RENDER_URL = "https://trx-bot-e61j.onrender.com"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -34,39 +35,37 @@ HTML_TEMPLATE = """
 def home():
     return HTML_TEMPLATE
 
+# مسار الـ Webhook الأساسي لاستقبال الرسائل من تيليجرام بدقة
+@server.route('/' + TOKEN, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return 'OK', 200
+    else:
+        return 'Forbidden', 403
+
 @bot.message_handler(commands=['start'])
 def start(message):
-    try:
-        markup = telebot.types.InlineKeyboardMarkup()
-        web_app = telebot.types.WebAppInfo(url="http://bc.vc/Dc4Boi8")
-        webapp_button = telebot.types.InlineKeyboardButton(
-            "فتح التطبيق المصغر 🚀", 
-            web_app=web_app
-        )
-        markup.add(webapp_button)
-        
-        bot.reply_to(
-            message, 
-            "أهلاً بك يا عمر! اضغط أدناه لإتمام التحقق وفتح التطبيق المصغر:", 
-            reply_markup=markup
-        )
-    except Exception as e:
-        print(f"START ERROR: {e}")
-
-def run_bot():
-    try:
-        # إلغاء أي ويب هوك قديم لمنع التعارض نهائياً
-        bot.remove_webhook()
-        print("Bot started polling...")
-        bot.infinity_polling(skip_pending=True)
-    except Exception as e:
-        print(f"Polling error: {e}")
+    markup = telebot.types.InlineKeyboardMarkup()
+    web_app = telebot.types.WebAppInfo(url="http://bc.vc/Dc4Boi8")
+    webapp_button = telebot.types.InlineKeyboardButton(
+        "فتح التطبيق المصغر 🚀", 
+        web_app=web_app
+    )
+    markup.add(webapp_button)
+    
+    bot.reply_to(
+        message, 
+        "أهلاً بك يا عمر! اضغط أدناه لإتمام التحقق وفتح التطبيق المصغر:", 
+        reply_markup=markup
+    )
 
 if __name__ == '__main__':
-    # تشغيل البوت في خلفية السيرفر ليعمل بشكل دائم وسلس
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # ربط الويب هوك تلقائياً عند تشغيل السيرفر
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
     
     port = int(os.environ.get('PORT', 10000))
     server.run(host='0.0.0.0', port=port)
