@@ -371,7 +371,7 @@ def webapp():
             <div style="width: 24px;"></div>
         </div>
 
-        <!-- القائمة الجانبية المنظمة بدون أي تكرار -->
+        <!-- القائمة الجانبية -->
         <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
         <div class="drawer" id="drawer">
             <div class="drawer-header">
@@ -463,7 +463,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 6. المحفظة -->
+            <!-- 6. المحفظة (مع الحفظ الفوري والدائم في المتصفح والقاعدة) -->
             <div id="tab-wallet" class="section">
                 <div class="card">
                     <h3 id="txt-wallet-title">💳 إدارة المحفظة</h3>
@@ -478,7 +478,7 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-withdraw-title">💸 سحب الأرباح</h3>
                     <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
-                    <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all; margin: 10px 0;"></p>
+                    <p id="current-address" style="font-size: 14px; font-weight: bold; color: #fbbf24; word-break: break-all; margin: 10px 0;"></p>
                     <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
                 </div>
             </div>
@@ -637,6 +637,10 @@ def webapp():
 
             function loadUserData() {
                 let t = translations[currentLang] || translations['ar'];
+                
+                // جلب العنوان من المتصفح محلياً كاحتياط لضمان عدم اختفائه أبداً
+                let localAddress = localStorage.getItem('trx_address_' + userId) || "";
+
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
                     .then(data => {
@@ -644,7 +648,7 @@ def webapp():
                         document.getElementById('ref-count').innerText = data.active_referrals;
                         document.getElementById('ref-link').value = data.ref_link;
                         
-                        savedTrxAddress = data.trx_address || "";
+                        savedTrxAddress = data.trx_address || localAddress || "";
                         let input = document.getElementById('trx-input');
                         let btn = document.getElementById('wallet-btn');
                         let desc = document.getElementById('wallet-desc');
@@ -663,7 +667,15 @@ def webapp():
                             document.getElementById('current-address').innerText = t.noAddress;
                         }
                     })
-                    .catch(err => console.error("Error:", err));
+                    .catch(err => {
+                        console.error("Error:", err);
+                        if (localAddress) {
+                            savedTrxAddress = localAddress;
+                            document.getElementById('trx-input').value = savedTrxAddress;
+                            document.getElementById('trx-input').readOnly = true;
+                            document.getElementById('current-address').innerText = savedTrxAddress;
+                        }
+                    });
             }
 
             function handleWalletAction() {
@@ -682,6 +694,9 @@ def webapp():
                     input.focus();
                     btn.innerText = t.saveChangeBtn;
                 } else {
+                    // حفظ العنوان محلياً وفي الـ API لضمان عدم ضياعه أبداً
+                    localStorage.setItem('trx_address_' + userId, address);
+
                     fetch('/api/update_address', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
