@@ -278,12 +278,12 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* القائمة الجانبية المرتّبة وغير المكررة */
+            /* القائمة الجانبية المنسقة بدون أي تداخل */
             .drawer {
                 position: fixed;
                 top: 0;
-                right: -260px;
-                width: 250px;
+                right: -280px;
+                width: 270px;
                 height: 100%;
                 background: #1e293b;
                 z-index: 1000;
@@ -291,8 +291,9 @@ def webapp():
                 box-shadow: -5px 0 15px rgba(0,0,0,0.5);
                 display: flex;
                 flex-direction: column;
-                padding: 20px 10px;
+                padding: 15px 10px;
                 box-sizing: border-box;
+                overflow-y: auto;
             }
             .drawer.open { right: 0; }
             .drawer-header {
@@ -301,7 +302,7 @@ def webapp():
                 align-items: center;
                 border-bottom: 1px solid #334155;
                 padding-bottom: 10px;
-                margin-bottom: 15px;
+                margin-bottom: 10px;
             }
             .close-drawer {
                 background: none;
@@ -311,24 +312,26 @@ def webapp():
                 cursor: pointer;
             }
             .drawer-item {
-                background: none;
-                border: none;
+                background: #0f172a;
+                border: 1px solid #334155;
                 color: #cbd5e1;
                 font-size: 13px;
                 text-align: right;
-                padding: 10px;
+                padding: 10px 12px;
                 cursor: pointer;
                 border-radius: 8px;
-                margin-bottom: 5px;
+                margin-bottom: 6px;
                 display: flex;
                 align-items: center;
                 justify-content: flex-start;
-                gap: 8px;
+                gap: 10px;
                 width: 100%;
+                box-sizing: border-box;
             }
             .drawer-item:hover, .drawer-item.active {
                 background: #334155;
                 color: #38bdf8;
+                border-color: #38bdf8;
                 font-weight: bold;
             }
             .overlay {
@@ -357,12 +360,12 @@ def webapp():
             <div style="width: 24px;"></div>
         </div>
 
-        <!-- القائمة الجانبية المرتبة نهائياً -->
+        <!-- القائمة الجانبية المنظمة والنظيفة -->
         <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
         <div class="drawer" id="drawer">
             <div class="drawer-header">
                 <button class="close-drawer" onclick="toggleDrawer()">✕</button>
-                <span style="font-weight: bold; color: #38bdf8;">القائمة ⚙️</span>
+                <span style="font-weight: bold; color: #38bdf8; font-size: 15px;">القائمة الرئيسية ⚙️</span>
             </div>
             <button class="drawer-item active" onclick="switchTab('home', '🏠 الرئيسية', this)"><span>🏠</span> الرئيسية</button>
             <button class="drawer-item" onclick="switchTab('ref', '👥 الإحالة', this)"><span>👥</span> الإحالة</button>
@@ -434,7 +437,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 6. المحفظة (مع خيار الحفظ والتعديل الدائم) -->
+            <!-- 6. المحفظة -->
             <div id="tab-wallet" class="section">
                 <div class="card">
                     <h3>💳 إدارة المحفظة</h3>
@@ -454,7 +457,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 8. الربح من المشاهدة -->
+            <!-- 8. المشاهدة -->
             <div id="tab-watch" class="section">
                 <div class="card">
                     <h3>▶️ الربح من المشاهدة</h3>
