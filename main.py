@@ -257,7 +257,6 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
-        # إذا لم يكن موجوداً ننشئه مع الحفاظ على أي بيانات سابقة محتملة
         cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, 0.0)", (user_id, "Omar"))
         conn.commit()
         balance = 0.0
@@ -422,7 +421,7 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* تصميم الأكورديون للأسئلة */
+            /* تصميم الأكورديون للسؤال */
             .accordion-card {
                 background: #1e293b;
                 border-radius: 12px;
@@ -611,14 +610,14 @@ def webapp():
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
 
-                <!-- الأكورديون للأسئلة -->
+                <!-- الأكورديون للسؤال وتوضيح المراجعة والسحب -->
                 <div class="accordion-card" id="faq-accordion">
                     <div class="accordion-header" onclick="toggleAccordion()">
-                        <h3 id="txt-faq-title">❓ كيف العمل على البوت؟</h3>
+                        <h3 id="txt-faq-title">❓ متى يتم سحب الأرباح؟</h3>
                         <span class="accordion-arrow">⌄</span>
                     </div>
                     <div class="accordion-content">
-                        <p id="txt-faq-desc" style="margin: 0;">العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط</p>
+                        <p id="txt-faq-desc" style="margin: 0;">يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد التأكد من اكتمال الشروط.</p>
                     </div>
                 </div>
             </div>
@@ -730,7 +729,7 @@ def webapp():
                     wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", terms: "📜 الشروط والأحكام",
                     menu: "القائمة ⚙️", welcome: "مرحباً بك: ",
                     balTitle: "رصيد TRX الحالي", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
-                    faqTitle: "❓ كيف العمل على البوت؟", faqDesc: "العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط",
+                    faqTitle: "❓ متى يتم سحب الأرباح؟", faqDesc: "يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد التأكد من اكتمال الشروط.",
                     refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
                     phoneSubTitle: "📱 الربح من الاشتراك في رقم هاتف", phoneSubDesc: "اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:", phoneSubBtn: "تنفيذ الاشتراك ✅",
                     installAppsTitle: "📲 الربح من تثبيت تطبيقات", installAppsDesc: "قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:", installAppsBtn: "تثبيت التطبيق ✅",
@@ -753,7 +752,7 @@ def webapp():
                     wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", terms: "📜 Terms",
                     menu: "Menu ⚙️", welcome: "Welcome: ",
                     balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
-                    faqTitle: "❓ How to work on bot?", faqDesc: "Working on the bot is very easy, you can earn by watching ads only.",
+                    faqTitle: "❓ When are earnings withdrawn?", faqDesc: "Withdrawal requests are processed and reviewed, and funds are sent after verifying all terms.",
                     refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
                     phoneSubTitle: "📱 Phone Number Sub", phoneSubDesc: "Subscribe with your phone number in available offers to earn TRX:", phoneSubBtn: "Complete Subscription ✅",
                     installAppsTitle: "📲 Install Apps", installAppsDesc: "Install required apps and open them to earn TRX points:", installAppsBtn: "Install App ✅",
@@ -774,7 +773,7 @@ def webapp():
                     home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
                     menu: "Menú ⚙️", welcome: "Bienvenido: ",
                     balTitle: "Saldo Actual", balDesc: "Retiro instantáneo al alcanzar el mínimo.",
-                    faqTitle: "❓ ¿Cómo trabajar en el bot?", faqDesc: "Es muy fácil, puedes ganar viendo anuncios únicamente.",
+                    faqTitle: "❓ ¿Cuándo se retiran las ganancias?", faqDesc: "Las solicitudes de retiro se procesan y revisan antes de enviar los fondos.",
                     refTitle: "👥 Referidos (3%)", refCountLbl: "Activos:", refDesc: "Comparte tu enlace:", copyBtn: "Copiar Enlace 🔗",
                     phoneSubTitle: "📱 Suscripción", phoneSubDesc: "Suscríbete con tu número:", phoneSubBtn: "Suscribirse ✅",
                     installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instala apps requeridas:", installAppsBtn: "Instalar App ✅",
@@ -783,7 +782,7 @@ def webapp():
                     withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀",
                     watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
                     termsTitle: "📜 Términos", 
-                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN o Proxy<br>❌ Usar Wi-Fi (use datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.<br>✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.",
+                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.<br>✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.",
                     alertCopy: "¡Enlace copiado con éxito! 📋",
                     alertAddressReq: "¡Por favor ingresa una dirección válida!",
                     alertOfferDone: "¡Recompensa añadida con éxito! 🎉",
@@ -795,7 +794,7 @@ def webapp():
                     home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
                     menu: "Menü ⚙️", welcome: "Willkommen: ",
                     balTitle: "Aktuelles Guthaben", balDesc: "Sofortige Auszahlung möglich.",
-                    faqTitle: "❓ Wie arbeite ich am Bot?", faqDesc: "Sehr einfach, Sie können nur durch das Ansehen von Anzeigen verdienen.",
+                    faqTitle: "❓ Wann werden Gewinne ausgezahlt?", faqDesc: "Auszahlungsanfragen werden nach Prüfung und Verifizierung bearbeitet.",
                     refTitle: "👥 Empfehlungen (3%)", refCountLbl: "Aktiv:", refDesc: "Link teilen:", copyBtn: "Link kopieren 🔗",
                     phoneSubTitle: "📱 Telefon-Abo", phoneSubDesc: "Abonnieren Sie mit Ihrer Nummer:", phoneSubBtn: "Abonnieren ✅",
                     installAppsTitle: "📲 Apps installieren", installAppsDesc: "Apps installieren:", installAppsBtn: "App installieren ✅",
@@ -816,7 +815,7 @@ def webapp():
                     home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
                     menu: "Menu ⚙️", welcome: "Bienvenue : ",
                     balTitle: "Solde Actuel", balDesc: "Retrait instantané.",
-                    faqTitle: "❓ Comment travailler sur le bot?", faqDesc: "C'est très facile, vous pouvez gagner en regardant des publicités.",
+                    faqTitle: "❓ Quand les gains sont-ils retirés ?", faqDesc: "Les demandes de retrait sont traitées et vérifiées avant l'envoi des fonds.",
                     refTitle: "👥 Parrainage (3%)", refCountLbl: "Actifs :", refDesc: "Partagez :", copyBtn: "Copier 🔗",
                     phoneSubTitle: "📱 Abonn. Téléphone", phoneSubDesc: "Abonnez-vous avec votre numéro:", phoneSubBtn: "S'abonner ✅",
                     installAppsTitle: "📲 Installer Apps", installAppsDesc: "Installez les apps requises:", installAppsBtn: "Installer ✅",
@@ -837,7 +836,7 @@ def webapp():
                     home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Сайты", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
                     menu: "Меню ⚙️", welcome: "Добро пожаловать: ",
                     balTitle: "Баланс TRX", balDesc: "Мгновенный вывод.",
-                    faqTitle: "❓ Как работать в боте?", faqDesc: "Очень просто, вы можете зарабатывать только просматривая рекламу.",
+                    faqTitle: "❓ Когда выводятся средства?", faqDesc: "Заявки на вывод обрабатываются и проверяются перед отправкой средств.",
                     refTitle: "👥 Рефералы (3%)", refCountLbl: "Активные:", refDesc: "Ссылка:", copyBtn: "Копировать 🔗",
                     phoneSubTitle: "📱 Подписка по тел.", phoneSubDesc: "Подпишитесь с номером:", phoneSubBtn: "Подписаться ✅",
                     installAppsTitle: "📲 Установка апп", installAppsDesc: "Установите нужные приложения:", installAppsBtn: "Установить ✅",
@@ -858,7 +857,7 @@ def webapp():
                     home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
                     menu: "Menu ⚙️", welcome: "Bem-vindo: ",
                     balTitle: "Saldo TRX", balDesc: "Saque rápido.",
-                    faqTitle: "❓ Como trabalhar no bot?", faqDesc: "É muito fácil, você pode ganhar assistindo a anúncios.",
+                    faqTitle: "❓ Quando os ganhos são retirados?", faqDesc: "Os pedidos de saque são processados e revisados antes do envio.",
                     refTitle: "👥 Indicações (3%)", refCountLbl: "Ativas:", refDesc: "Link:", copyBtn: "Copiar 🔗",
                     phoneSubTitle: "📱 Sub. de Telefone", phoneSubDesc: "Inscreva-se com seu número:", phoneSubBtn: "Inscrever-se ✅",
                     installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instale os aplicativos:", installAppsBtn: "Instalar ✅",
@@ -879,7 +878,7 @@ def webapp():
                     home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
                     menu: "Menu ⚙️", welcome: "Welkom: ",
                     balTitle: "Saldo", balDesc: "Direct opnemen.",
-                    faqTitle: "❓ Hoe werken met de bot?", faqDesc: "Heel eenvoudig, je kunt verdienen door alleen advertenties te bekijken.",
+                    faqTitle: "❓ Wanneer worden winsten opgenomen?", faqDesc: "Opnameverzoeken worden verwerkt en beoordeeld voordat fondsen worden verzonden.",
                     refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗",
                     phoneSubTitle: "📱 Telefoon Sub", phoneSubDesc: "Abonneer met je nummer:", phoneSubBtn: "Abonneren ✅",
                     installAppsTitle: "📲 Apps Installeren", installAppsDesc: "Installeer vereiste apps:", installAppsBtn: "Installeren ✅",
@@ -900,7 +899,7 @@ def webapp():
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
                     menu: "Menu ⚙️", welcome: "Witaj: ",
                     balTitle: "Saldo TRX", balDesc: "Szybka wypłata.",
-                    faqTitle: "❓ Jak pracować z botem?", faqDesc: "Bardzo proste, możesz zarabiać tylko oglądając reklamy.",
+                    faqTitle: "❓ Kiedy wypłacane są środki?", faqDesc: "Wnioski o wypłatę są przetwarzane i weryfikowane przed wysłaniem środków.",
                     refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗",
                     phoneSubTitle: "📱 Subskrypcja tel.", phoneSubDesc: "Subskrybuj numerem:", phoneSubBtn: "Subskrybuj ✅",
                     installAppsTitle: "📲 Instaluj aplikacje", installAppsDesc: "Zainstaluj aplikacje:", installAppsBtn: "Zainstaluj ✅",
