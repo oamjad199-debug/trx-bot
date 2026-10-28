@@ -17,7 +17,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             username TEXT,
-            balance REAL DEFAULT 0.0,
+            balance REAL DEFAULT 4.50,
             referred_by INTEGER,
             active_referrals INTEGER DEFAULT 0,
             trx_address TEXT DEFAULT '',
@@ -65,18 +65,18 @@ def start(message):
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
                 if cursor.fetchone():
                     cursor.execute(
-                        "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
-                        (user_id, username, referrer_id)
+                        "INSERT INTO users (user_id, username, referred_by, balance) VALUES (?, ?, ?, ?)",
+                        (user_id, username, referrer_id, 4.50)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, username) VALUES (?, ?)",
-                        (user_id, username)
+                        "INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)",
+                        (user_id, username, 4.50)
                     )
             else:
                 cursor.execute(
-                    "INSERT INTO users (user_id, username) VALUES (?, ?)",
-                    (user_id, username)
+                    "INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)",
+                    (user_id, username, 4.50)
                 )
             conn.commit()
         conn.close()
@@ -107,9 +107,9 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, "Omar"))
+        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, ?)", (user_id, "Omar", 4.50))
         conn.commit()
-        balance = 0.0
+        balance = 4.50
         active_referrals = 0
         trx_address = ""
         completed_offer = 0
@@ -273,6 +273,52 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
+            /* تصميم الأكورديون (القائمة المنسدلة للأسئلة مثل الفيديو) */
+            .accordion-card {
+                background: #1e293b;
+                border-radius: 12px;
+                margin: 10px 0;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            }
+            .accordion-header {
+                padding: 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                user-select: none;
+                background: #1e293b;
+            }
+            .accordion-header h3 {
+                color: #38bdf8;
+                font-size: 15px;
+                margin: 0;
+            }
+            .accordion-arrow {
+                font-size: 18px;
+                color: #38bdf8;
+                transition: transform 0.3s ease;
+            }
+            .accordion-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease, padding 0.3s ease;
+                background: #0f172a;
+                padding: 0 15px;
+                text-align: right;
+                font-size: 13px;
+                color: #cbd5e1;
+                line-height: 1.6;
+            }
+            .accordion-card.open .accordion-content {
+                max-height: 150px;
+                padding: 12px 15px;
+            }
+            .accordion-card.open .accordion-arrow {
+                transform: rotate(180deg);
+            }
+
             .drawer {
                 position: fixed;
                 top: 0;
@@ -408,19 +454,23 @@ def webapp():
         <div class="container">
             <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8; margin-top:0;"></p>
 
-            <!-- 1. الرئيسية -->
+            <!-- 1. الرئيسية مع شريط السحب والإجابة (أكورديون) -->
             <div id="tab-home" class="section active">
                 <div class="card">
                     <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
-                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
+                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">TRX 4.50</p>
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
 
-                <div class="card" style="text-align: right;">
-                    <h3 id="txt-faq-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">❓ كيف العمل على البوت؟</h3>
-                    <p id="txt-faq-desc" style="font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.6;">
-                        العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط
-                    </p>
+                <!-- الأكورديون (السهم المنسدل مثل الفيديو) -->
+                <div class="accordion-card" id="faq-accordion">
+                    <div class="accordion-header" onclick="toggleAccordion()">
+                        <h3 id="txt-faq-title">❓ كيف العمل على البوت؟</h3>
+                        <span class="accordion-arrow">⌄</span>
+                    </div>
+                    <div class="accordion-content">
+                        <p id="txt-faq-desc" style="margin: 0;">العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط</p>
+                    </div>
                 </div>
             </div>
 
@@ -523,6 +573,10 @@ def webapp():
             function toggleDrawer() {
                 document.getElementById('drawer').classList.toggle('open');
                 document.getElementById('overlay').classList.toggle('active');
+            }
+
+            function toggleAccordion() {
+                document.getElementById('faq-accordion').classList.toggle('open');
             }
 
             const translations = {
@@ -789,7 +843,7 @@ def webapp():
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
                     .then(data => {
-                        document.getElementById('balance-val').innerText = data.balance.toFixed(2) + " TRX";
+                        document.getElementById('balance-val').innerText = "TRX " + data.balance.toFixed(2);
                         document.getElementById('ref-count').innerText = data.active_referrals;
                         document.getElementById('ref-link').value = data.ref_link;
                         
@@ -848,7 +902,7 @@ def webapp():
                     })
                     .then(res => res.json())
                     .then(data => {
-                        alert(t.alertAddressReq.includes("Please") ? "Wallet address saved successfully! 💾" : "تم حفظ عنوان المحفظة بنجاح! 💾");
+                        alert(currentLang === 'ar' ? "تم حفظ عنوان المحفظة بنجاح! 💾" : "Wallet address saved successfully! 💾");
                         loadUserData();
                     });
                 }
