@@ -142,7 +142,7 @@ def update_address():
     user_id = data.get('user_id')
     address = data.get('address')
     if not user_id or not address:
-        return jsonify({"success": False, "message": "الرجاء إدخال عنوان صحيح!"})
+        return jsonify({"success": False, "message": "Invalid address!"})
     
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -150,7 +150,7 @@ def update_address():
     cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
     conn.commit()
     conn.close()
-    return jsonify({"success": True, "message": "تم حفظ عنوان المحفظة بنجاح! 💾"})
+    return jsonify({"success": True, "message": "Wallet address saved successfully! 💾"})
 
 @server.route('/api/complete_offer', methods=['POST'])
 def complete_offer():
@@ -164,7 +164,7 @@ def complete_offer():
     conn.commit()
     conn.close()
     
-    return jsonify({"success": True, "message": "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉"})
+    return jsonify({"success": True, "message": "Reward added to your balance successfully! 🎉"})
 
 @server.route('/api/withdraw', methods=['POST'])
 def withdraw():
@@ -178,22 +178,22 @@ def withdraw():
     
     if not row:
         conn.close()
-        return jsonify({"success": False, "message": "المستخدم غير مسجل بقاعدة البيانات"})
+        return jsonify({"success": False, "message": "User not registered"})
     
     balance, address = row
     if not address:
         conn.close()
-        return jsonify({"success": False, "message": "الرجاء إضافة عنوان محفظة TRX في قسم المحفظة أولاً!"})
+        return jsonify({"success": False, "message": "Please add your TRX wallet address first!"})
     
     if balance <= 0:
         conn.close()
-        return jsonify({"success": False, "message": "عذراً، ليس لديك رصيد كافي للسحب"})
+        return jsonify({"success": False, "message": "Insufficient balance"})
     
     cursor.execute("UPDATE users SET balance = 0.0 WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
     
-    return jsonify({"success": True, "message": "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريباً! 🚀"})
+    return jsonify({"success": True, "message": "Withdrawal request submitted successfully! 🚀"})
 
 @server.route('/webapp')
 def webapp():
@@ -388,7 +388,7 @@ def webapp():
             <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span id="nav-txt-watch">▶️ الربح من المشاهدة</span></button>
             <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span id="nav-txt-terms">📜 الشروط والأحكام</span></button>
             
-            <!-- قائمة اللغات والترجمة الفورية -->
+            <!-- قائمة اللغات والترجمة -->
             <div class="lang-container">
                 <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
                 <select id="language-select" onchange="changeLanguage(this.value)">
@@ -416,7 +416,7 @@ def webapp():
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
 
-                <div class="card" style="text-align: right;" id="faq-card">
+                <div class="card" style="text-align: right;">
                     <h3 id="txt-faq-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">❓ كيف العمل على البوت؟</h3>
                     <p id="txt-faq-desc" style="font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.6;">
                         العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط
@@ -493,7 +493,7 @@ def webapp():
 
             <!-- 9. الشروط والأحكام -->
             <div id="tab-terms" class="section">
-                <div class="card" style="text-align: right;" id="terms-card">
+                <div class="card" style="text-align: right;">
                     <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
                     <div id="txt-terms-content" class="terms-text">
                         1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>
@@ -540,7 +540,13 @@ def webapp():
                     walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):",
                     withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
                     watchTitle: "▶️ الربح من المشاهدة", watchDesc: "قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:", watchBtn: "مشاهدة الإعلان والربح 🚀",
-                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت."
+                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
+                    alertCopy: "تم نسخ رابط الإحالة بنجاح! 📋",
+                    alertAddressReq: "الرجاء إدخال عنوان صحيح!",
+                    alertOfferDone: "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉",
+                    alertNoAddress: "الرجاء إضافة عنوان محفظة TRX في قسم المحفظة أولاً!",
+                    alertNoBalance: "عذراً، ليس لديك رصيد كافي للسحب",
+                    alertWithdrawDone: "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريباً! 🚀"
                 },
                 en: {
                     home: "🏠 Home", ref: "👥 Referrals",
@@ -556,7 +562,13 @@ def webapp():
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
-                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
+                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime.",
+                    alertCopy: "Referral link copied successfully! 📋",
+                    alertAddressReq: "Please enter a valid address!",
+                    alertOfferDone: "Congratulations! Reward added to your balance successfully! 🎉",
+                    alertNoAddress: "Please add your TRX wallet address in the wallet section first!",
+                    alertNoBalance: "Sorry, you don't have enough balance to withdraw",
+                    alertWithdrawDone: "Withdrawal request submitted successfully and will be processed soon! 🚀"
                 },
                 es: {
                     home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
@@ -570,7 +582,13 @@ def webapp():
                     walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:",
                     withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀",
                     watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
-                    termsTitle: "📜 Términos", termsContent: "1. No VPN.<br>2. Referidos activos.<br>3. 3% bono.<br>4. Cambia tu billetera cuando quieras."
+                    termsTitle: "📜 Términos", termsContent: "1. No VPN.<br>2. Referidos activos.<br>3. 3% bono.<br>4. Cambia tu billetera cuando quieras.",
+                    alertCopy: "¡Enlace copiado con éxito! 📋",
+                    alertAddressReq: "¡Por favor ingresa una dirección válida!",
+                    alertOfferDone: "¡Felicitaciones! Recompensa añadida con éxito. 🎉",
+                    alertNoAddress: "¡Por favor añade tu dirección TRX en la billetera primero!",
+                    alertNoBalance: "Lo siento, no tienes suficiente saldo para retirar",
+                    alertWithdrawDone: "¡Solicitud de retiro enviada con éxito! 🚀"
                 },
                 de: {
                     home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
@@ -584,7 +602,13 @@ def webapp():
                     walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:",
                     withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀",
                     watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
-                    termsTitle: "📜 AGB", termsContent: "1. Kein VPN.<br>2. Aktive Empfehlungen.<br>3. 3% Bonus.<br>4. Wallet änderbar."
+                    termsTitle: "📜 AGB", termsContent: "1. Kein VPN.<br>2. Aktive Empfehlungen.<br>3. 3% Bonus.<br>4. Wallet änderbar.",
+                    alertCopy: "Empfehlungslink erfolgreich kopiert! 📋",
+                    alertAddressReq: "Bitte geben Sie eine gültige Adresse ein!",
+                    alertOfferDone: "Glückwunsch! Belohnung erfolgreich hinzugefügt! 🎉",
+                    alertNoAddress: "Bitte fügen Sie zuerst Ihre TRX-Adresse im Wallet hinzu!",
+                    alertNoBalance: "Entschuldigung, Sie haben nicht genug Guthaben zum Abheben",
+                    alertWithdrawDone: "Auszahlungsantrag erfolgreich eingereicht! 🚀"
                 },
                 fr: {
                     home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
@@ -598,7 +622,13 @@ def webapp():
                     walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :",
                     withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀",
                     watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀",
-                    termsTitle: "📜 Conditions", termsContent: "1. Pas de VPN.<br>2. Parrainage actif.<br>3. 3% bonus.<br>4. Modifiable."
+                    termsTitle: "📜 Conditions", termsContent: "1. Pas de VPN.<br>2. Parrainage actif.<br>3. 3% bonus.<br>4. Modifiable.",
+                    alertCopy: "Lien de parrainage copié avec succès ! 📋",
+                    alertAddressReq: "Veuillez entrer une adresse valide !",
+                    alertOfferDone: "Félicitations ! Récompense ajoutée avec succès ! 🎉",
+                    alertNoAddress: "Veuillez d'abord ajouter votre adresse TRX dans le portefeuille !",
+                    alertNoBalance: "Désolé, vous n'avez pas assez de solde pour retirer",
+                    alertWithdrawDone: "Demande de retrait soumise avec succès ! 🚀"
                 },
                 ru: {
                     home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Сайты", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
@@ -612,7 +642,13 @@ def webapp():
                     walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:",
                     withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀",
                     watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
-                    termsTitle: "📜 Условия", termsContent: "1. Без VPN.<br>2. Рефералы активны.<br>3. 3% бонус.<br>4. Кошелек изменяем."
+                    termsTitle: "📜 Условия", termsContent: "1. Без VPN.<br>2. Рефералы активны.<br>3. 3% бонус.<br>4. Кошелек изменяем.",
+                    alertCopy: "Реферальная ссылка успешно скопирована! 📋",
+                    alertAddressReq: "Пожалуйста, введите правильный адрес!",
+                    alertOfferDone: "Поздравляем! Награда успешно добавлена на ваш баланс! 🎉",
+                    alertNoAddress: "Пожалуйста, сначала добавьте адрес кошелька TRX в разделе кошелька!",
+                    alertNoBalance: "Извините, у вас недостаточно средств для вывода",
+                    alertWithdrawDone: "Запрос на вывод успешно отправлен и скоро будет обработан! 🚀"
                 },
                 pt: {
                     home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
@@ -626,7 +662,13 @@ def webapp():
                     walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:",
                     withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀",
                     watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀",
-                    termsTitle: "📜 Termos", termsContent: "1. Sem VPN.<br>2. Indicações ativas.<br>3. 3% bônus.<br>4. Alterável."
+                    termsTitle: "📜 Termos", termsContent: "1. Sem VPN.<br>2. Indicações ativas.<br>3. 3% bônus.<br>4. Alterável.",
+                    alertCopy: "Link de indicação copiado com sucesso! 📋",
+                    alertAddressReq: "Por favor, insira um endereço válido!",
+                    alertOfferDone: "Parabéns! Recompensa adicionada ao saldo com sucesso! 🎉",
+                    alertNoAddress: "Por favor, adicione seu endereço TRX na carteira primeiro!",
+                    alertNoBalance: "Desculpe, você não tem saldo suficiente para sacar",
+                    alertWithdrawDone: "Solicitação de saque enviada com sucesso! 🚀"
                 },
                 nl: {
                     home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
@@ -640,7 +682,13 @@ def webapp():
                     walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:",
                     withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀",
                     watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀",
-                    termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar."
+                    termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar.",
+                    alertCopy: "Verwijzingslink succesvol gekopieerd! 📋",
+                    alertAddressReq: "Vul alstublieft een geldig adres in!",
+                    alertOfferDone: "Gefeliciteerd! Beloning successfully toegevoegd! 🎉",
+                    alertNoAddress: "Voeg eerst je TRX wallet adres toe in de wallet sectie!",
+                    alertNoBalance: "Sorry, je hebt niet genoeg saldo om op te nemen",
+                    alertWithdrawDone: "Opnameverzoek succesvol ingediend! 🚀"
                 },
                 pl: {
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
@@ -654,7 +702,13 @@ def webapp():
                     walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:",
                     withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀",
                     watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀",
-                    termsTitle: "📜 Regulamin", termsContent: "1. Bez VPN.<br>2. Polecenia aktywne.<br>3. 3% bonus.<br>4. Zmieniaj portfel."
+                    termsTitle: "📜 Regulamin", termsContent: "1. Bez VPN.<br>2. Polecenia aktywne.<br>3. 3% bonus.<br>4. Zmieniaj portfel.",
+                    alertCopy: "Link polecający skopiowany pomyślnie! 📋",
+                    alertAddressReq: "Proszę wpisać poprawny adres!",
+                    alertOfferDone: "Gratulacje! Nagroda dodana pomyślnie! 🎉",
+                    alertNoAddress: "Najpierw dodaj adres portfela TRX w zakładce portfela!",
+                    alertNoBalance: "Przepraszamy, nie masz wystarczającego salda do wypłaty",
+                    alertWithdrawDone: "Wniosek o wypłatę został pomyślnie złożony! 🚀"
                 }
             };
 
@@ -674,38 +728,31 @@ def webapp():
                     document.getElementById('html-root').setAttribute('lang', lang);
                 }
 
-                // تحديث النصوص في القائمة
                 document.getElementById('page-title').innerText = t.home;
                 document.getElementById('menu-title').innerText = t.menu;
                 
-                // الرئيسية
                 document.getElementById('txt-bal-title').innerText = t.balTitle;
                 document.getElementById('txt-bal-desc').innerText = t.balDesc;
                 document.getElementById('txt-faq-title').innerText = t.faqTitle;
                 document.getElementById('txt-faq-desc').innerText = t.faqDesc;
 
-                // الإحالة
                 document.getElementById('txt-ref-title').innerText = t.refTitle;
                 document.getElementById('txt-ref-count-label').innerText = t.refCountLbl;
                 document.getElementById('txt-ref-desc').innerText = t.refDesc;
                 document.getElementById('txt-copy-btn').innerText = t.copyBtn;
 
-                // اشتراك رقم هاتف
                 document.getElementById('txt-phonesub-title').innerText = t.phoneSubTitle;
                 document.getElementById('txt-phonesub-desc').innerText = t.phoneSubDesc;
                 document.getElementById('txt-phonesub-btn').innerText = t.phoneSubBtn;
 
-                // تثبيت تطبيقات
                 document.getElementById('txt-installapps-title').innerText = t.installAppsTitle;
                 document.getElementById('txt-installapps-desc').innerText = t.installAppsDesc;
                 document.getElementById('txt-installapps-btn').innerText = t.installAppsBtn;
 
-                // التسجيل في المواقع
                 document.getElementById('txt-registersites-title').innerText = t.registerSitesTitle;
                 document.getElementById('txt-registersites-desc').innerText = t.registerSitesDesc;
                 document.getElementById('txt-registersites-btn').innerText = t.registerSitesBtn;
 
-                // المحفظة والسحب والمشاهدة
                 document.getElementById('txt-wallet-title').innerText = t.walletTitle;
                 document.getElementById('wallet-desc').innerText = t.walletDesc;
                 document.getElementById('trx-input').placeholder = t.walletPlaceholder;
@@ -716,11 +763,9 @@ def webapp():
                 document.getElementById('txt-watch-desc').innerText = t.watchDesc;
                 document.getElementById('txt-watch-btn').innerText = t.watchBtn;
 
-                // الشروط
                 document.getElementById('txt-terms-title').innerText = t.termsTitle;
                 document.getElementById('txt-terms-content').innerHTML = t.termsContent;
 
-                // أزرار القائمة الجانبية
                 document.getElementById('nav-txt-home').innerText = t.home;
                 document.getElementById('nav-txt-ref').innerText = t.ref;
                 document.getElementById('nav-txt-phonesub').innerText = t.phoneSub;
@@ -785,7 +830,7 @@ def webapp():
                 let address = input.value.trim();
 
                 if (!address) {
-                    alert("الرجاء إدخال عنوان صحيح!");
+                    alert(t.alertAddressReq);
                     return;
                 }
 
@@ -803,7 +848,7 @@ def webapp():
                     })
                     .then(res => res.json())
                     .then(data => {
-                        alert(data.message);
+                        alert(t.alertAddressReq.includes("Please") ? "Wallet address saved successfully! 💾" : "تم حفظ عنوان المحفظة بنجاح! 💾");
                         loadUserData();
                     });
                 }
@@ -820,14 +865,16 @@ def webapp():
             }
 
             function copyRefLink() {
+                let t = translations[currentLang] || translations['ar'];
                 var copyText = document.getElementById("ref-link");
                 copyText.select();
                 copyText.setSelectionRange(0, 99999);
                 navigator.clipboard.writeText(copyText.value);
-                alert("تم نسخ رابط الإحالة بنجاح! 📋");
+                alert(t.alertCopy);
             }
 
             function completeTask() {
+                let t = translations[currentLang] || translations['ar'];
                 fetch('/api/complete_offer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -835,12 +882,13 @@ def webapp():
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message);
+                    alert(t.alertOfferDone);
                     loadUserData();
                 });
             }
 
             function requestWithdraw() {
+                let t = translations[currentLang] || translations['ar'];
                 fetch('/api/withdraw', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -848,8 +896,16 @@ def webapp():
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message);
-                    loadUserData.loadUserData();
+                    if (data.success) {
+                        alert(t.alertWithdrawDone);
+                    } else {
+                        if (data.message.includes("address")) {
+                            alert(t.alertNoAddress);
+                        } else {
+                            alert(t.alertNoBalance);
+                        }
+                    }
+                    loadUserData();
                 });
             }
 
