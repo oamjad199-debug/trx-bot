@@ -9,7 +9,7 @@ server = Flask(__name__)
 
 RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
 
-# --- إعداد قاعدة بيانات SQLite المحلية ---
+# --- إعداد قاعدة بيانات SQLite (آمنة تماماً ولا تمس رصيد المستخدم أبداً) ---
 def init_db():
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -17,7 +17,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             username TEXT,
-            balance REAL DEFAULT 4.50,
+            balance REAL DEFAULT 0.0,
             referred_by INTEGER,
             active_referrals INTEGER DEFAULT 0,
             trx_address TEXT DEFAULT '',
@@ -65,18 +65,18 @@ def start(message):
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
                 if cursor.fetchone():
                     cursor.execute(
-                        "INSERT INTO users (user_id, username, referred_by, balance) VALUES (?, ?, ?, ?)",
-                        (user_id, username, referrer_id, 4.50)
+                        "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
+                        (user_id, username, referrer_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)",
-                        (user_id, username, 4.50)
+                        "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                        (user_id, username)
                     )
             else:
                 cursor.execute(
-                    "INSERT INTO users (user_id, username, balance) VALUES (?, ?, ?)",
-                    (user_id, username, 4.50)
+                    "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                    (user_id, username)
                 )
             conn.commit()
         conn.close()
@@ -107,9 +107,10 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, ?)", (user_id, "Omar", 4.50))
+        # إذا لم يكن المستخدم موجوداً، يتم إنشاؤه برصيد 0.0 دون المساس بالباقين
+        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, ?)", (user_id, "Omar", 0.0))
         conn.commit()
-        balance = 4.50
+        balance = 0.0
         active_referrals = 0
         trx_address = ""
         completed_offer = 0
@@ -146,7 +147,6 @@ def update_address():
     
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, "Omar"))
     cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
     conn.commit()
     conn.close()
@@ -159,7 +159,6 @@ def complete_offer():
     
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, "Omar"))
     cursor.execute("UPDATE users SET balance = balance + 0.5 WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
@@ -312,7 +311,7 @@ def webapp():
                 line-height: 1.6;
             }
             .accordion-card.open .accordion-content {
-                max-height: 150px;
+                max-height: 250px;
                 padding: 12px 15px;
             }
             .accordion-card.open .accordion-arrow {
@@ -434,7 +433,7 @@ def webapp():
             <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span id="nav-txt-watch">▶️ الربح من المشاهدة</span></button>
             <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span id="nav-txt-terms">📜 الشروط والأحكام</span></button>
             
-            <!-- قائمة اللغات والترجمة -->
+            <!-- قائمة اللغات والترجمة (تشمل كل اللغات الـ 9) -->
             <div class="lang-container">
                 <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
                 <select id="language-select" onchange="changeLanguage(this.value)">
@@ -458,7 +457,7 @@ def webapp():
             <div id="tab-home" class="section active">
                 <div class="card">
                     <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
-                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">TRX 4.50</p>
+                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">TRX 0.00</p>
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
 
@@ -541,7 +540,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 9. الشروط والأحكام الكاملة والمترجمة -->
+            <!-- 9. الشروط والأحكام الكاملة والمترجمة لكل اللغات -->
             <div id="tab-terms" class="section">
                 <div class="card" style="text-align: right;" id="terms-card">
                     <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
@@ -653,7 +652,7 @@ def webapp():
                     walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:",
                     withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀",
                     watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
-                    termsTitle: "📜 AGB", termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br>1. Kein VPN oder WLAN (Mobildaten nutzen).<br>2. Keine Mehrfachkonten.<br>3. 3% Lebenslanger Bonus.",
+                    termsTitle: "📜 AGB", termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br>1. Kein VPN oder WLAN.<br>2. Keine Mehrfachkonten.<br>3. 3% Lebenslanger Bonus.",
                     alertCopy: "Link kopiert! 📋",
                     alertAddressReq: "Gültige Adresse eingeben!",
                     alertOfferDone: "Erfolgreich hinzugefügt! 🎉",
@@ -693,7 +692,7 @@ def webapp():
                     walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:",
                     withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀",
                     watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
-                    termsTitle: "📜 Условия", termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br>1. Запрещен VPN и Wi-Fi (используйте мобильные данные).<br>2. Запрещены мультиаккаунты.<br>3. 3% пожизненный бонус.",
+                    termsTitle: "📜 Условия", termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br>1. Запрещен VPN и Wi-Fi.<br>2. Запрещены мультиаккаунты.<br>3. 3% пожизненный бонус.",
                     alertCopy: "Ссылка скопирована! 📋",
                     alertAddressReq: "Введите правильный адрес!",
                     alertOfferDone: "Успешно добавлено! 🎉",
