@@ -219,9 +219,6 @@ def webapp():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TRX Earn Mini App</title>
-        
-        <!-- ضع هنا أكواد الـ SDK الخاصة بك لاحقاً بكل حريتك -->
-        
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
             body {
@@ -229,26 +226,34 @@ def webapp():
                 background-color: #0f172a;
                 color: #ffffff;
                 margin: 0;
-                padding: 10px;
-                padding-bottom: 135px;
-            }
-            .container {
-                max-width: 420px;
-                margin: auto;
-                background: #1e293b;
                 padding: 15px;
-                border-radius: 15px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             }
-            h2 { color: #38bdf8; font-size: 20px; text-align: center; }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: #1e293b;
+                padding: 12px 15px;
+                border-radius: 12px;
+                margin-bottom: 15px;
+            }
+            .menu-btn {
+                background: none;
+                border: none;
+                color: #38bdf8;
+                font-size: 24px;
+                cursor: pointer;
+            }
+            h2 { color: #38bdf8; font-size: 18px; margin: 0; text-align: center; }
             .section { display: none; }
             .section.active { display: block; }
             .card {
-                background: #334155;
-                padding: 12px;
-                border-radius: 10px;
+                background: #1e293b;
+                padding: 15px;
+                border-radius: 12px;
                 margin: 10px 0;
                 text-align: center;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             }
             .btn {
                 background: #0284c7;
@@ -281,60 +286,84 @@ def webapp():
                 direction: ltr !important;
                 text-align: center !important;
             }
-            input:read-only {
-                border-color: #475569;
-            }
-            .nav-bar {
+            input:read-only { border-color: #475569; }
+
+            /* القائمة الجانبية (Drawer Menu) */
+            .drawer {
                 position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: #0f172a;
-                border-top: 1px solid #334155;
+                top: 0;
+                left: -260px;
+                width: 250px;
+                height: 100%;
+                background: #1e293b;
+                z-index: 1000;
+                transition: 0.3s ease;
+                box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+                display: flex;
+                flex-direction: column;
+                padding: 20px 10px;
+                box-sizing: border-box;
+            }
+            .drawer.open { left: 0; }
+            .drawer-header {
                 display: flex;
                 justify-content: space-between;
-                padding: 6px 2px;
-                z-index: 100;
+                align-items: center;
+                border-bottom: 1px solid #334155;
+                padding-bottom: 10px;
+                margin-bottom: 15px;
             }
-            .nav-item {
+            .close-drawer {
                 background: none;
                 border: none;
-                color: #94a3b8;
-                font-size: 9px;
+                color: #ef4444;
+                font-size: 22px;
                 cursor: pointer;
-                text-align: center;
-                flex: 1;
-                padding: 0 1px;
-                white-space: nowrap;
-                overflow: hidden;
             }
-            .nav-item.active {
+            .drawer-item {
+                background: none;
+                border: none;
+                color: #cbd5e1;
+                font-size: 15px;
+                text-align: left;
+                padding: 12px;
+                cursor: pointer;
+                border-radius: 8px;
+                margin-bottom: 5px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+            }
+            .drawer-item:hover, .drawer-item.active {
+                background: #334155;
                 color: #38bdf8;
                 font-weight: bold;
             }
-            .nav-item span { display: block; font-size: 14px; margin-bottom: 2px; }
-            
-            .footer-lang-container {
+            .overlay {
                 position: fixed;
-                bottom: 48px;
-                left: 0;
-                right: 0;
-                background: #1e293b;
-                border-top: 1px solid #334155;
-                padding: 5px 15px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 99;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
             }
-            .footer-lang-container select {
+            .overlay.active { display: block; }
+
+            .lang-container {
+                margin-top: auto;
+                border-top: 1px solid #334155;
+                padding-top: 15px;
+                text-align: center;
+            }
+            .lang-container select {
                 background: #0f172a;
                 color: white;
                 border: 1px solid #475569;
-                padding: 3px 8px;
+                padding: 6px 12px;
                 border-radius: 6px;
                 cursor: pointer;
-                font-size: 11px;
+                font-size: 12px;
+                width: 100%;
             }
 
             .terms-text {
@@ -367,9 +396,45 @@ def webapp():
             <button class="btn" style="background: #e11d48;" onclick="checkNetwork()">Re-check 🔄</button>
         </div>
 
-        <div class="container">
+        <!-- الهيدر مع زر القائمة الجانبية (الثلاث شخطات) -->
+        <div class="header">
+            <button class="menu-btn" onclick="toggleDrawer()">☰</button>
             <h2 id="page-title">💰 Balance</h2>
-            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8;"></p>
+            <div style="width: 24px;"></div>
+        </div>
+
+        <!-- القائمة الجانبية (Drawer) -->
+        <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
+        <div class="drawer" id="drawer">
+            <div class="drawer-header">
+                <span style="font-weight: bold; color: #38bdf8;" id="menu-title">Menu ⚙️</span>
+                <button class="close-drawer" onclick="toggleDrawer()">✕</button>
+            </div>
+            <button class="drawer-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span> <span id="nav-txt-bal">Balance</span></button>
+            <button class="drawer-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span> <span id="nav-txt-ref">Referrals</span></button>
+            <button class="drawer-item" onclick="switchTab('offers', currentTitles.offers, this)"><span>🎯</span> <span id="nav-txt-offers">Offers</span></button>
+            <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span>💳</span> <span id="nav-txt-wallet">Wallet</span></button>
+            <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span>💸</span> <span id="nav-txt-withdraw">Withdraw</span></button>
+            <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span> <span id="nav-txt-terms">Terms</span></button>
+            
+            <div class="lang-container">
+                <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language:</span>
+                <select id="language-select" onchange="changeLanguage(this.value)">
+                    <option value="en">🇬🇧 English</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="pt">🇧🇷/🇵🇹 Português</option>
+                    <option value="nl">🇳🇱 Nederlands</option>
+                    <option value="pl">🇵🇱 Polski</option>
+                    <option value="ar">🇸🇦 العربية</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="container">
+            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8; margin-top:0;"></p>
 
             <div id="tab-balance" class="section active">
                 <div class="card">
@@ -393,8 +458,6 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    
-                    <!-- مكان زر الإعلان والربح (نظيف وجاهز لربطه لاحقاً بالطريقة التي تفضلها) -->
                     <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="customAdAction()">Watch Ad & Earn 🚀</button>
                     <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
@@ -432,30 +495,6 @@ def webapp():
 
         </div>
 
-        <div class="footer-lang-container">
-            <span style="font-size: 11px; color: #94a3b8; margin-inline-end: 6px;">🌐 Language:</span>
-            <select id="language-select" onchange="changeLanguage(this.value)">
-                <option value="en">🇬🇧 English</option>
-                <option value="es">🇪🇸 Español</option>
-                <option value="de">🇩🇪 Deutsch</option>
-                <option value="fr">🇫🇷 Français</option>
-                <option value="ru">🇷🇺 Русский</option>
-                <option value="pt">🇧🇷/🇵🇹 Português</option>
-                <option value="nl">🇳🇱 Nederlands</option>
-                <option value="pl">🇵🇱 Polski</option>
-                <option value="ar">🇸🇦 العربية</option>
-            </select>
-        </div>
-
-        <div class="nav-bar">
-            <button class="nav-item active" onclick="switchTab('balance', currentTitles.balance, this)"><span>💰</span><span id="nav-txt-bal">Balance</span></button>
-            <button class="nav-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span><span id="nav-txt-ref">Referrals</span></button>
-            <button class="nav-item" onclick="switchTab('offers', currentTitles.offers, this)"><span>🎯</span><span id="nav-txt-offers">Offers</span></button>
-            <button class="nav-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span>💳</span><span id="nav-txt-wallet">Wallet</span></button>
-            <button class="nav-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span>💸</span><span id="nav-txt-withdraw">Withdraw</span></button>
-            <button class="nav-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span><span id="nav-txt-terms">Terms</span></button>
-        </div>
-
         <script>
             let tg = window.Telegram.WebApp;
             tg.expand();
@@ -465,16 +504,19 @@ def webapp():
                 userId = tg.initDataUnsafe.user.id;
             }
 
-            // مكان مخصص لكود الإعلانات الخاص بك لتضيفه لاحقاً براحتك
+            function toggleDrawer() {
+                document.getElementById('drawer').classList.toggle('open');
+                document.getElementById('overlay').classList.toggle('active');
+            }
+
             function customAdAction() {
                 alert("Ad code will be added here by you!");
-                // يمكنك وضع كود الإعلان الخاص بك هنا لاحقاً، وبعد إنهائه تستدعي دالة completeOffer()
             }
 
             const translations = {
                 en: { 
                     balance: "💰 Balance", ref: "👥 Referrals", offers: "🎯 Offers", wallet: "💳 Wallet", withdraw: "💸 Withdraw", terms: "📜 Terms",
-                    welcome: "Welcome: ", preview: "Preview Mode",
+                    welcome: "Welcome: ", preview: "Preview Mode", menu: "Menu ⚙️",
                     balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
                     refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
                     offerTitle: "🎯 Point Earning Offers", offerDesc: "Complete the verification offer below to make your referral active:", openOffer: "Watch Ad & Earn 🚀", confirmOffer: "Confirm Completion ✅",
@@ -486,7 +528,7 @@ def webapp():
                 },
                 es: { 
                     balance: "💰 Saldo", ref: "👥 Referidos", offers: "🎯 Ofertas", wallet: "💳 Billetera", withdraw: "💸 Retirar", terms: "📜 Términos",
-                    welcome: "Bienvenido: ", preview: "Modo de Vista Previa",
+                    welcome: "Bienvenido: ", preview: "Modo de Vista Previa", menu: "Menú ⚙️",
                     balTitle: "Tu Saldo Actual de TRX", balDesc: "Las ganancias continuas permiten el retiro instantáneo al alcanzar el mínimo.",
                     refTitle: "👥 Sistema de Referidos Activos (3%)", refCountLbl: "Referidos Activos:", refDesc: "Comparte tu enlace y gana 3% de por vida:", copyBtn: "Copiar Enlace 🔗",
                     offerTitle: "🎯 Ofertas de Puntos", offerDesc: "Completa la oferta de verificación a continuación:", openOffer: "Ver Anuncio y Ganar 🚀", confirmOffer: "Confirmar Oferta ✅",
@@ -498,7 +540,7 @@ def webapp():
                 },
                 de: { 
                     balance: "💰 Guthaben", ref: "👥 Empfehlungen", offers: "🎯 Angebote", wallet: "💳 Geldbörse", withdraw: "💸 Auszahlen", terms: "📜 AGB",
-                    welcome: "Willkommen: ", preview: "Vorschau-Modus",
+                    welcome: "Willkommen: ", preview: "Vorschau-Modus", menu: "Menü ⚙️",
                     balTitle: "Ihr aktuelles TRX-Guthaben", balDesc: "Kontinuierliches Verdienen ermöglicht sofortige Auszahlung.",
                     refTitle: "👥 Aktives Empfehlungssystem (3%)", refCountLbl: "Aktive Empfehlungen:", refDesc: "Teilen Sie Ihren Link und verdienen Sie 3%:", copyBtn: "Link kopieren 🔗",
                     offerTitle: "🎯 Punkte-Angebote", offerDesc: "Schließen Sie das Verifizierungsangebot ab:", openOffer: "Anzeige ansehen 🚀", confirmOffer: "Bestätigen ✅",
@@ -510,7 +552,7 @@ def webapp():
                 },
                 fr: { 
                     balance: "💰 Solde", ref: "👥 Parrainages", offers: "🎯 Offres", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", terms: "📜 Conditions",
-                    welcome: "Bienvenue : ", preview: "Mode Aperçu",
+                    welcome: "Bienvenue : ", preview: "Mode Aperçu", menu: "Menu ⚙️",
                     balTitle: "Votre solde TRX actuel", balDesc: "Gagnez et retirez instantanément.",
                     refTitle: "👥 Système de parrainage (3%)", refCountLbl: "Filleuls actifs :", refDesc: "Partagez votre lien et gagnez 3% à vie :", copyBtn: "Copier le lien 🔗",
                     offerTitle: "🎯 Offres de points", offerDesc: "Complétez l'offre de vérification ci-dessous :", openOffer: "Voir l'annonce 🚀", confirmOffer: "Confirmer ✅",
@@ -522,7 +564,7 @@ def webapp():
                 },
                 ru: { 
                     balance: "💰 Баланс", ref: "👥 Рефералы", offers: "🎯 Офферы", wallet: "💳 Кошелек", withdraw: "💸 Вывод", terms: "📜 Условия",
-                    welcome: "Добро пожаловать: ", preview: "Режим предпросмотра",
+                    welcome: "Добро пожаловать: ", preview: "Режим предпросмотра", menu: "Меню ⚙️",
                     balTitle: "Ваш текущий баланс TRX", balDesc: "Накапливайте и выводите мгновенно.",
                     refTitle: "👥 Реферальная система (3%)", refCountLbl: "Активные рефералы:", refDesc: "Делитесь ссылкой и получайте 3% навсегда:", copyBtn: "Копировать ссылку 🔗",
                     offerTitle: "🎯 Зарабатывайте баллы", offerDesc: "Выполните верификационный оффер ниже:", openOffer: "Смотреть рекламу 🚀", confirmOffer: "Подтвердить ✅",
@@ -534,19 +576,19 @@ def webapp():
                 },
                 pt: { 
                     balance: "💰 Saldo", ref: "👥 Indicações", offers: "🎯 Ofertas", wallet: "💳 Carteira", withdraw: "💸 Sacar", terms: "📜 Termos",
-                    welcome: "Bem-vindo: ", preview: "Modo de Visualização",
+                    welcome: "Bem-vindo: ", preview: "Modo de Visualização", menu: "Menu ⚙️",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
                     refTitle: "👥 Sistema de Indicações (3%)", refCountLbl: "Indicações Ativas:", refDesc: "Compartilhe seu link e ganhe 3% vitalício:", copyBtn: "Copiar Link 🔗",
                     offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Ver Anúncio 🚀", confirmOffer: "Confirmar ✅",
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
                     termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi أو VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
                     balance: "💰 Saldo", ref: "👥 Referrals", offers: "🎯 Aanbiedingen", wallet: "💳 Portemonnee", withdraw: "💸 Opnemen", terms: "📜 Voorwaarden",
-                    welcome: "Welkom: ", preview: "Voorbeeldmodus",
+                    welcome: "Welkom: ", preview: "Voorbeeldmodus", menu: "Menu ⚙️",
                     balTitle: "Jouw TRX Saldo", balDesc: "Direct opnemen bij het minimum.",
                     refTitle: "👥 Referral Systeem (3%)", refCountLbl: "Actieve Referrals:", refDesc: "Deel je link en verdien 3%:", copyBtn: "Kopieer Link 🔗",
                     offerTitle: "🎯 Verdien Aanbiedingen", offerDesc: "Voltooi de verificatie hieronder:", openOffer: "Bekijk Advertentie 🚀", confirmOffer: "Bevestigen ✅",
@@ -558,7 +600,7 @@ def webapp():
                 },
                 pl: { 
                     balance: "💰 Saldo", ref: "👥 Polecenia", offers: "🎯 Oferty", wallet: "💳 Portfel", withdraw: "💸 Wypłata", terms: "📜 Regulamin",
-                    welcome: "Witaj: ", preview: "Tryb podglądu",
+                    welcome: "Witaj: ", preview: "Tryb podglądu", menu: "Menu ⚙️",
                     balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
                     refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link i zarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
                     offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Oglądaj reklamę 🚀", confirmOffer: "Potwierdź ✅",
@@ -570,7 +612,7 @@ def webapp():
                 },
                 ar: { 
                     balance: "💰 الرصيد", ref: "👥 الإحالة", offers: "🎯 العروض", wallet: "💳 المحفظة", withdraw: "💸 السحب", terms: "📜 الشروط",
-                    welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي",
+                    welcome: "مرحباً بك: ", preview: "وضع المعاينة التجريبي", menu: "القائمة ⚙️",
                     balTitle: "رصيدك الحالي من TRX", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
                     refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
                     offerTitle: "🎯 عروض تجميع النقاط", offerDesc: "قم بإتمام عرض التحقق أدناه لتصبح إحالتك نشطة:", openOffer: "مشاهدة الإعلان والربح 🚀", confirmOffer: "تأكيد إتمام العرض ✅",
@@ -599,6 +641,7 @@ def webapp():
                 }
 
                 document.getElementById('page-title').innerText = t.balance;
+                document.getElementById('menu-title').innerText = t.menu;
                 document.getElementById('txt-bal-title').innerText = t.balTitle;
                 document.getElementById('txt-bal-desc').innerText = t.balDesc;
                 document.getElementById('txt-ref-title').innerText = t.refTitle;
@@ -727,11 +770,12 @@ def webapp():
 
             function switchTab(tabName, titleText, btnElement) {
                 document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.drawer-item').forEach(el => el.classList.remove('active'));
                 
                 document.getElementById('tab-' + tabName).classList.add('active');
                 btnElement.classList.add('active');
                 document.getElementById('page-title').innerText = titleText;
+                toggleDrawer(); // إغلاق القائمة الجانبية تلقائياً عند اختيار القسم
             }
 
             function copyRefLink() {
