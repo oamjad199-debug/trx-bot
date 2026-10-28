@@ -371,7 +371,7 @@ def webapp():
             <div style="width: 24px;"></div>
         </div>
 
-        <!-- القائمة الجانبية المنظمة بدون أي تكرار -->
+        <!-- القائمة الجانبية (نظيفة بدون زر الأسئلة المتكرر) -->
         <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
         <div class="drawer" id="drawer">
             <div class="drawer-header">
@@ -386,7 +386,6 @@ def webapp():
             <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span id="nav-txt-wallet">💳 المحفظة</span></button>
             <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span id="nav-txt-withdraw">💸 السحب</span></button>
             <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span id="nav-txt-watch">▶️ الربح من المشاهدة</span></button>
-            <button class="drawer-item" onclick="switchTab('faq', currentTitles.faq, this)"><span id="nav-txt-faq">❓ كيف العمل على البوت؟</span></button>
             <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span id="nav-txt-terms">📜 الشروط والأحكام</span></button>
             
             <div class="lang-container">
@@ -408,12 +407,19 @@ def webapp():
         <div class="container">
             <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8; margin-top:0;"></p>
 
-            <!-- 1. الرئيسية (بدون شروط، واضحة للرصيد والمحتوى) -->
+            <!-- 1. الرئيسية (تحتوي الرصيد + قسم كيف العمل على البوت) -->
             <div id="tab-home" class="section active">
                 <div class="card">
                     <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
                     <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
+                </div>
+
+                <div class="card" style="text-align: right;">
+                    <h3 style="color: #38bdf8; text-align: center; margin-bottom: 10px;">❓ كيف العمل على البوت؟</h3>
+                    <p style="font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.6;">
+                        العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط
+                    </p>
                 </div>
             </div>
 
@@ -484,17 +490,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 9. قسم الأسئلة المطلوبة -->
-            <div id="tab-faq" class="section">
-                <div class="card" style="text-align: right;">
-                    <h3 style="color: #38bdf8; text-align: center; margin-bottom: 12px;">❓ كيف العمل على البوت؟</h3>
-                    <p style="font-size: 14px; color: #e2e8f0; line-height: 1.6; text-align: center;">
-                        العمل على البوت سهل جدا يمكنك الربح من المشاهده الاعلانات فقط
-                    </p>
-                </div>
-            </div>
-
-            <!-- 10. الشروط والأحكام -->
+            <!-- 9. الشروط والأحكام -->
             <div id="tab-terms" class="section">
                 <div class="card" style="text-align: right;">
                     <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
@@ -532,7 +528,7 @@ def webapp():
                 ar: {
                     home: "🏠 الرئيسية", ref: "👥 الإحالة",
                     phoneSub: "📱 الربح من الاشتراك في رقم هاتف", installApps: "📲 الربح من تثبيت تطبيقات", registerSites: "🌐 الربح من التسجيل في المواقع",
-                    wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", faq: "❓ كيف العمل على البوت؟", terms: "📜 الشروط والأحكام",
+                    wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", terms: "📜 الشروط والأحكام",
                     menu: "القائمة ⚙️", welcome: "مرحباً بك: ",
                     balTitle: "رصيد TRX الحالي", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
                     refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
@@ -544,42 +540,14 @@ def webapp():
                 en: {
                     home: "🏠 Home", ref: "👥 Referrals",
                     phoneSub: "📱 Phone Number Sub", installApps: "📲 Install Apps", registerSites: "🌐 Register Sites",
-                    wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", faq: "❓ How to work on bot?", terms: "📜 Terms",
+                    wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", terms: "📜 Terms",
                     menu: "Menu ⚙️", welcome: "Welcome: ",
                     balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
                     refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
-                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
-                },
-                es: {
-                    home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción Telefónica", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse en Sitios", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", faq: "❓ ¿Cómo trabajar?", terms: "📜 Términos",
-                    menu: "Menú ⚙️", welcome: "Bienvenido: ", balTitle: "Tu Saldo Actual", balDesc: "Retiro instantáneo al alcanzar el mínimo.", refTitle: "👥 Referidos (3%)", refCountLbl: "Activos:", refDesc: "Comparte tu enlace:", copyBtn: "Copiar Enlace 🔗", walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:", withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀", watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀", termsTitle: "📜 Términos", termsContent: "1. No VPN.<br>2. Referidos activos tras oferta.<br>3. 3% bono.<br>4. Cambia tu billetera cuando quieras."
-                },
-                de: {
-                    home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites registrieren", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", faq: "❓ Wie arbeiten?", terms: "📜 AGB",
-                    menu: "Menü ⚙️", welcome: "Willkommen: ", balTitle: "Aktuelles Guthaben", balDesc: "Sofortige Auszahlung möglich.", refTitle: "👥 Empfehlungen (3%)", refCountLbl: "Aktiv:", refDesc: "Link teilen:", copyBtn: "Link kopieren 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:", withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀", watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀", termsTitle: "📜 AGB", termsContent: "1. Kein VPN.<br>2. Aktive Empfehlungen.<br>3. 3% Bonus.<br>4. Wallet änderbar."
-                },
-                fr: {
-                    home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription Sites", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", faq: "❓ Comment travailler?", terms: "📜 Conditions",
-                    menu: "Menu ⚙️", welcome: "Bienvenue : ", balTitle: "Solde Actuel", balDesc: "Retrait instantané.", refTitle: "👥 Parrainage (3%)", refCountLbl: "Actifs :", refDesc: "Partagez :", copyBtn: "Copier 🔗", walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :", withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀", watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀", termsTitle: "📜 Conditions", termsContent: "1. Pas de VPN.<br>2. Parrainage actif.<br>3. 3% bonus.<br>4. Modifiable."
-                },
-                ru: {
-                    home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Регистрация на сайтах", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", faq: "❓ Как работать?", terms: "📜 Условия",
-                    menu: "Меню ⚙️", welcome: "Добро пожаловать: ", balTitle: "Баланс TRX", balDesc: "Мгновенный вывод.", refTitle: "👥 Рефералы (3%)", refCountLbl: "Активные:", refDesc: "Ссылка:", copyBtn: "Копировать 🔗", walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:", withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀", watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀", termsTitle: "📜 Условия", termsContent: "1. Без VPN.<br>2. Рефералы активны.<br>3. 3% бонус.<br>4. Кошелек изменяем."
-                },
-                pt: {
-                    home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar Sites", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", faq: "❓ Como trabalhar?", terms: "📜 Termos",
-                    menu: "Menu ⚙️", welcome: "Bem-vindo: ", balTitle: "Saldo TRX", balDesc: "Saque rápido.", refTitle: "👥 Indicações (3%)", refCountLbl: "Ativas:", refDesc: "Link:", copyBtn: "Copiar 🔗", walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:", withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀", watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀", termsTitle: "📜 Termos", termsContent: "1. Sem VPN.<br>2. Indicações ativas.<br>3. 3% bônus.<br>4. Alterável."
-                },
-                nl: {
-                    home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites Registreren", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", faq: "❓ Hoe werken?", terms: "📜 Voorwaarden",
-                    menu: "Menu ⚙️", welcome: "Welkom: ", balTitle: "Saldo", balDesc: "Direct opnemen.", refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀", watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀", termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar."
-                },
-                pl: {
-                    home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Rejestracja stron", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", faq: "❓ Jak pracować?", terms: "📜 Regulamin",
-                    menu: "Menu ⚙️", welcome: "Witaj: ", balTitle: "Saldo TRX", balDesc: "Szybka wypłata.", refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗", walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀", watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀", termsTitle: "📜 Regulamin", termsContent: "1. Bez VPN.<br>2. Polecenia aktywne.<br>3. 3% bonus.<br>4. Zmieniaj portfel."
+                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
                 }
             };
 
@@ -627,7 +595,6 @@ def webapp():
                 document.getElementById('nav-txt-wallet').innerText = t.wallet;
                 document.getElementById('nav-txt-withdraw').innerText = t.withdraw;
                 document.getElementById('nav-txt-watch').innerText = t.watch;
-                document.getElementById('nav-txt-faq').innerText = t.faq;
                 document.getElementById('nav-txt-terms').innerText = t.terms;
 
                 document.getElementById('welcome').innerText = t.welcome + userName;
