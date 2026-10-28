@@ -219,8 +219,9 @@ def webapp():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TRX Earn Mini App</title>
-        <!-- OnClicka TMA SDK -->
-        <script src="https://js.onclckvd.com/in-stream-ad-admanager/tma.js"></script>
+        
+        <!-- ضع هنا أكواد الـ SDK الخاصة بك لاحقاً بكل حريتك -->
+        
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
             body {
@@ -392,8 +393,9 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-offer-title">🎯 Point Earning Offers</h3>
                     <p id="txt-offer-desc" style="font-size: 13px; color: #cbd5e1;">Complete the verification offer below to make your referral active:</p>
-                    <!-- OnClicka Ad Play Button -->
-                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="playOnClickaAd()">Watch Ad & Earn 🚀</button>
+                    
+                    <!-- مكان زر الإعلان والربح (نظيف وجاهز لربطه لاحقاً بالطريقة التي تفضلها) -->
+                    <button id="txt-open-offer" class="btn" style="background: #16a34a;" onclick="customAdAction()">Watch Ad & Earn 🚀</button>
                     <button id="txt-confirm-offer" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeOffer()">Confirm Completion ✅</button>
                 </div>
             </div>
@@ -463,22 +465,10 @@ def webapp():
                 userId = tg.initDataUnsafe.user.id;
             }
 
-            // تهيئة OnClicka بالـ Spot ID الصحيح (470022)[span_0](start_span)[span_0](end_span)[span_1](start_span)[span_1](end_span)
-            window.initCdTma?.({ id: '470022' }).then(show => window.show = show).catch(e => console.log(e));
-
-            // دالة تشغيل الإعلان عند الضغط على الزر مع منح المكافأة تلقائياً[span_2](start_span)[span_2](end_span)
-            function playOnClickaAd() {
-                if (typeof window.show === 'function') {
-                    window.show().then(() => {
-                        console.log('tma ad played');
-                        completeOffer();
-                    }).catch(e => {
-                        console.log(e);
-                        alert("Ad failed to load or was closed. Please try again!");
-                    });
-                } else {
-                    alert("Ad SDK is still loading, please wait a second and try again.");
-                }
+            // مكان مخصص لكود الإعلانات الخاص بك لتضيفه لاحقاً براحتك
+            function customAdAction() {
+                alert("Ad code will be added here by you!");
+                // يمكنك وضع كود الإعلان الخاص بك هنا لاحقاً، وبعد إنهائه تستدعي دالة completeOffer()
             }
 
             const translations = {
@@ -547,11 +537,11 @@ def webapp():
                     welcome: "Bem-vindo: ", preview: "Modo de Visualização",
                     balTitle: "Seu Saldo TRX Atual", balDesc: "Ganhos contínuos permitem saque instantâneo.",
                     refTitle: "👥 Sistema de Indicações (3%)", refCountLbl: "Indicações Ativas:", refDesc: "Compartilhe seu link e ganhe 3% vitalício:", copyBtn: "Copiar Link 🔗",
-                    offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Ver Anuncio 🚀", confirmOffer: "Confirmar ✅",
+                    offerTitle: "🎯 Ofertas de Pontos", offerDesc: "Complete a oferta de verificação abaixo:", openOffer: "Ver Anúncio 🚀", confirmOffer: "Confirmar ✅",
                     walletTitle: "💳 Gestão da Carteira", walletDesc: "Insira seu endereço de carteira TRX:", walletPlaceholder: "Insira o TRX aqui...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço atual:",
                     withdrawTitle: "💸 Sacar Ganhos", walletLabel: "Endereço registrado:", noAddress: "Nenhum endereço adicionado!", withdrawBtn: "Confirmar Saque 🚀",
                     termsTitle: "📜 Termos e Condições", termsContent: "1. O uso de Wi-Fi ou VPN é estritamente proibido.<br>2. Indicações ativas após conclusão da oferta.<br>3. Bônus de 3% vitalício.<br>4. Altere sua carteira quando quiser.",
-                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi ou VPN proibido! Use apenas seus dados móveis (Mobile Data).",
+                    warnTitle: "⚠️ Alerta de Rede", warnDesc: "Uso de Wi-Fi أو VPN proibido! Use apenas seus dados móveis (Mobile Data).",
                     navBal: "Saldo", navRef: "Indicações", navOffers: "Ofertas", navWallet: "Carteira", navWithdraw: "Sacar", navTerms: "Termos"
                 },
                 nl: { 
@@ -569,7 +559,7 @@ def webapp():
                 pl: { 
                     balance: "💰 Saldo", ref: "👥 Polecenia", offers: "🎯 Oferty", wallet: "💳 Portfel", withdraw: "💸 Wypłata", terms: "📜 Regulamin",
                     welcome: "Witaj: ", preview: "Tryb podglądu",
-                    balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastová wypłata.",
+                    balTitle: "Twoje saldo TRX", balDesc: "Ciągłe zarobki i natychmiastowa wypłata.",
                     refTitle: "👥 System poleceń (3%)", refCountLbl: "Aktywne polecenia:", refDesc: "Udostępnij link i zarabiaj 3%:", copyBtn: "Kopiuj link 🔗",
                     offerTitle: "🎯 Oferty punktowe", offerDesc: "Ukończ ofertę weryfikacyjną poniżej:", openOffer: "Oglądaj reklamę 🚀", confirmOffer: "Potwierdź ✅",
                     walletTitle: "💳 Zarządzanie portfelem", walletDesc: "Wpisz adres portfela TRX:", walletPlaceholder: "Wpisz adres TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Aktualny adres:",
