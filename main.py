@@ -9,7 +9,7 @@ server = Flask(__name__)
 
 RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
 
-# --- إعداد قاعدة بيانات SQLite المحلية الآمنة والمستقرة على Render ---
+# --- إعداد قاعدة بيانات SQLite المحلية ---
 def init_db():
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -371,22 +371,22 @@ def webapp():
             <div style="width: 24px;"></div>
         </div>
 
-        <!-- القائمة الجانبية -->
+        <!-- القائمة الجانبية المنظمة بدون أي تكرار -->
         <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
         <div class="drawer" id="drawer">
             <div class="drawer-header">
                 <button class="close-drawer" onclick="toggleDrawer()">✕</button>
                 <span id="menu-title" style="font-weight: bold; color: #38bdf8; font-size: 15px;">القائمة ⚙️</span>
             </div>
-            <button class="drawer-item active" onclick="switchTab('home', currentTitles.home, this)"><span>🏠</span> <span id="nav-txt-home">الرئيسية</span></button>
-            <button class="drawer-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span> <span id="nav-txt-ref">الإحالة</span></button>
-            <button class="drawer-item" onclick="switchTab('phone_sub', currentTitles.phoneSub, this)"><span>📱</span> <span id="nav-txt-phonesub">الربح من الاشتراك في رقم هاتف</span></button>
-            <button class="drawer-item" onclick="switchTab('install_apps', currentTitles.installApps, this)"><span>📲</span> <span id="nav-txt-installapps">الربح من تثبيت تطبيقات</span></button>
-            <button class="drawer-item" onclick="switchTab('register_sites', currentTitles.registerSites, this)"><span>🌐</span> <span id="nav-txt-registersites">الربح من التسجيل في المواقع</span></button>
-            <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span>💳</span> <span id="nav-txt-wallet">المحفظة</span></button>
-            <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span>💸</span> <span id="nav-txt-withdraw">السحب</span></button>
-            <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span>▶️</span> <span id="nav-txt-watch">الربح من المشاهدة</span></button>
-            <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span> <span id="nav-txt-terms">الشروط والأحكام</span></button>
+            <button class="drawer-item active" onclick="switchTab('home', currentTitles.home, this)"><span id="nav-txt-home">🏠 الرئيسية</span></button>
+            <button class="drawer-item" onclick="switchTab('ref', currentTitles.ref, this)"><span id="nav-txt-ref">👥 الإحالة</span></button>
+            <button class="drawer-item" onclick="switchTab('phone_sub', currentTitles.phoneSub, this)"><span id="nav-txt-phonesub">📱 الربح من الاشتراك في رقم هاتف</span></button>
+            <button class="drawer-item" onclick="switchTab('install_apps', currentTitles.installApps, this)"><span id="nav-txt-installapps">📲 الربح من تثبيت تطبيقات</span></button>
+            <button class="drawer-item" onclick="switchTab('register_sites', currentTitles.registerSites, this)"><span id="nav-txt-registersites">🌐 الربح من التسجيل في المواقع</span></button>
+            <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span id="nav-txt-wallet">💳 المحفظة</span></button>
+            <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span id="nav-txt-withdraw">💸 السحب</span></button>
+            <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span id="nav-txt-watch">▶️ الربح من المشاهدة</span></button>
+            <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span id="nav-txt-terms">📜 الشروط والأحكام</span></button>
             
             <div class="lang-container">
                 <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
@@ -573,7 +573,7 @@ def webapp():
                 },
                 nl: {
                     home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites Registreren", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
-                    menu: "Menu ⚙️", welcome: "Welkom: ", balTitle: "Saldo", balDesc: "Direct opnemen.", refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀", watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀", termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Active referrals.<br>3. 3% bonus.<br>4. Wijzigbaar."
+                    menu: "Menu ⚙️", welcome: "Welkom: ", balTitle: "Saldo", balDesc: "Direct opnemen.", refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀", watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀", termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar."
                 },
                 pl: {
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Rejestracja stron", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
