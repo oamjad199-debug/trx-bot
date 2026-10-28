@@ -278,7 +278,7 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* القائمة الجانبية المنسقة بدون أي تداخل */
+            /* القائمة الجانبية المنسقة تماماً مع خيار اللغة في الأسفل */
             .drawer {
                 position: fixed;
                 top: 0;
@@ -343,6 +343,23 @@ def webapp():
             }
             .overlay.active { display: block; }
 
+            .lang-container {
+                margin-top: auto;
+                border-top: 1px solid #334155;
+                padding-top: 15px;
+                text-align: center;
+            }
+            .lang-container select {
+                background: #0f172a;
+                color: white;
+                border: 1px solid #475569;
+                padding: 6px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                width: 100%;
+            }
+
             .terms-text {
                 font-size: 13px;
                 color: #cbd5e1;
@@ -360,22 +377,38 @@ def webapp():
             <div style="width: 24px;"></div>
         </div>
 
-        <!-- القائمة الجانبية المنظمة والنظيفة -->
+        <!-- القائمة الجانبية -->
         <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
         <div class="drawer" id="drawer">
             <div class="drawer-header">
                 <button class="close-drawer" onclick="toggleDrawer()">✕</button>
-                <span style="font-weight: bold; color: #38bdf8; font-size: 15px;">القائمة الرئيسية ⚙️</span>
+                <span id="menu-title" style="font-weight: bold; color: #38bdf8; font-size: 15px;">القائمة ⚙️</span>
             </div>
-            <button class="drawer-item active" onclick="switchTab('home', '🏠 الرئيسية', this)"><span>🏠</span> الرئيسية</button>
-            <button class="drawer-item" onclick="switchTab('ref', '👥 الإحالة', this)"><span>👥</span> الإحالة</button>
-            <button class="drawer-item" onclick="switchTab('phone_sub', '📱 الربح من الاشتراك في رقم هاتف', this)"><span>📱</span> الربح من الاشتراك في رقم هاتف</button>
-            <button class="drawer-item" onclick="switchTab('install_apps', '📲 الربح من تثبيت تطبيقات', this)"><span>📲</span> الربح من تثبيت تطبيقات</button>
-            <button class="drawer-item" onclick="switchTab('register_sites', '🌐 الربح من التسجيل في المواقع', this)"><span>🌐</span> الربح من التسجيل في المواقع</button>
-            <button class="drawer-item" onclick="switchTab('wallet', '💳 المحفظة', this)"><span>💳</span> المحفظة</button>
-            <button class="drawer-item" onclick="switchTab('withdraw', '💸 السحب', this)"><span>💸</span> السحب</button>
-            <button class="drawer-item" onclick="switchTab('watch', '▶️ الربح من المشاهدة', this)"><span>▶️</span> الربح من المشاهدة</button>
-            <button class="drawer-item" onclick="switchTab('terms', '📜 الشروط والأحكام', this)"><span>📜</span> الشروط والأحكام</button>
+            <button class="drawer-item active" onclick="switchTab('home', currentTitles.home, this)"><span>🏠</span> <span id="nav-txt-home">الرئيسية</span></button>
+            <button class="drawer-item" onclick="switchTab('ref', currentTitles.ref, this)"><span>👥</span> <span id="nav-txt-ref">الإحالة</span></button>
+            <button class="drawer-item" onclick="switchTab('phone_sub', currentTitles.phoneSub, this)"><span>📱</span> <span id="nav-txt-phonesub">الربح من الاشتراك في رقم هاتف</span></button>
+            <button class="drawer-item" onclick="switchTab('install_apps', currentTitles.installApps, this)"><span>📲</span> <span id="nav-txt-installapps">الربح من تثبيت تطبيقات</span></button>
+            <button class="drawer-item" onclick="switchTab('register_sites', currentTitles.registerSites, this)"><span>🌐</span> <span id="nav-txt-registersites">الربح من التسجيل في المواقع</span></button>
+            <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span>💳</span> <span id="nav-txt-wallet">المحفظة</span></button>
+            <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span>💸</span> <span id="nav-txt-withdraw">السحب</span></button>
+            <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span>▶️</span> <span id="nav-txt-watch">الربح من المشاهدة</span></button>
+            <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span> <span id="nav-txt-terms">الشروط والأحكام</span></button>
+            
+            <!-- قائمة اختيار اللغات في الأسفل تماماً -->
+            <div class="lang-container">
+                <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
+                <select id="language-select" onchange="changeLanguage(this.value)">
+                    <option value="ar">🇸🇦 العربية</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="pt">🇧🇷/🇵🇹 Português</option>
+                    <option value="nl">🇳🇱 Nederlands</option>
+                    <option value="pl">🇵🇱 Polski</option>
+                </select>
+            </div>
         </div>
 
         <div class="container">
@@ -384,13 +417,13 @@ def webapp():
             <!-- 1. الرئيسية -->
             <div id="tab-home" class="section active">
                 <div class="card">
-                    <h3>رصيد TRX الحالي</h3>
+                    <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
                     <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">0.0 TRX</p>
-                    <p style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
+                    <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
                 <div class="card" style="text-align: right;">
-                    <h3 style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
-                    <div class="terms-text">
+                    <h3 id="txt-home-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
+                    <div id="txt-home-terms-content" class="terms-text">
                         1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>
                         2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
                         3. نسبة الإحالة (3%) تُحتسب للأبد.<br>
@@ -402,45 +435,45 @@ def webapp():
             <!-- 2. الإحالة -->
             <div id="tab-ref" class="section">
                 <div class="card">
-                    <h3>👥 نظام الإحالات النشطة (3%)</h3>
-                    <p>عدد إحالاتك النشطة: <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
-                    <p style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح للأبد:</p>
+                    <h3 id="txt-ref-title">👥 نظام الإحالات النشطة (3%)</h3>
+                    <p><span id="txt-ref-count-label">عدد إحالاتك النشطة:</span> <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
+                    <p id="txt-ref-desc" style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح للأبد:</p>
                     <input type="text" id="ref-link" readonly onclick="this.select();">
-                    <button class="btn" onclick="copyRefLink()">نسخ رابط الإحالة 🔗</button>
+                    <button id="txt-copy-btn" class="btn" onclick="copyRefLink()">نسخ رابط الإحالة 🔗</button>
                 </div>
             </div>
 
             <!-- 3. اشتراك رقم هاتف -->
             <div id="tab-phone_sub" class="section">
                 <div class="card">
-                    <h3>📱 الربح من الاشتراك في رقم هاتف</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:</p>
-                    <button class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeTask()">تنفيذ الاشتراك ✅</button>
+                    <h3 id="txt-phonesub-title">📱 الربح من الاشتراك في رقم هاتف</h3>
+                    <p id="txt-phonesub-desc" style="font-size: 13px; color: #cbd5e1;">اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:</p>
+                    <button id="txt-phonesub-btn" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeTask()">تنفيذ الاشتراك ✅</button>
                 </div>
             </div>
 
             <!-- 4. تثبيت تطبيقات -->
             <div id="tab-install_apps" class="section">
                 <div class="card">
-                    <h3>📲 الربح من تثبيت تطبيقات</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:</p>
-                    <button class="btn" style="background: #16a34a; margin-top: 10px;" onclick="completeTask()">تثبيت التطبيق ✅</button>
+                    <h3 id="txt-installapps-title">📲 الربح من تثبيت تطبيقات</h3>
+                    <p id="txt-installapps-desc" style="font-size: 13px; color: #cbd5e1;">قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:</p>
+                    <button id="txt-installapps-btn" class="btn" style="background: #16a34a; margin-top: 10px;" onclick="completeTask()">تثبيت التطبيق ✅</button>
                 </div>
             </div>
 
             <!-- 5. التسجيل في المواقع -->
             <div id="tab-register_sites" class="section">
                 <div class="card">
-                    <h3>🌐 الربح من التسجيل في المواقع</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">سجل في المواقع الإلكترونية المتاحة لكسب نقاط TRX:</p>
-                    <button class="btn" style="background: #0284c7; margin-top: 10px;" onclick="completeTask()">التسجيل في الموقع ✅</button>
+                    <h3 id="txt-registersites-title">🌐 الربح من التسجيل في المواقع</h3>
+                    <p id="txt-registersites-desc" style="font-size: 13px; color: #cbd5e1;">سجل في المواقع الإلكترونية المتاحة لكسب نقاط TRX:</p>
+                    <button id="txt-registersites-btn" class="btn" style="background: #0284c7; margin-top: 10px;" onclick="completeTask()">التسجيل في الموقع ✅</button>
                 </div>
             </div>
 
             <!-- 6. المحفظة -->
             <div id="tab-wallet" class="section">
                 <div class="card">
-                    <h3>💳 إدارة المحفظة</h3>
+                    <h3 id="txt-wallet-title">💳 إدارة المحفظة</h3>
                     <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">أدخل عنوان محفظة TRX الخاصة بك:</p>
                     <input type="text" id="trx-input" placeholder="أدخل عنوان TRX هنا...">
                     <button id="wallet-btn" class="btn" onclick="handleWalletAction()">حفظ العنوان 💾</button>
@@ -450,27 +483,27 @@ def webapp():
             <!-- 7. السحب -->
             <div id="tab-withdraw" class="section">
                 <div class="card">
-                    <h3>💸 سحب الأرباح</h3>
-                    <p style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
+                    <h3 id="txt-withdraw-title">💸 سحب الأرباح</h3>
+                    <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
                     <p id="current-address" style="font-size: 12px; color: #fbbf24; word-break: break-all; margin: 10px 0;"></p>
-                    <button class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
+                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
                 </div>
             </div>
 
             <!-- 8. المشاهدة -->
             <div id="tab-watch" class="section">
                 <div class="card">
-                    <h3>▶️ الربح من المشاهدة</h3>
-                    <p style="font-size: 13px; color: #cbd5e1;">قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:</p>
-                    <button class="btn" style="background: #16a34a;" onclick="completeTask()">مشاهدة الإعلان والربح 🚀</button>
+                    <h3 id="txt-watch-title">▶️ الربح من المشاهدة</h3>
+                    <p id="txt-watch-desc" style="font-size: 13px; color: #cbd5e1;">قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:</p>
+                    <button id="txt-watch-btn" class="btn" style="background: #16a34a;" onclick="completeTask()">مشاهدة الإعلان والربح 🚀</button>
                 </div>
             </div>
 
             <!-- 9. الشروط والأحكام -->
             <div id="tab-terms" class="section">
                 <div class="card" style="text-align: right;">
-                    <h3 style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
-                    <div class="terms-text">
+                    <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
+                    <div id="txt-terms-content" class="terms-text">
                         1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>
                         2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
                         3. نسبة الإحالة (3%) تُحتسب للأبد.<br>
@@ -491,16 +524,123 @@ def webapp():
                 if (tg.initDataUnsafe.user.id) userId = tg.initDataUnsafe.user.id;
                 if (tg.initDataUnsafe.user.first_name) userName = tg.initDataUnsafe.user.first_name;
             }
-            document.getElementById('welcome').innerText = "مرحباً بك: " + userName;
 
             function toggleDrawer() {
                 document.getElementById('drawer').classList.toggle('open');
                 document.getElementById('overlay').classList.toggle('active');
             }
 
+            const translations = {
+                ar: {
+                    home: "🏠 الرئيسية", ref: "👥 الإحالة",
+                    phoneSub: "📱 الربح من الاشتراك في رقم هاتف", installApps: "📲 الربح من تثبيت تطبيقات", registerSites: "🌐 الربح من التسجيل في المواقع",
+                    wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", terms: "📜 الشروط والأحكام",
+                    menu: "القائمة ⚙️", welcome: "مرحباً بك: ",
+                    balTitle: "رصيد TRX الحالي", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
+                    refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
+                    walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):",
+                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
+                    watchTitle: "▶️ الربح من المشاهدة", watchDesc: "قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:", watchBtn: "مشاهدة الإعلان والربح 🚀",
+                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت."
+                },
+                en: {
+                    home: "🏠 Home", ref: "👥 Referrals",
+                    phoneSub: "📱 Phone Number Sub", installApps: "📲 Install Apps", registerSites: "🌐 Register Sites",
+                    wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", terms: "📜 Terms",
+                    menu: "Menu ⚙️", welcome: "Welcome: ",
+                    balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
+                    refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
+                    walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
+                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
+                    watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
+                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
+                },
+                es: {
+                    home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción Telefónica", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse en Sitios", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
+                    menu: "Menú ⚙️", welcome: "Bienvenido: ", balTitle: "Tu Saldo Actual", balDesc: "Retiro instantáneo al alcanzar el mínimo.", refTitle: "👥 Referidos (3%)", refCountLbl: "Activos:", refDesc: "Comparte tu enlace:", copyBtn: "Copiar Enlace 🔗", walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:", withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀", watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀", termsTitle: "📜 Términos", termsContent: "1. No VPN.<br>2. Referidos activos tras oferta.<br>3. 3% bono.<br>4. Cambia tu billetera cuando quieras."
+                },
+                de: {
+                    home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites registrieren", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
+                    menu: "Menü ⚙️", welcome: "Willkommen: ", balTitle: "Aktuelles Guthaben", balDesc: "Sofortige Auszahlung möglich.", refTitle: "👥 Empfehlungen (3%)", refCountLbl: "Aktiv:", refDesc: "Link teilen:", copyBtn: "Link kopieren 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:", withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀", watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀", termsTitle: "📜 AGB", termsContent: "1. Kein VPN.<br>2. Aktive Empfehlungen.<br>3. 3% Bonus.<br>4. Wallet änderbar."
+                },
+                fr: {
+                    home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription Sites", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
+                    menu: "Menu ⚙️", welcome: "Bienvenue : ", balTitle: "Solde Actuel", balDesc: "Retrait instantané.", refTitle: "👥 Parrainage (3%)", refCountLbl: "Actifs :", refDesc: "Partagez :", copyBtn: "Copier 🔗", walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :", withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀", watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀", termsTitle: "📜 Conditions", termsContent: "1. Pas de VPN.<br>2. Parrainage actif.<br>3. 3% bonus.<br>4. Modifiable."
+                },
+                ru: {
+                    home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Регистрация на сайтах", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
+                    menu: "Меню ⚙️", welcome: "Добро пожаловать: ", balTitle: "Баланс TRX", balDesc: "Мгновенный вывод.", refTitle: "👥 Рефералы (3%)", refCountLbl: "Активные:", refDesc: "Ссылка:", copyBtn: "Копировать 🔗", walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:", withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀", watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀", termsTitle: "📜 Условия", termsContent: "1. Без VPN.<br>2. Рефералы активны.<br>3. 3% бонус.<br>4. Кошелек изменяем."
+                },
+                pt: {
+                    home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar Sites", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
+                    menu: "Menu ⚙️", welcome: "Bem-vindo: ", balTitle: "Saldo TRX", balDesc: "Saque rápido.", refTitle: "👥 Indicações (3%)", refCountLbl: "Ativas:", refDesc: "Link:", copyBtn: "Copiar 🔗", walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:", withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀", watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀", termsTitle: "📜 Termos", termsContent: "1. Sem VPN.<br>2. Indicações ativas.<br>3. 3% bônus.<br>4. Alterável."
+                },
+                nl: {
+                    home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites Registreren", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
+                    menu: "Menu ⚙️", welcome: "Welkom: ", balTitle: "Saldo", balDesc: "Direct opnemen.", refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗", walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀", watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀", termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar."
+                },
+                pl: {
+                    home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Rejestracja stron", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
+                    menu: "Menu ⚙️", welcome: "Witaj: ", balTitle: "Saldo TRX", balDesc: "Szybka wypłata.", refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗", walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:", withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀", watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀", termsTitle: "📜 Regulamin", termsContent: "1. Bez VPN.<br>2. Polecenia aktywne.<br>3. 3% bonus.<br>4. Zmieniaj portfel."
+                }
+            };
+
+            let currentLang = 'ar';
+            let currentTitles = translations[currentLang];
+
+            function changeLanguage(lang) {
+                currentLang = lang;
+                let t = translations[lang] || translations['ar'];
+                currentTitles = t;
+
+                if (lang === 'ar') {
+                    document.getElementById('html-root').setAttribute('dir', 'rtl');
+                    document.getElementById('html-root').setAttribute('lang', 'ar');
+                } else {
+                    document.getElementById('html-root').setAttribute('dir', 'ltr');
+                    document.getElementById('html-root').setAttribute('lang', lang);
+                }
+
+                document.getElementById('page-title').innerText = t.home;
+                document.getElementById('menu-title').innerText = t.menu;
+                document.getElementById('txt-bal-title').innerText = t.balTitle;
+                document.getElementById('txt-bal-desc').innerText = t.balDesc;
+                document.getElementById('txt-home-terms-title').innerText = t.termsTitle;
+                document.getElementById('txt-home-terms-content').innerHTML = t.termsContent;
+                document.getElementById('txt-ref-title').innerText = t.refTitle;
+                document.getElementById('txt-ref-count-label').innerText = t.refCountLbl;
+                document.getElementById('txt-ref-desc').innerText = t.refDesc;
+                document.getElementById('txt-copy-btn').innerText = t.copyBtn;
+                document.getElementById('txt-wallet-title').innerText = t.walletTitle;
+                document.getElementById('wallet-desc').innerText = t.walletDesc;
+                document.getElementById('trx-input').placeholder = t.walletPlaceholder;
+                document.getElementById('txt-withdraw-title').innerText = t.withdrawTitle;
+                document.getElementById('txt-wallet-label').innerText = t.walletLabel;
+                document.getElementById('txt-withdraw-btn').innerText = t.withdrawBtn;
+                document.getElementById('txt-watch-title').innerText = t.watchTitle;
+                document.getElementById('txt-watch-desc').innerText = t.watchDesc;
+                document.getElementById('txt-watch-btn').innerText = t.watchBtn;
+                document.getElementById('txt-terms-title').innerText = t.termsTitle;
+                document.getElementById('txt-terms-content').innerHTML = t.termsContent;
+
+                document.getElementById('nav-txt-home').innerText = t.home;
+                document.getElementById('nav-txt-ref').innerText = t.ref;
+                document.getElementById('nav-txt-phonesub').innerText = t.phoneSub;
+                document.getElementById('nav-txt-installapps').innerText = t.installApps;
+                document.getElementById('nav-txt-registersites').innerText = t.registerSites;
+                document.getElementById('nav-txt-wallet').innerText = t.wallet;
+                document.getElementById('nav-txt-withdraw').innerText = t.withdraw;
+                document.getElementById('nav-txt-watch').innerText = t.watch;
+                document.getElementById('nav-txt-terms').innerText = t.terms;
+
+                document.getElementById('welcome').innerText = t.welcome + userName;
+                loadUserData();
+            }
+
             let savedTrxAddress = "";
 
             function loadUserData() {
+                let t = translations[currentLang] || translations['ar'];
                 fetch('/api/user/' + userId)
                     .then(res => res.json())
                     .then(data => {
@@ -516,34 +656,35 @@ def webapp():
                         if (savedTrxAddress) {
                             input.value = savedTrxAddress;
                             input.readOnly = true;
-                            btn.innerText = "تغيير المحفظة 🔄";
-                            desc.innerText = "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):";
+                            btn.innerText = t.changeBtn;
+                            desc.innerText = t.walletSavedDesc;
                             document.getElementById('current-address').innerText = savedTrxAddress;
                         } else {
                             input.value = "";
                             input.readOnly = false;
-                            btn.innerText = "حفظ العنوان 💾";
-                            desc.innerText = "أدخل عنوان محفظة TRX الخاصة بك:";
-                            document.getElementById('current-address').innerText = "لم تقم باضافة عنوان بعد!";
+                            btn.innerText = t.saveBtn;
+                            desc.innerText = t.walletDesc;
+                            document.getElementById('current-address').innerText = t.noAddress;
                         }
                     })
                     .catch(err => console.error("Error:", err));
             }
 
             function handleWalletAction() {
+                let t = translations[currentLang] || translations['ar'];
                 let input = document.getElementById('trx-input');
                 let btn = document.getElementById('wallet-btn');
                 let address = input.value.trim();
 
                 if (!address) {
-                    alert("الرجاء إدخال عنوان محفظة صحيح!");
+                    alert("الرجاء إدخال عنوان صحيح!");
                     return;
                 }
 
                 if (input.readOnly) {
                     input.readOnly = false;
                     input.focus();
-                    btn.innerText = "حفظ التغيير 💾";
+                    btn.innerText = t.saveChangeBtn;
                 } else {
                     fetch('/api/update_address', {
                         method: 'POST',
@@ -598,11 +739,12 @@ def webapp():
                 .then(res => res.json())
                 .then(data => {
                     alert(data.message);
-                    loadUserData();
+                    loadUserData.loadUserData ? loadUserData() : loadUserData();
                 });
             }
 
-            loadUserData();
+            document.getElementById('language-select').value = 'ar';
+            changeLanguage('ar');
         </script>
     </body>
     </html>
