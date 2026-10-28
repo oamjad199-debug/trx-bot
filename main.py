@@ -50,6 +50,8 @@ telegram_terms = {
         "البوت منصة لتحقيق الربح من مشاهدة الإعلانات، عروض الاشتراك برقم الهاتف، عروض التسجيل، وتثبيت التطبيقات.\n\n"
         "⚠️ **تنبيه مهم جداً:**\n"
         "لا تدفع أي مبلغ مالي لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.\n\n"
+        "💰 **حد السحب الأدنى:**\n"
+        "الحد الأدنى لسحب الأرباح هو **100 ترون (TRX)**.\n\n"
         "🚫 **المحظورات:**\n"
         "❌ استخدام VPN أو البروكسي بجميع أنواعه.\n"
         "❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال.\n"
@@ -65,6 +67,8 @@ telegram_terms = {
         "Платформа для заработка на просмотре рекламы, подписках по телефону, регистрации и установке приложений.\n\n"
         "⚠️ **Важное предупреждение:**\n"
         "Не платите никому деньги. Все задания абсолютно бесплатны.\n\n"
+        "💰 **Минимум для вывода:**\n"
+        "Минимальная сумма для вывода средств составляет **100 TRX**.\n\n"
         "🚫 **Запреты:**\n"
         "❌ Использование VPN или прокси.\n"
         "❌ Использование Wi-Fi (нужно использовать мобильные данные).\n"
@@ -80,6 +84,8 @@ telegram_terms = {
         "Plataforma para ganar viendo anuncios, suscripciones telefónicas, registros y apps.\n\n"
         "⚠️ **Advertencia:**\n"
         "No pagues dinero a nadie. Todas las tareas son gratuitas.\n\n"
+        "💰 **Mínimo de retiro:**\n"
+        "El monto mínimo de retiro es de **100 TRX**.\n\n"
         "🚫 **Prohibiciones:**\n"
         "❌ Usar VPN o Proxy.\n"
         "❌ Usar Wi-Fi (use datos móviles).\n"
@@ -95,6 +101,8 @@ telegram_terms = {
         "Plattform zum Verdienen durch Werbung, Telefon-Abos, Registrierungen und Apps.\n\n"
         "⚠️ **Warnung:**\n"
         "Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.\n\n"
+        "💰 **Mindestauszahlung:**\n"
+        "Der Mindestbetrag für Auszahlungen beträgt **100 TRX**.\n\n"
         "🚫 **Verbote:**\n"
         "❌ VPN oder Proxy verwenden.\n"
         "❌ WLAN verwenden (Mobildaten nutzen).\n"
@@ -110,6 +118,8 @@ telegram_terms = {
         "Plateforme pour gagner avec les pubs, abonnements téléphone, inscriptions et apps.\n\n"
         "⚠️ **Avertissement :**\n"
         "Ne payez pas d'argent. Tout est gratuit.\n\n"
+        "💰 **Minimum de retrait :**\n"
+        "Le montant minimum de retrait est de **100 TRX**.\n\n"
         "🚫 **Interdictions :**\n"
         "❌ Utiliser un VPN ou Proxy.\n"
         "❌ Utiliser le Wi-Fi (utilisez les données mobiles).\n"
@@ -125,6 +135,8 @@ telegram_terms = {
         "Plataforma para ganhar com anúncios, inscrições por telefone, registros e apps.\n\n"
         "⚠️ **Aviso:**\n"
         "Não pague dinheiro a ninguém. Tudo é gratuito.\n\n"
+        "💰 **Mínimo para saque:**\n"
+        "O valor mínimo para saque é de **100 TRX**.\n\n"
         "🚫 **Proibições:**\n"
         "❌ Usar VPN ou Proxy.\n"
         "❌ Usar Wi-Fi (use dados móveis).\n"
@@ -140,6 +152,8 @@ telegram_terms = {
         "Platform om te verdienen met advertenties, telefoon-subs, registraties en apps.\n\n"
         "⚠️ **Waarschuwing:**\n"
         "Betaal geen geld aan iemand. Alles is gratis.\n\n"
+        "💰 **Minimum opname:**\n"
+        "Het minimumbedrag voor opname is **100 TRX**.\n\n"
         "🚫 **Verboden:**\n"
         "❌ VPN of Proxy gebruiken.\n"
         "❌ Wi-Fi gebruiken (gebruik mobiele data).\n"
@@ -155,6 +169,8 @@ telegram_terms = {
         "Platforma do zarabiania na reklamach, subskrypcjach telefonu, rejestracji i aplikacjach.\n\n"
         "⚠️ **Ostrzeżenie:**\n"
         "Nie płac nikomu pieniędzy. Wszystko jest darmowe.\n\n"
+        "💰 **Minimum wypłaty:**\n"
+        "Minimalna kwota wypłaty wynosi **100 TRX**.\n\n"
         "🚫 **Zakazy:**\n"
         "❌ Używanie VPN lub Proxy.\n"
         "❌ Używanie Wi-Fi (używaj danych mobilnych).\n"
@@ -172,6 +188,8 @@ telegram_terms['en'] = (
     "Platform to earn from watching ads, phone subscriptions, registrations, and app installs.\n\n"
     "⚠️ **Important Warning:**\n"
     "Do not pay any money to anyone. All tasks are completely free.\n\n"
+    "💰 **Minimum Withdrawal:**\n"
+    "The minimum withdrawal amount is **100 TRX**.\n\n"
     "🚫 **Prohibitions:**\n"
     "❌ Using VPN or Proxy of any kind.\n"
     "❌ Using Wi-Fi (mobile data is required).\n"
@@ -206,7 +224,6 @@ def start(message):
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
         
-        # التحقق هل المستخدم موجود مسبقاً؟ إذا موجود لا نلمس رصيده أبداً
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if not cursor.fetchone():
             if referrer_id and referrer_id != user_id:
@@ -258,7 +275,6 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
-        # إذا لم يكن موجوداً فقط ينشأ بصفر، أما إذا كان موجوداً فيتم جلب رصيده الحقيقي كما هو تماماً (مثلاً 10 أو 20 أو أكثر)
         cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, 0.0)", (user_id, "Omar"))
         conn.commit()
         balance = 0.0
@@ -335,11 +351,12 @@ def withdraw():
         conn.close()
         return jsonify({"success": False, "message": "Please add your TRX wallet address first!"})
     
-    if balance <= 0:
+    # الحد الأدنى للسحب أصبح 100 ترون
+    if balance < 100.0:
         conn.close()
-        return jsonify({"success": False, "message": "Insufficient balance"})
+        return jsonify({"success": False, "message": "Minimum withdrawal limit is 100 TRX"})
     
-    cursor.execute("UPDATE users SET balance = 0.0 WHERE user_id = ?", (user_id,))
+    cursor.execute("UPDATE users SET balance = balance - 100.0 WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
     
@@ -608,7 +625,7 @@ def webapp():
                 <div class="card">
                     <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
                     <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">TRX 0.00</p>
-                    <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
+                    <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">الحد الأدنى للسحب هو 100 ترون (TRX).</p>
                 </div>
 
                 <!-- الأكورديون للسؤال وتوضيح المراجعة والسحب -->
@@ -618,7 +635,7 @@ def webapp():
                         <span class="accordion-arrow">⌄</span>
                     </div>
                     <div class="accordion-content">
-                        <p id="txt-faq-desc" style="margin: 0;">يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد التأكد من اكتمال الشروط.</p>
+                        <p id="txt-faq-desc" style="margin: 0;">يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد الوصول للحد الأدنى (100 TRX) والتأكد من اكتمال الشروط.</p>
                     </div>
                 </div>
             </div>
@@ -677,7 +694,7 @@ def webapp():
                     <h3 id="txt-withdraw-title">💸 سحب الأرباح</h3>
                     <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
                     <p id="current-address" style="font-size: 14px; font-weight: bold; color: #fbbf24; word-break: break-all; margin: 10px 0;"></p>
-                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب 🚀</button>
+                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب (الحد الأدنى 100 ترون) 🚀</button>
                 </div>
             </div>
 
@@ -729,22 +746,22 @@ def webapp():
                     phoneSub: "📱 الربح من الاشتراك في رقم هاتف", installApps: "📲 الربح من تثبيت تطبيقات", registerSites: "🌐 الربح من التسجيل في المواقع",
                     wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", terms: "📜 الشروط والأحكام",
                     menu: "القائمة ⚙️", welcome: "مرحباً بك: ",
-                    balTitle: "رصيد TRX الحالي", balDesc: "تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.",
-                    faqTitle: "❓ متى يتم سحب الأرباح؟", faqDesc: "يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد التأكد من اكتمال الشروط.",
+                    balTitle: "رصيد TRX الحالي", balDesc: "الحد الأدنى للسحب هو 100 ترون (TRX).",
+                    faqTitle: "❓ متى يتم سحب الأرباح؟", faqDesc: "يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد الوصول للحد الأدنى (100 TRX) والتأكد من اكتمال الشروط.",
                     refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
                     phoneSubTitle: "📱 الربح من الاشتراك في رقم هاتف", phoneSubDesc: "اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:", phoneSubBtn: "تنفيذ الاشتراك ✅",
                     installAppsTitle: "📲 الربح من تثبيت تطبيقات", installAppsDesc: "قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:", installAppsBtn: "تثبيت التطبيق ✅",
                     registerSitesTitle: "🌐 الربح من التسجيل في المواقع", registerSitesDesc: "سجل في المواقع الإلكترونية المتاحة لكسب نقاط TRX:", registerSitesBtn: "التسجيل في الموقع ✅",
                     walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):",
-                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
+                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب (الحد الأدنى 100 ترون) 🚀",
                     watchTitle: "▶️ الربح من المشاهدة", watchDesc: "قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:", watchBtn: "مشاهدة الإعلان والربح 🚀",
                     termsTitle: "📜 الشروط والأحكام", 
-                    termsContent: "<b>مرحباً بك 👋 باستخدامك للبوت فإنك توافق على الشروط التالية:</b><br><br><b>🌍 عن البوت</b><br>البوت منصة لتحقيق الربح من:<br>🎬 مشاهدة الإعلانات<br>📱 عروض الاشتراك برقم الهاتف<br>📝 عروض التسجيل<br>📲 تثبيت التطبيقات<br><br><b>⚠️ تنبيه مهم جداً</b><br>لا تدفع أي مبلغ مالى لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.<br><br><b>🚫 المحظورات</b><br>❌ استخدام VPN أو البروكسي بجميع أنواعه<br>❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال<br>❌ إنشاء أكثر من حساب للشخص الواحد<br>❌ استخدام بيانات وهمية وأرقام غير حقيقية<br><br><b>👥 نظام الإحالة</b><br>💰 تحصل على 3% من أرباح كل من تدعوه، مدى الحياة.<br>✅ لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً واحداً ناجحاً على الأقل.",
+                    termsContent: "<b>مرحباً بك 👋 باستخدامك للبوت فإنك توافق على الشروط التالية:</b><br><br><b>🌍 عن البوت</b><br>البوت منصة لتحقيق الربح من:<br>🎬 مشاهدة الإعلانات<br>📱 عروض الاشتراك برقم الهاتف<br>📝 عروض التسجيل<br>📲 تثبيت التطبيقات<br><br><b>⚠️ تنبيه مهم جداً</b><br>لا تدفع أي مبلغ مالى لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.<br><br><b>💰 حد السحب الأدنى</b><br>الحد الأدنى لسحب الأرباح هو <b>100 ترون (TRX)</b>.<br><br><b>🚫 المحظورات</b><br>❌ استخدام VPN أو البروكسي بجميع أنواعه<br>❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال<br>❌ إنشاء أكثر من حساب للشخص الواحد<br>❌ استخدام بيانات وهمية وأرقام غير حقيقية<br><br><b>👥 نظام الإحالة</b><br>💰 تحصل على 3% من أرباح كل من تدعوه، مدى الحياة.<br>✅ لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً واحداً ناجحاً على الأقل.",
                     alertCopy: "تم نسخ رابط الإحالة بنجاح! 📋",
                     alertAddressReq: "الرجاء إدخال عنوان صحيح!",
                     alertOfferDone: "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉",
                     alertNoAddress: "الرجاء إضافة عنوان محفظة TRX في قسم المحفظة أولاً!",
-                    alertNoBalance: "عذراً، ليس لديك رصيد كافي للسحب",
+                    alertNoBalance: "عذراً، الحد الأدنى للسحب هو 100 ترون (TRX)",
                     alertWithdrawDone: "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريباً! 🚀"
                 },
                 en: {
@@ -752,169 +769,169 @@ def webapp():
                     phoneSub: "📱 Phone Number Sub", installApps: "📲 Install Apps", registerSites: "🌐 Register Sites",
                     wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", terms: "📜 Terms",
                     menu: "Menu ⚙️", welcome: "Welcome: ",
-                    balTitle: "Your Current TRX Balance", balDesc: "Continuous earning allows instant withdrawal upon reaching the minimum limit.",
-                    faqTitle: "❓ When are earnings withdrawn?", faqDesc: "Withdrawal requests are processed and reviewed, and funds are sent after verifying all terms.",
+                    balTitle: "Your Current TRX Balance", balDesc: "Minimum withdrawal limit is 100 TRX.",
+                    faqTitle: "❓ When are earnings withdrawn?", faqDesc: "Withdrawal requests are processed and reviewed, and funds are sent after reaching 100 TRX and verifying all terms.",
                     refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
                     phoneSubTitle: "📱 Phone Number Sub", phoneSubDesc: "Subscribe with your phone number in available offers to earn TRX:", phoneSubBtn: "Complete Subscription ✅",
                     installAppsTitle: "📲 Install Apps", installAppsDesc: "Install required apps and open them to earn TRX points:", installAppsBtn: "Install App ✅",
                     registerSitesTitle: "🌐 Register Sites", registerSitesDesc: "Register on available websites to earn TRX points:", registerSitesBtn: "Register on Site ✅",
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
-                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
+                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal (Min 100 TRX) 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
                     termsTitle: "📜 Terms & Conditions", 
-                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br>❌ Fake data or unreal numbers<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.<br>✅ Referrals count only after an active offer is completed successfully.",
+                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>💰 Minimum Withdrawal</b><br>The minimum withdrawal amount is <b>100 TRX</b>.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br>❌ Fake data or unreal numbers<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.<br>✅ Referrals count only after an active offer is completed successfully.",
                     alertCopy: "Referral link copied successfully! 📋",
                     alertAddressReq: "Please enter a valid address!",
                     alertOfferDone: "Congratulations! Reward added successfully! 🎉",
                     alertNoAddress: "Please add your TRX wallet address first!",
-                    alertNoBalance: "Sorry, insufficient balance",
+                    alertNoBalance: "Sorry, minimum withdrawal limit is 100 TRX",
                     alertWithdrawDone: "Withdrawal request submitted successfully! 🚀"
                 },
                 es: {
                     home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
                     menu: "Menú ⚙️", welcome: "Bienvenido: ",
-                    balTitle: "Saldo Actual", balDesc: "Retiro instantáneo al alcanzar el mínimo.",
-                    faqTitle: "❓ ¿Cuándo se retiran las ganancias?", faqDesc: "Las solicitudes de retiro se procesan y revisan antes de enviar los fondos.",
+                    balTitle: "Saldo Actual", balDesc: "Mínimo de retiro: 100 TRX.",
+                    faqTitle: "❓ ¿Cuándo se retiran las ganancias?", faqDesc: "Se procesa tras alcanzar los 100 TRX y verificar los términos.",
                     refTitle: "👥 Referidos (3%)", refCountLbl: "Activos:", refDesc: "Comparte tu enlace:", copyBtn: "Copiar Enlace 🔗",
                     phoneSubTitle: "📱 Suscripción", phoneSubDesc: "Suscríbete con tu número:", phoneSubBtn: "Suscribirse ✅",
                     installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instala apps requeridas:", installAppsBtn: "Instalar App ✅",
                     registerSitesTitle: "🌐 Registrarse", registerSitesDesc: "Regístrate en sitios:", registerSitesBtn: "Registrarse ✅",
                     walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:",
-                    withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀",
+                    withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro (Mín 100 TRX) 🚀",
                     watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
                     termsTitle: "📜 Términos", 
-                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.<br>✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.",
+                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>💰 Mínimo de Retiro</b><br>El monto mínimo es de <b>100 TRX</b>.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.<br>✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.",
                     alertCopy: "¡Enlace copiado con éxito! 📋",
                     alertAddressReq: "¡Por favor ingresa una dirección válida!",
                     alertOfferDone: "¡Recompensa añadida con éxito! 🎉",
                     alertNoAddress: "¡Añade tu dirección TRX primero!",
-                    alertNoBalance: "Saldo insuficiente",
+                    alertNoBalance: "El saldo mínimo de retiro es de 100 TRX",
                     alertWithdrawDone: "¡Solicitud de retiro enviada! 🚀"
                 },
                 de: {
                     home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
                     menu: "Menü ⚙️", welcome: "Willkommen: ",
-                    balTitle: "Aktuelles Guthaben", balDesc: "Sofortige Auszahlung möglich.",
-                    faqTitle: "❓ Wann werden Gewinne ausgezahlt?", faqDesc: "Auszahlungsanfragen werden nach Prüfung und Verifizierung bearbeitet.",
+                    balTitle: "Aktuelles Guthaben", balDesc: "Mindestauszahlung: 100 TRX.",
+                    faqTitle: "❓ Wann werden Gewinne ausgezahlt?", faqDesc: "Nach Erreichen von 100 TRX und Prüfung.",
                     refTitle: "👥 Empfehlungen (3%)", refCountLbl: "Aktiv:", refDesc: "Link teilen:", copyBtn: "Link kopieren 🔗",
                     phoneSubTitle: "📱 Telefon-Abo", phoneSubDesc: "Abonnieren Sie mit Ihrer Nummer:", phoneSubBtn: "Abonnieren ✅",
                     installAppsTitle: "📲 Apps installieren", installAppsDesc: "Apps installieren:", installAppsBtn: "App installieren ✅",
                     registerSitesTitle: "🌐 Websites", registerSitesDesc: "Auf Websites registrieren:", registerSitesBtn: "Registrieren ✅",
                     walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:",
-                    withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀",
+                    withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen (Min 100 TRX) 🚀",
                     watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
                     termsTitle: "📜 AGB", 
-                    termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br><b>🌍 Über den Bot</b><br>Plattform zum Verdienen durch:<br>🎬 Anzeigen ansehen<br>📱 Telefon-Abo<br>📝 Registrierung<br>📲 Apps installieren<br><br><b>⚠️ Warnung</b><br>Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.<br><br><b>🚫 Verbote</b><br>❌ VPN oder Proxy verwenden<br>❌ WLAN verwenden (Mobildaten nutzen)<br>❌ Mehrfachkonten<br>❌ Falsche Daten<br><br><b>👥 Empfehlungen</b><br>💰 3% lebenslanger Bonus.<br>✅ Empfehlungen zählen erst, nachdem der eingeladene Benutzer mindestens ein erfolgreiches Angebot abgeschlossen hat.",
+                    termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br><b>🌍 Über den Bot</b><br>Plattform zum Verdienen durch:<br>🎬 Anzeigen ansehen<br>📱 Telefon-Abo<br>📝 Registrierung<br>📲 Apps installieren<br><br><b>⚠️ Warnung</b><br>Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.<br><br><b>💰 Mindestauszahlung</b><br>Der Mindestbetrag beträgt <b>100 TRX</b>.<br><br><b>🚫 Verbote</b><br>❌ VPN oder Proxy verwenden<br>❌ WLAN verwenden (Mobildaten nutzen)<br>❌ Mehrfachkonten<br>❌ Falsche Daten<br><br><b>👥 Empfehlungen</b><br>💰 3% lebenslanger Bonus.<br>✅ Empfehlungen zählen erst, nachdem der eingeladene Benutzer mindestens ein erfolgreiches Angebot abgeschlossen hat.",
                     alertCopy: "Link kopiert! 📋",
                     alertAddressReq: "Gültige Adresse eingeben!",
                     alertOfferDone: "Erfolgreich hinzugefügt! 🎉",
                     alertNoAddress: "Bitte TRX-Adresse hinzufügen!",
-                    alertNoBalance: "Unzureichendes Guthaben",
+                    alertNoBalance: "Mindestauszahlung beträgt 100 TRX",
                     alertWithdrawDone: "Auszahlung eingereicht! 🚀"
                 },
                 fr: {
                     home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
                     menu: "Menu ⚙️", welcome: "Bienvenue : ",
-                    balTitle: "Solde Actuel", balDesc: "Retrait instantané.",
-                    faqTitle: "❓ Quand les gains sont-ils retirés ?", faqDesc: "Les demandes de retrait sont traitées et vérifiées avant l'envoi des fonds.",
+                    balTitle: "Solde Actuel", balDesc: "Minimum de retrait : 100 TRX.",
+                    faqTitle: "❓ Quand les gains sont-ils retirés ?", faqDesc: "Après avoir atteint 100 TRX et vérification.",
                     refTitle: "👥 Parrainage (3%)", refCountLbl: "Actifs :", refDesc: "Partagez :", copyBtn: "Copier 🔗",
                     phoneSubTitle: "📱 Abonn. Téléphone", phoneSubDesc: "Abonnez-vous avec votre numéro:", phoneSubBtn: "S'abonner ✅",
                     installAppsTitle: "📲 Installer Apps", installAppsDesc: "Installez les apps requises:", installAppsBtn: "Installer ✅",
                     registerSitesTitle: "🌐 Inscription", registerSitesDesc: "Inscrivez-vous sur les sites:", registerSitesBtn: "S'inscrire ✅",
                     walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :",
-                    withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀",
+                    withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer (Min 100 TRX) 🚀",
                     watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀",
                     termsTitle: "📜 Conditions", 
-                    termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br><b>🌍 À propos du Bot</b><br>Plateforme pour gagner avec :<br>🎬 Regarder des pubs<br>📱 Abonn. téléphone<br>📝 Inscription<br>📲 Installer des apps<br><br><b>⚠️ Avertissement</b><br>Ne payez pas d'argent. Tout est gratuit.<br><br><b>🚫 Interdictions</b><br>❌ Utiliser un VPN ou Proxy<br>❌ Utiliser le Wi-Fi (utilisez les données mobiles)<br>❌ Comptes multiples<br>❌ Faux comptes<br><br><b>👥 Parrainage</b><br>💰 3% de bonus à vie.<br>✅ Les parrainages ne sont comptabilisés qu'après qu'un utilisateur invité a complété au moins une offre réussie.",
+                    termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br><b>🌍 À propos du Bot</b><br>Plateforme pour gagner avec :<br>🎬 Regarder des pubs<br>📱 Abonn. téléphone<br>📝 Inscription<br>📲 Installer des apps<br><br><b>⚠️ Avertissement</b><br>Ne payez pas d'argent. Tout est gratuit.<br><br><b>💰 Minimum de Retrait</b><br>Le montant minimum est de <b>100 TRX</b>.<br><br><b>🚫 Interdictions</b><br>❌ Utiliser un VPN ou Proxy<br>❌ Utiliser le Wi-Fi (utilisez les données mobiles)<br>❌ Comptes multiples<br>❌ Faux comptes<br><br><b>👥 Parrainage</b><br>💰 3% de bonus à vie.<br>✅ Les parrainages ne sont comptabilisés qu'après qu'un utilisateur invité a complété au moins une offre réussie.",
                     alertCopy: "Lien copié ! 📋",
                     alertAddressReq: "Entrez une adresse valide !",
                     alertOfferDone: "Ajouté avec succès ! 🎉",
                     alertNoAddress: "Ajoutez votre adresse TRX !",
-                    alertNoBalance: "Solde insuffisant",
+                    alertNoBalance: "Le minimum de retrait est de 100 TRX",
                     alertWithdrawDone: "Demande de retrait envoyée ! 🚀"
                 },
                 ru: {
                     home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Сайты", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
                     menu: "Меню ⚙️", welcome: "Добро пожаловать: ",
-                    balTitle: "Баланс TRX", balDesc: "Мгновенный вывод.",
-                    faqTitle: "❓ Когда выводятся средства?", faqDesc: "Заявки на вывод обрабатываются и проверяются перед отправкой средств.",
+                    balTitle: "Баланс TRX", balDesc: "Минимум для вывода: 100 TRX.",
+                    faqTitle: "❓ Когда выводятся средства?", faqDesc: "После достижения 100 TRX и проверки.",
                     refTitle: "👥 Рефералы (3%)", refCountLbl: "Активные:", refDesc: "Ссылка:", copyBtn: "Копировать 🔗",
                     phoneSubTitle: "📱 Подписка по тел.", phoneSubDesc: "Подпишитесь с номером:", phoneSubBtn: "Подписаться ✅",
                     installAppsTitle: "📲 Установка апп", installAppsDesc: "Установите нужные приложения:", installAppsBtn: "Установить ✅",
                     registerSitesTitle: "🌐 Сайты", registerSitesDesc: "Регистрируйтесь на сайтах:", registerSitesBtn: "Регистрация ✅",
                     walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:",
-                    withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀",
+                    withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить (Мин 100 TRX) 🚀",
                     watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
                     termsTitle: "📜 Условия", 
-                    termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br><b>🌍 О боте</b><br>Платформа для заработка на:<br>🎬 Просмотре рекламы<br>📱 Подписках по телефону<br>📝 Регистрации<br>📲 Установке приложений<br><br><b>⚠️ Важное предупреждение</b><br>Не платите никому деньги. Все задания абсолютно бесплатны.<br><br><b>🚫 Запреты</b><br>❌ Использование VPN или прокси<br>❌ Использование Wi-Fi (используйте мобильный интернет)<br>❌ Создание нескольких аккаунтов<br>❌ Фейковые данные<br><br><b>👥 Рефералы</b><br>💰 Получайте 3% пожизненно от активности рефералов.<br>✅ Реферал засчитывается только после того, как приглашенный пользователь выполнит хотя бы одно успешное задание.",
+                    termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br><b>🌍 О боте</b><br>Платформа для заработка на:<br>🎬 Просмотре рекламы<br>📱 Подписках по телефону<br>📝 Регистрации<br>📲 Установке приложений<br><br><b>⚠️ Важное предупреждение</b><br>Не платите никому деньги. Все задания абсолютно бесплатны.<br><br><b>💰 Минимальный вывод</b><br>Минимальная сумма вывода составляет <b>100 TRX</b>.<br><br><b>🚫 Запреты</b><br>❌ Использование VPN или прокси<br>❌ Использование Wi-Fi (используйте мобильный интернет)<br>❌ Создание нескольких аккаунтов<br>❌ Фейковые данные<br><br><b>👥 Рефералы</b><br>💰 Получайте 3% пожизненно от активности рефералов.<br>✅ Реферал засчитывается только после того, как приглашенный пользователь выполнит хотя бы одно успешное задание.",
                     alertCopy: "Ссылка скопирована! 📋",
                     alertAddressReq: "Введите правильный адрес!",
                     alertOfferDone: "Успешно добавлено! 🎉",
                     alertNoAddress: "Добавьте адрес кошелька TRX!",
-                    alertNoBalance: "Недостаточно средств",
+                    alertNoBalance: "Минимальный лимит вывода: 100 TRX",
                     alertWithdrawDone: "Запрос отправлен! 🚀"
                 },
                 pt: {
                     home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
                     menu: "Menu ⚙️", welcome: "Bem-vindo: ",
-                    balTitle: "Saldo TRX", balDesc: "Saque rápido.",
-                    faqTitle: "❓ Quando os ganhos são retirados?", faqDesc: "Os pedidos de saque são processados e revisados antes do envio.",
+                    balTitle: "Saldo TRX", balDesc: "Mínimo para saque: 100 TRX.",
+                    faqTitle: "❓ Когда os ganhos são retirados?", faqDesc: "Após atingir 100 TRX e verificação.",
                     refTitle: "👥 Indicações (3%)", refCountLbl: "Ativas:", refDesc: "Link:", copyBtn: "Copiar 🔗",
                     phoneSubTitle: "📱 Sub. de Telefone", phoneSubDesc: "Inscreva-se com seu número:", phoneSubBtn: "Inscrever-se ✅",
                     installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instale os aplicativos:", installAppsBtn: "Instalar ✅",
                     registerSitesTitle: "🌐 Registrar", registerSitesDesc: "Registre-se nos sites:", registerSitesBtn: "Registrar ✅",
                     walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:",
-                    withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀",
+                    withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar (Mín 100 TRX) 🚀",
                     watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀",
                     termsTitle: "📜 Termos", 
-                    termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br><b>🌍 Sobre o Bot</b><br>Plataforma para ganhar com:<br>🎬 Assistir anúncios<br>📱 Sub. de telefone<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Aviso</b><br>Não pague dinheiro a ninguém. Tudo é gratuito.<br><br><b>🚫 Proibições</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (use dados móveis)<br>❌ Contas múltiplas<br>❌ Dados falsos<br><br><b>👥 Indicações</b><br>💰 3% de bônus vitalício.<br>✅ As indicações só contam após o usuário convidado concluir pelo menos uma oferta bem-sucedida.",
+                    termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br><b>🌍 Sobre o Bot</b><br>Plataforma para ganhar com:<br>🎬 Assistir anúncios<br>📱 Sub. de telefone<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Aviso</b><br>Não pague dinheiro a ninguém. Tudo é gratuito.<br><br><b>💰 Mínimo para Saque</b><br>O valor mínimo para saque é de <b>100 TRX</b>.<br><br><b>🚫 Proibições</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (use dados móveis)<br>❌ Contas múltiplas<br>❌ Dados falsos<br><br><b>👥 Indicações</b><br>💰 3% de bônus vitalício.<br>✅ As indicações só contam após o usuário convidado concluir pelo menos uma oferta bem-sucedida.",
                     alertCopy: "Link copiado! 📋",
                     alertAddressReq: "Insira um endereço válido!",
                     alertOfferDone: "Adicionado com sucesso! 🎉",
                     alertNoAddress: "Adicione seu endereço TRX!",
-                    alertNoBalance: "Saldo insuficiente",
+                    alertNoBalance: "O saque mínimo é de 100 TRX",
                     alertWithdrawDone: "Solicitud enviada! 🚀"
                 },
                 nl: {
                     home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
                     menu: "Menu ⚙️", welcome: "Welkom: ",
-                    balTitle: "Saldo", balDesc: "Direct opnemen.",
-                    faqTitle: "❓ Wanneer worden winsten opgenomen?", faqDesc: "Opnameverzoeken worden verwerkt en beoordeeld voordat fondsen worden verzonden.",
+                    balTitle: "Saldo", balDesc: "Minimum opname: 100 TRX.",
+                    faqTitle: "❓ Wanneer worden winsten opgenomen?", faqDesc: "Na het bereiken van 100 TRX en verificatie.",
                     refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗",
                     phoneSubTitle: "📱 Telefoon Sub", phoneSubDesc: "Abonneer met je nummer:", phoneSubBtn: "Abonneren ✅",
                     installAppsTitle: "📲 Apps Installeren", installAppsDesc: "Installeer vereiste apps:", installAppsBtn: "Installeren ✅",
                     registerSitesTitle: "🌐 Sites", registerSitesDesc: "Registreer op sites:", registerSitesBtn: "Registreren ✅",
                     walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:",
-                    withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀",
+                    withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen (Min 100 TRX) 🚀",
                     watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀",
                     termsTitle: "📜 Voorwaarden", 
-                    termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br><b>🌍 Over de Bot</b><br>Platform om te verdienen met:<br>🎬 Advertenties kijken<br>📱 Telefoon sub<br>📝 Registratie<br>📲 Apps installeren<br><br><b>⚠️ Waarschuwing</b><br>Betaal geen geld aan iemand. Alles is gratis.<br><br><b>🚫 Verboden</b><br>❌ VPN of Proxy gebruiken<br>❌ Wi-Fi gebruiken (gebruik mobiele data)<br>❌ Meerdere accounts<br>❌ Nepgegevens<br><br><b>👥 Referrals</b><br>💰 3% levenslange bonus.<br>✅ Referrals tellen pas mee nadat de genodigde gebruiker ten minste één succesvolle aanbieding heeft voltooid.",
+                    termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br><b>🌍 Over de Bot</b><br>Platform om te verdienen met:<br>🎬 Advertenties kijken<br>📱 Telefoon sub<br>📝 Registratie<br>📲 Apps installeren<br><br><b>⚠️ Waarschuwing</b><br>Betaal geen geld aan iemand. Alles is gratis.<br><br><b>💰 Minimum Opname</b><br>Het minimumbedrag is <b>100 TRX</b>.<br><br><b>🚫 Verboden</b><br>❌ VPN of Proxy gebruiken<br>❌ Wi-Fi gebruiken (gebruik mobiele data)<br>❌ Meerdere accounts<br>❌ Nepgegevens<br><br><b>👥 Referrals</b><br>💰 3% levenslange bonus.<br>✅ Referrals tellen pas mee nadat de genodigde gebruiker ten minste één succesvolle aanbieding heeft voltooid.",
                     alertCopy: "Link gekopieerd! 📋",
                     alertAddressReq: "Vul een geldig adres in!",
                     alertOfferDone: "Succesvol toegevoegd! 🎉",
                     alertNoAddress: "Voeg TRX adres toe!",
-                    alertNoBalance: "Onvoldoende saldo",
+                    alertNoBalance: "Minimum opname is 100 TRX",
                     alertWithdrawDone: "Verzoek verzonden! 🚀"
                 },
                 pl: {
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
                     menu: "Menu ⚙️", welcome: "Witaj: ",
-                    balTitle: "Saldo TRX", balDesc: "Szybka wypłata.",
-                    faqTitle: "❓ Kiedy wypłacane są środki?", faqDesc: "Wnioski o wypłatę są przetwarzane i weryfikowane przed wysłaniem środków.",
+                    balTitle: "Saldo TRX", balDesc: "Minimum wypłaty: 100 TRX.",
+                    faqTitle: "❓ Kiedy wypłacane są środki?", faqDesc: "Po osiągnięciu 100 TRX i weryfikacji.",
                     refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗",
                     phoneSubTitle: "📱 Subskrypcja tel.", phoneSubDesc: "Subskrybuj numerem:", phoneSubBtn: "Subskrybuj ✅",
                     installAppsTitle: "📲 Instaluj aplikacje", installAppsDesc: "Zainstaluj aplikacje:", installAppsBtn: "Zainstaluj ✅",
                     registerSitesTitle: "🌐 Strony", registerSitesDesc: "Zarejestruj się na stronach:", registerSitesBtn: "Zarejestruj ✅",
                     walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:",
-                    withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀",
+                    withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź (Min 100 TRX) 🚀",
                     watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀",
                     termsTitle: "📜 Regulamin", 
-                    termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br><b>🌍 O bocie</b><br>Platforma do zarabiania na:<br>🎬 Oglądaniu reklam<br>📱 Subskrypcji telefonu<br>📝 Rejestracji<br>📲 Instalacji aplikacji<br><br><b>⚠️ Ostrzeżenie</b><br>Nie płac nikomu pieniędzy. Wszystko jest darmowe.<br><br><b>🚫 Zakazy</b><br>❌ Używanie VPN lub Proxy<br>❌ Używanie Wi-Fi (używaj danych mobilnych)<br>❌ Wiele kont<br>❌ Fałszywe dane<br><br><b>👥 Polecenia</b><br>💰 3% dożywotniej premii.<br>✅ Polecenia są aktywne dopiero po ukończeniu przez zaproszonego użytkownika co najmniej jednej udanej oferty.",
+                    termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br><b>🌍 O bocie</b><br>Platforma do zarabiania na:<br>🎬 Oglądaniu reklam<br>📱 Subskrypcji telefonu<br>📝 Rejestracji<br>📲 Instalacji aplikacji<br><br><b>⚠️ Ostrzeżenie</b><br>Nie płac nikomu pieniędzy. Wszystko jest darmowe.<br><br><b>💰 Minimum Wypłaty</b><br>Minimalna kwota wypłaty to <b>100 TRX</b>.<br><br><b>🚫 Zakazy</b><br>❌ Używanie VPN lub Proxy<br>❌ Używanie Wi-Fi (używaj danych mobilnych)<br>❌ Wiele kont<br>❌ Fałszywe dane<br><br><b>👥 Polecenia</b><br>💰 3% dożywotniej premii.<br>✅ Polecenia są aktywne dopiero po ukończeniu przez zaproszonego użytkownika co najmniej jednej udanej oferty.",
                     alertCopy: "Link skopiowany! 📋",
                     alertAddressReq: "Wpisz poprawny adres!",
                     alertOfferDone: "Dodano pomyślnie! 🎉",
                     alertNoAddress: "Dodaj adres TRX!",
-                    alertNoBalance: "Brak środków",
+                    alertNoBalance: "Minimalna kwota wypłaty to 100 TRX",
                     alertWithdrawDone: "Wniosek wysłany! 🚀"
                 }
             };
