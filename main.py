@@ -9,7 +9,7 @@ server = Flask(__name__)
 
 RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
 
-# --- إعداد قاعدة بيانات SQLite (حفظ تام لأموال ورصيد المستخدمين) ---
+# --- إعداد قاعدة بيانات SQLite (حفظ تام للأرصدة والحسابات الحقيقية) ---
 def init_db():
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -43,7 +43,6 @@ def webhook():
         print(f"Error processing update: {e}", flush=True)
     return 'OK', 200
 
-# الشروط الكاملة والمترجمة بدقة لجميع اللغات الـ 9
 telegram_terms = {
     'ar': (
         "📜 **شروط وأحكام TRX Earn Bot:**\n\n"
@@ -206,6 +205,8 @@ def start(message):
 
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
+        
+        # التحقق هل المستخدم موجود مسبقاً؟ إذا موجود لا نلمس رصيده أبداً
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if not cursor.fetchone():
             if referrer_id and referrer_id != user_id:
@@ -257,6 +258,7 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
+        # إذا لم يكن موجوداً فقط ينشأ بصفر، أما إذا كان موجوداً فيتم جلب رصيده الحقيقي كما هو تماماً (مثلاً 10 أو 20 أو أكثر)
         cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, 0.0)", (user_id, "Omar"))
         conn.commit()
         balance = 0.0
@@ -421,7 +423,6 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* تصميم الأكورديون للسؤال */
             .accordion-card {
                 background: #1e293b;
                 border-radius: 12px;
