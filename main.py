@@ -273,7 +273,7 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* تصميم الأكورديون (القائمة المنسدلة للأسئلة مثل الفيديو) */
+            /* تصميم الأكورديون للأسئلة */
             .accordion-card {
                 background: #1e293b;
                 border-radius: 12px;
@@ -454,7 +454,7 @@ def webapp():
         <div class="container">
             <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8; margin-top:0;"></p>
 
-            <!-- 1. الرئيسية مع شريط السحب والإجابة (أكورديون) -->
+            <!-- 1. الرئيسية -->
             <div id="tab-home" class="section active">
                 <div class="card">
                     <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
@@ -462,7 +462,7 @@ def webapp():
                     <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">تجميعك المستمر يتيح لك السحب الفوري عند الوصول للحد الأدنى.</p>
                 </div>
 
-                <!-- الأكورديون (السهم المنسدل مثل الفيديو) -->
+                <!-- الأكورديون للأسئلة -->
                 <div class="accordion-card" id="faq-accordion">
                     <div class="accordion-header" onclick="toggleAccordion()">
                         <h3 id="txt-faq-title">❓ كيف العمل على البوت؟</h3>
@@ -541,16 +541,11 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 9. الشروط والأحكام -->
+            <!-- 9. الشروط والأحكام الكاملة والمترجمة -->
             <div id="tab-terms" class="section">
-                <div class="card" style="text-align: right;">
+                <div class="card" style="text-align: right;" id="terms-card">
                     <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
-                    <div id="txt-terms-content" class="terms-text">
-                        1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>
-                        2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>
-                        3. نسبة الإحالة (3%) تُحتسب للأبد.<br>
-                        4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.
-                    </div>
+                    <div id="txt-terms-content" class="terms-text"></div>
                 </div>
             </div>
 
@@ -594,7 +589,8 @@ def webapp():
                     walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):",
                     withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب 🚀",
                     watchTitle: "▶️ الربح من المشاهدة", watchDesc: "قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:", watchBtn: "مشاهدة الإعلان والربح 🚀",
-                    termsTitle: "📜 الشروط والأحكام", termsContent: "1. يمنع منعاً باتاً استخدام الواي فاي أو الـ VPN.<br>2. لا تُحتسب الإحالة نشطة إلا بعد إتمام الشخص المدعو لعرض ناجح.<br>3. نسبة الإحالة (3%) تُحتسب للأبد.<br>4. يمكنك حفظ أو تغيير عنوان محفظة TRX بأي وقت.",
+                    termsTitle: "📜 الشروط والأحكام", 
+                    termsContent: "<b>مرحباً بك 👋 باستخدامك للبوت فإنك توافق على الشروط التالية:</b><br><br><b>🌍 عن البوت</b><br>البوت منصة لتحقيق الربح من:<br>🎬 مشاهدة الإعلانات<br>📱 عروض الاشتراك برقم الهاتف<br>📝 عروض التسجيل<br>📲 تثبيت التطبيقات<br><br><b>⚠️ تنبيه مهم جداً</b><br>لا تدفع أي مبلغ مالى لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.<br><br><b>🚫 المحظورات</b><br>❌ استخدام VPN أو البروكسي بجميع أنواعه<br>❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال<br>❌ إنشاء أكثر من حساب للشخص الواحد<br>❌ استخدام بيانات وهمية أو أرقام غير حقيقية<br><br><b>👥 نظام الإحالة</b><br>💰 تحصل على 3% من أرباح كل من تدعوه، مدى الحياة.<br>✅ لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً واحداً ناجحاً على الأقل.",
                     alertCopy: "تم نسخ رابط الإحالة بنجاح! 📋",
                     alertAddressReq: "الرجاء إدخال عنوان صحيح!",
                     alertOfferDone: "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉",
@@ -616,13 +612,14 @@ def webapp():
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
-                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime.",
+                    termsTitle: "📜 Terms & Conditions", 
+                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.",
                     alertCopy: "Referral link copied successfully! 📋",
                     alertAddressReq: "Please enter a valid address!",
-                    alertOfferDone: "Congratulations! Reward added to your balance successfully! 🎉",
-                    alertNoAddress: "Please add your TRX wallet address in the wallet section first!",
-                    alertNoBalance: "Sorry, you don't have enough balance to withdraw",
-                    alertWithdrawDone: "Withdrawal request submitted successfully and will be processed soon! 🚀"
+                    alertOfferDone: "Congratulations! Reward added successfully! 🎉",
+                    alertNoAddress: "Please add your TRX wallet address first!",
+                    alertNoBalance: "Sorry, insufficient balance",
+                    alertWithdrawDone: "Withdrawal request submitted successfully! 🚀"
                 },
                 es: {
                     home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
@@ -636,13 +633,13 @@ def webapp():
                     walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:",
                     withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀",
                     watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
-                    termsTitle: "📜 Términos", termsContent: "1. No VPN.<br>2. Referidos activos.<br>3. 3% bono.<br>4. Cambia tu billetera cuando quieras.",
+                    termsTitle: "📜 Términos", termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br>1. No usar VPN ni Wi-Fi.<br>2. No crear cuentas múltiples.<br>3. Gana 3% de referidos de por vida.",
                     alertCopy: "¡Enlace copiado con éxito! 📋",
                     alertAddressReq: "¡Por favor ingresa una dirección válida!",
-                    alertOfferDone: "¡Felicitaciones! Recompensa añadida con éxito. 🎉",
-                    alertNoAddress: "¡Por favor añade tu dirección TRX en la billetera primero!",
-                    alertNoBalance: "Lo siento, no tienes suficiente saldo para retirar",
-                    alertWithdrawDone: "¡Solicitud de retiro enviada con éxito! 🚀"
+                    alertOfferDone: "¡Recompensa añadida con éxito! 🎉",
+                    alertNoAddress: "¡Añade tu dirección TRX primero!",
+                    alertNoBalance: "Saldo insuficiente",
+                    alertWithdrawDone: "¡Solicitud de retiro enviada! 🚀"
                 },
                 de: {
                     home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
@@ -656,13 +653,13 @@ def webapp():
                     walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:",
                     withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀",
                     watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
-                    termsTitle: "📜 AGB", termsContent: "1. Kein VPN.<br>2. Aktive Empfehlungen.<br>3. 3% Bonus.<br>4. Wallet änderbar.",
-                    alertCopy: "Empfehlungslink erfolgreich kopiert! 📋",
-                    alertAddressReq: "Bitte geben Sie eine gültige Adresse ein!",
-                    alertOfferDone: "Glückwunsch! Belohnung erfolgreich hinzugefügt! 🎉",
-                    alertNoAddress: "Bitte fügen Sie zuerst Ihre TRX-Adresse im Wallet hinzu!",
-                    alertNoBalance: "Entschuldigung, Sie haben nicht genug Guthaben zum Abheben",
-                    alertWithdrawDone: "Auszahlungsantrag erfolgreich eingereicht! 🚀"
+                    termsTitle: "📜 AGB", termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br>1. Kein VPN oder WLAN (Mobildaten nutzen).<br>2. Keine Mehrfachkonten.<br>3. 3% Lebenslanger Bonus.",
+                    alertCopy: "Link kopiert! 📋",
+                    alertAddressReq: "Gültige Adresse eingeben!",
+                    alertOfferDone: "Erfolgreich hinzugefügt! 🎉",
+                    alertNoAddress: "Bitte TRX-Adresse hinzufügen!",
+                    alertNoBalance: "Unzureichendes Guthaben",
+                    alertWithdrawDone: "Auszahlung eingereicht! 🚀"
                 },
                 fr: {
                     home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
@@ -676,13 +673,13 @@ def webapp():
                     walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :",
                     withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀",
                     watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀",
-                    termsTitle: "📜 Conditions", termsContent: "1. Pas de VPN.<br>2. Parrainage actif.<br>3. 3% bonus.<br>4. Modifiable.",
-                    alertCopy: "Lien de parrainage copié avec succès ! 📋",
-                    alertAddressReq: "Veuillez entrer une adresse valide !",
-                    alertOfferDone: "Félicitations ! Récompense ajoutée avec succès ! 🎉",
-                    alertNoAddress: "Veuillez d'abord ajouter votre adresse TRX dans le portefeuille !",
-                    alertNoBalance: "Désolé, vous n'avez pas assez de solde pour retirer",
-                    alertWithdrawDone: "Demande de retrait soumise avec succès ! 🚀"
+                    termsTitle: "📜 Conditions", termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br>1. VPN et Wi-Fi interdits.<br>2. Comptes multiples interdits.<br>3. 3% de bonus à vie.",
+                    alertCopy: "Lien copié ! 📋",
+                    alertAddressReq: "Entrez une adresse valide !",
+                    alertOfferDone: "Ajouté avec succès ! 🎉",
+                    alertNoAddress: "Ajoutez votre adresse TRX !",
+                    alertNoBalance: "Solde insuffisant",
+                    alertWithdrawDone: "Demande de retrait envoyée ! 🚀"
                 },
                 ru: {
                     home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Сайты", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
@@ -696,13 +693,13 @@ def webapp():
                     walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:",
                     withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀",
                     watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
-                    termsTitle: "📜 Условия", termsContent: "1. Без VPN.<br>2. Рефералы активны.<br>3. 3% бонус.<br>4. Кошелек изменяем.",
-                    alertCopy: "Реферальная ссылка успешно скопирована! 📋",
-                    alertAddressReq: "Пожалуйста, введите правильный адрес!",
-                    alertOfferDone: "Поздравляем! Награда успешно добавлена на ваш баланс! 🎉",
-                    alertNoAddress: "Пожалуйста, сначала добавьте адрес кошелька TRX в разделе кошелька!",
-                    alertNoBalance: "Извините, у вас недостаточно средств для вывода",
-                    alertWithdrawDone: "Запрос на вывод успешно отправлен и скоро будет обработан! 🚀"
+                    termsTitle: "📜 Условия", termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br>1. Запрещен VPN и Wi-Fi (используйте мобильные данные).<br>2. Запрещены мультиаккаунты.<br>3. 3% пожизненный бонус.",
+                    alertCopy: "Ссылка скопирована! 📋",
+                    alertAddressReq: "Введите правильный адрес!",
+                    alertOfferDone: "Успешно добавлено! 🎉",
+                    alertNoAddress: "Добавьте адрес кошелька TRX!",
+                    alertNoBalance: "Недостаточно средств",
+                    alertWithdrawDone: "Запрос отправлен! 🚀"
                 },
                 pt: {
                     home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
@@ -716,13 +713,13 @@ def webapp():
                     walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:",
                     withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀",
                     watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀",
-                    termsTitle: "📜 Termos", termsContent: "1. Sem VPN.<br>2. Indicações ativas.<br>3. 3% bônus.<br>4. Alterável.",
-                    alertCopy: "Link de indicação copiado com sucesso! 📋",
-                    alertAddressReq: "Por favor, insira um endereço válido!",
-                    alertOfferDone: "Parabéns! Recompensa adicionada ao saldo com sucesso! 🎉",
-                    alertNoAddress: "Por favor, adicione seu endereço TRX na carteira primeiro!",
-                    alertNoBalance: "Desculpe, você não tem saldo suficiente para sacar",
-                    alertWithdrawDone: "Solicitação de saque enviada com sucesso! 🚀"
+                    termsTitle: "📜 Termos", termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br>1. Proibido VPN e Wi-Fi.<br>2. Proibido contas múltiplas.<br>3. 3% de bônus vitalício.",
+                    alertCopy: "Link copiado! 📋",
+                    alertAddressReq: "Insira um endereço válido!",
+                    alertOfferDone: "Adicionado com sucesso! 🎉",
+                    alertNoAddress: "Adicione seu endereço TRX!",
+                    alertNoBalance: "Saldo insuficiente",
+                    alertWithdrawDone: "Solicitud enviada! 🚀"
                 },
                 nl: {
                     home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
@@ -736,13 +733,13 @@ def webapp():
                     walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:",
                     withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀",
                     watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀",
-                    termsTitle: "📜 Voorwaarden", termsContent: "1. Geen VPN.<br>2. Actieve referrals.<br>3. 3% bonus.<br>4. Wijzigbaar.",
-                    alertCopy: "Verwijzingslink succesvol gekopieerd! 📋",
-                    alertAddressReq: "Vul alstublieft een geldig adres in!",
-                    alertOfferDone: "Gefeliciteerd! Beloning successfully toegevoegd! 🎉",
-                    alertNoAddress: "Voeg eerst je TRX wallet adres toe in de wallet sectie!",
-                    alertNoBalance: "Sorry, je hebt niet genoeg saldo om op te nemen",
-                    alertWithdrawDone: "Opnameverzoek succesvol ingediend! 🚀"
+                    termsTitle: "📜 Voorwaarden", termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br>1. Geen VPN of Wi-Fi.<br>2. Geen dubbele accounts.<br>3. 3% levenslange bonus.",
+                    alertCopy: "Link gekopieerd! 📋",
+                    alertAddressReq: "Vul een geldig adres in!",
+                    alertOfferDone: "Succesvol toegevoegd! 🎉",
+                    alertNoAddress: "Voeg TRX adres toe!",
+                    alertNoBalance: "Onvoldoende saldo",
+                    alertWithdrawDone: "Verzoek verzonden! 🚀"
                 },
                 pl: {
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
@@ -756,13 +753,13 @@ def webapp():
                     walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:",
                     withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀",
                     watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀",
-                    termsTitle: "📜 Regulamin", termsContent: "1. Bez VPN.<br>2. Polecenia aktywne.<br>3. 3% bonus.<br>4. Zmieniaj portfel.",
-                    alertCopy: "Link polecający skopiowany pomyślnie! 📋",
-                    alertAddressReq: "Proszę wpisać poprawny adres!",
-                    alertOfferDone: "Gratulacje! Nagroda dodana pomyślnie! 🎉",
-                    alertNoAddress: "Najpierw dodaj adres portfela TRX w zakładce portfela!",
-                    alertNoBalance: "Przepraszamy, nie masz wystarczającego salda do wypłaty",
-                    alertWithdrawDone: "Wniosek o wypłatę został pomyślnie złożony! 🚀"
+                    termsTitle: "📜 Regulamin", termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br>1. Zakaz VPN i Wi-Fi.<br>2. Zakaz wielu kont.<br>3. 3% dożywotnej premii.",
+                    alertCopy: "Link skopiowany! 📋",
+                    alertAddressReq: "Wpisz poprawny adres!",
+                    alertOfferDone: "Dodano pomyślnie! 🎉",
+                    alertNoAddress: "Dodaj adres TRX!",
+                    alertNoBalance: "Brak środków",
+                    alertWithdrawDone: "Wniosek wysłany! 🚀"
                 }
             };
 
