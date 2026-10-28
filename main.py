@@ -9,7 +9,7 @@ server = Flask(__name__)
 
 RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
 
-# --- إعداد قاعدة بيانات SQLite (آمنة تماماً ولا تمس رصيد المستخدم أبداً) ---
+# --- إعداد قاعدة بيانات SQLite (محافظة تماماً على رصيد المستخدمين وعدم تصفيره) ---
 def init_db():
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -43,7 +43,7 @@ def webhook():
         print(f"Error processing update: {e}", flush=True)
     return 'OK', 200
 
-# قاموس الشروط الشاملة لرسالة تيليجرام حسب لغة مستخدم تيليجرام
+# الشروط الكاملة والمترجمة بدقة لكل لغات تيليجرام
 telegram_terms = {
     'ar': (
         "📜 **شروط وأحكام TRX Earn Bot:**\n\n"
@@ -56,27 +56,27 @@ telegram_terms = {
         "❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال.\n"
         "❌ إنشاء أكثر من حساب للشخص الواحد أو استخدام بيانات وهمية.\n\n"
         "👥 **نظام الإحالة:**\n"
-        "💰 تحصل على 3% من أرباح كل من تدعوه مدى الحياة (لا تُحتسب الإحالة إلا بعد إكمال المدعو عرضاً ناجحاً).\n\n"
+        "💰 تحصل على 3% من أرباح كل من تدعوه مدى الحياة.\n\n"
         "📲 **انقر على الزر أدناه للموافقة وفتح التطبيق المصغر:**"
     ),
     'ru': (
         "📜 **Условия и положения TRX Earn Bot:**\n\n"
         "🌍 **О боте:**\n"
-        "Платформа для заработка на просмотре рекламы, подписках, регистрации и установке приложений.\n\n"
+        "Платформа для заработка на просмотре рекламы, подписках по телефону, регистрации и установке приложений.\n\n"
         "⚠️ **Важное предупреждение:**\n"
         "Не платите никому деньги. Все задания абсолютно бесплатны.\n\n"
         "🚫 **Запреты:**\n"
         "❌ Использование VPN или прокси.\n"
-        "❌ Использование Wi-Fi (используйте мобильные данные).\n"
+        "❌ Использование Wi-Fi (нужно использовать мобильные данные).\n"
         "❌ Создание нескольких аккаунтов или фейковых данных.\n\n"
         "👥 **Реферальная система:**\n"
         "💰 Получайте 3% пожизненно от активности рефералов.\n\n"
-        "📲 **Нажмите кнопку ниже, чтобы согласиться и открыть приложение:**"
+        "📲 **Нажмите кнопку ниже, чтобы согласиться и открыть Mini App:**"
     ),
     'es': (
         "📜 **Términos y Condiciones de TRX Earn Bot:**\n\n"
         "🌍 **Sobre el Bot:**\n"
-        "Plataforma para ganar viendo anuncios, suscripciones, registros y apps.\n\n"
+        "Plataforma para ganar viendo anuncios, suscripciones telefónicas, registros y apps.\n\n"
         "⚠️ **Advertencia:**\n"
         "No pagues dinero a nadie. Todas las tareas son gratuitas.\n\n"
         "🚫 **Prohibiciones:**\n"
@@ -90,7 +90,7 @@ telegram_terms = {
     'de': (
         "📜 **AGB von TRX Earn Bot:**\n\n"
         "🌍 **Über den Bot:**\n"
-        "Plattform zum Verdienen durch Werbung, Abos, Registrierungen und Apps.\n\n"
+        "Plattform zum Verdienen durch Werbung, Telefon-Abos, Registrierungen und Apps.\n\n"
         "⚠️ **Warnung:**\n"
         "Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.\n\n"
         "🚫 **Verbote:**\n"
@@ -104,7 +104,7 @@ telegram_terms = {
     'fr': (
         "📜 **Conditions de TRX Earn Bot :**\n\n"
         "🌍 **À propos :**\n"
-        "Plateforme pour gagner avec les pubs, abonnements, inscriptions et apps.\n\n"
+        "Plateforme pour gagner avec les pubs, abonnements téléphone, inscriptions et apps.\n\n"
         "⚠️ **Avertissement :**\n"
         "Ne payez pas d'argent. Tout est gratuit.\n\n"
         "🚫 **Interdictions :**\n"
@@ -118,7 +118,7 @@ telegram_terms = {
     'pt': (
         "📜 **Termos de TRX Earn Bot:**\n\n"
         "🌍 **Sobre o Bot:**\n"
-        "Plataforma para ganhar com anúncios, inscrições, registros e apps.\n\n"
+        "Plataforma para ganhar com anúncios, inscrições por telefone, registros e apps.\n\n"
         "⚠️ **Aviso:**\n"
         "Não pague dinheiro a ninguém. Tudo é gratuito.\n\n"
         "🚫 **Proibições:**\n"
@@ -132,7 +132,7 @@ telegram_terms = {
     'nl': (
         "📜 **Voorwaarden van TRX Earn Bot:**\n\n"
         "🌍 **Over de Bot:**\n"
-        "Platform om te verdienen met advertenties, abonnementen en apps.\n\n"
+        "Platform om te verdienen met advertenties, telefoon-subs, registraties en apps.\n\n"
         "⚠️ **Waarschuwing:**\n"
         "Betaal geen geld aan iemand. Alles is gratis.\n\n"
         "🚫 **Verboden:**\n"
@@ -146,7 +146,7 @@ telegram_terms = {
     'pl': (
         "📜 **Regulamin TRX Earn Bot:**\n\n"
         "🌍 **O bocie:**\n"
-        "Platforma do zarabiania na reklamach, subskrypcjach, rejestracji i aplikacjach.\n\n"
+        "Platforma do zarabiania na reklamach, subskrypcjach telefonu, rejestracji i aplikacjach.\n\n"
         "⚠️ **Ostrzeżenie:**\n"
         "Nie płac nikomu pieniędzy. Wszystko jest darmowe.\n\n"
         "🚫 **Zakazy:**\n"
@@ -159,7 +159,6 @@ telegram_terms = {
     )
 }
 
-# الافتراضي للإنجليزي وباقي اللغات
 telegram_terms['en'] = (
     "📜 **TRX Earn Bot Terms & Conditions:**\n\n"
     "🌍 **About Bot:**\n"
@@ -182,7 +181,6 @@ def start(message):
         username = message.from_user.username or "No Username"
         user_lang = message.from_user.language_code or 'en'
         
-        # اختيار اللغة المناسبة لرسالة تيليجرام
         lang_key = user_lang[:2].lower()
         if lang_key not in telegram_terms:
             lang_key = 'en'
@@ -205,17 +203,17 @@ def start(message):
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
                 if cursor.fetchone():
                     cursor.execute(
-                        "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
+                        "INSERT INTO users (user_id, username, referred_by, balance) VALUES (?, ?, ?, 0.0)",
                         (user_id, username, referrer_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                        "INSERT INTO users (user_id, username, balance) VALUES (?, ?, 0.0)",
                         (user_id, username)
                     )
             else:
                 cursor.execute(
-                    "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                    "INSERT INTO users (user_id, username, balance) VALUES (?, ?, 0.0)",
                     (user_id, username)
                 )
             conn.commit()
@@ -250,7 +248,7 @@ def get_user_data(user_id):
     row = cursor.fetchone()
     
     if not row:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, ?)", (user_id, "Omar", 0.0))
+        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, 0.0)", (user_id, "Omar"))
         conn.commit()
         balance = 0.0
         active_referrals = 0
@@ -682,7 +680,7 @@ def webapp():
                 </div>
             </div>
 
-            <!-- 9. الشروط والأحكام الكاملة والمترجمة -->
+            <!-- 9. الشروط والأحكام الكاملة والمترجمة بدقة لكل اللغات الـ 9 -->
             <div id="tab-terms" class="section">
                 <div class="card" style="text-align: right;" id="terms-card">
                     <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
@@ -754,7 +752,7 @@ def webapp():
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
                     termsTitle: "📜 Terms & Conditions", 
-                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.",
+                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br>❌ Fake data or unreal numbers<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.<br>✅ Referrals count only after an active offer is completed.",
                     alertCopy: "Referral link copied successfully! 📋",
                     alertAddressReq: "Please enter a valid address!",
                     alertOfferDone: "Congratulations! Reward added successfully! 🎉",
@@ -775,7 +773,7 @@ def webapp():
                     withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro 🚀",
                     watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
                     termsTitle: "📜 Términos", 
-                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN o Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples",
+                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN o Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.",
                     alertCopy: "¡Enlace copiado con éxito! 📋",
                     alertAddressReq: "¡Por favor ingresa una dirección válida!",
                     alertOfferDone: "¡Recompensa añadida con éxito! 🎉",
@@ -796,7 +794,7 @@ def webapp():
                     withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen 🚀",
                     watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
                     termsTitle: "📜 AGB", 
-                    termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br><b>🌍 Über den Bot</b><br>Plattform zum Verdienen durch:<br>🎬 Anzeigen ansehen<br>📱 Telefon-Abo<br>📝 Registrierung<br>📲 Apps installieren<br><br><b>⚠️ Warnung</b><br>Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.<br><br><b>🚫 Verbote</b><br>❌ VPN oder Proxy verwenden<br>❌ WLAN verwenden (Mobildaten nutzen)<br>❌ Mehrfachkonten",
+                    termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br><b>🌍 Über den Bot</b><br>Plattform zum Verdienen durch:<br>🎬 Anzeigen ansehen<br>📱 Telefon-Abo<br>📝 Registrierung<br>📲 Apps installieren<br><br><b>⚠️ Warnung</b><br>Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.<br><br><b>🚫 Verbote</b><br>❌ VPN oder Proxy verwenden<br>❌ WLAN verwenden (Mobildaten nutzen)<br>❌ Mehrfachkonten<br>❌ Falsche Daten<br><br><b>👥 Empfehlungen</b><br>💰 3% lebenslanger Bonus.",
                     alertCopy: "Link kopiert! 📋",
                     alertAddressReq: "Gültige Adresse eingeben!",
                     alertOfferDone: "Erfolgreich hinzugefügt! 🎉",
@@ -817,7 +815,7 @@ def webapp():
                     withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer 🚀",
                     watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀",
                     termsTitle: "📜 Conditions", 
-                    termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br><b>🌍 À propos du Bot</b><br>Plateforme pour gagner avec :<br>🎬 Regarder des pubs<br>📱 Abonn. téléphone<br>📝 Inscription<br>📲 Installer des apps<br><br><b>⚠️ Avertissement</b><br>Ne payez pas d'argent. Tout est gratuit.<br><br><b>🚫 Interdictions</b><br>❌ Utiliser un VPN ou Proxy<br>❌ Utiliser le Wi-Fi (utilisez les données mobiles)<br>❌ Comptes multiples",
+                    termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br><b>🌍 À propos du Bot</b><br>Plateforme pour gagner avec :<br>🎬 Regarder des pubs<br>📱 Abonn. téléphone<br>📝 Inscription<br>📲 Installer des apps<br><br><b>⚠️ Avertissement</b><br>Ne payez pas d'argent. Tout est gratuit.<br><br><b>🚫 Interdictions</b><br>❌ Utiliser un VPN ou Proxy<br>❌ Utiliser le Wi-Fi (utilisez les données mobiles)<br>❌ Comptes multiples<br>❌ Faux comptes<br><br><b>👥 Parrainage</b><br>💰 3% de bonus à vie.",
                     alertCopy: "Lien copié ! 📋",
                     alertAddressReq: "Entrez une adresse valide !",
                     alertOfferDone: "Ajouté avec succès ! 🎉",
@@ -838,7 +836,7 @@ def webapp():
                     withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить 🚀",
                     watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
                     termsTitle: "📜 Условия", 
-                    termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br><b>🌍 О боте</b><br>Платформа для заработка на:<br>🎬 Просмотре рекламы<br>📱 Подписках по телефону<br>📝 Регистрации<br>📲 Установке приложений<br><br><b>⚠️ Важное предупреждение</b><br>Не платите никому деньги. Все задания абсолютно бесплатны.<br><br><b>🚫 Запреты</b><br>❌ Использование VPN или прокси<br>❌ Использование Wi-Fi (используйте мобильный интернет)<br>❌ Создание нескольких аккаунтов",
+                    termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br><b>🌍 О боте</b><br>Платформа для заработка на:<br>🎬 Просмотре рекламы<br>📱 Подписках по телефону<br>📝 Регистрации<br>📲 Установке приложений<br><br><b>⚠️ Важное предупреждение</b><br>Не платите никому деньги. Все задания абсолютно бесплатны.<br><br><b>🚫 Запреты</b><br>❌ Использование VPN или прокси<br>❌ Использование Wi-Fi (используйте мобильный интернет)<br>❌ Создание нескольких аккаунтов<br>❌ Фейковые данные<br><br><b>👥 Рефералы</b><br>💰 Получайте 3% пожизненно.",
                     alertCopy: "Ссылка скопирована! 📋",
                     alertAddressReq: "Введите правильный адрес!",
                     alertOfferDone: "Успешно добавлено! 🎉",
@@ -859,7 +857,7 @@ def webapp():
                     withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar 🚀",
                     watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀",
                     termsTitle: "📜 Termos", 
-                    termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br><b>🌍 Sobre o Bot</b><br>Plataforma para ganhar com:<br>🎬 Assistir anúncios<br>📱 Sub. de telefone<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Aviso</b><br>Não pague dinheiro a ninguém. Tudo é gratuito.<br><br><b>🚫 Proibições</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (use dados móveis)<br>❌ Contas múltiplas",
+                    termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br><b>🌍 Sobre o Bot</b><br>Plataforma para ganhar com:<br>🎬 Assistir anúncios<br>📱 Sub. de telefone<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Aviso</b><br>Não pague dinheiro a ninguém. Tudo é gratuito.<br><br><b>🚫 Proibições</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (use dados móveis)<br>❌ Contas múltiplas<br>❌ Dados falsos<br><br><b>👥 Indicações</b><br>💰 3% de bônus vitalício.",
                     alertCopy: "Link copiado! 📋",
                     alertAddressReq: "Insira um endereço válido!",
                     alertOfferDone: "Adicionado com sucesso! 🎉",
@@ -880,7 +878,7 @@ def webapp():
                     withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen 🚀",
                     watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀",
                     termsTitle: "📜 Voorwaarden", 
-                    termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br><b>🌍 Over de Bot</b><br>Platform om te verdienen met:<br>🎬 Advertenties kijken<br>📱 Telefoon sub<br>📝 Registratie<br>📲 Apps installeren<br><br><b>⚠️ Waarschuwing</b><br>Betaal geen geld aan iemand. Alles is gratis.<br><br><b>🚫 Verboden</b><br>❌ VPN of Proxy gebruiken<br>❌ Wi-Fi gebruiken (gebruik mobiele data)<br>❌ Meerdere accounts",
+                    termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br><b>🌍 Over de Bot</b><br>Platform om te verdienen met:<br>🎬 Advertenties kijken<br>📱 Telefoon sub<br>📝 Registratie<br>📲 Apps installeren<br><br><b>⚠️ Waarschuwing</b><br>Betaal geen geld aan iemand. Alles is gratis.<br><br><b>🚫 Verboden</b><br>❌ VPN of Proxy gebruiken<br>❌ Wi-Fi gebruiken (gebruik mobiele data)<br>❌ Meerdere accounts<br>❌ Nepgegevens<br><br><b>👥 Referrals</b><br>💰 3% levenslange bonus.",
                     alertCopy: "Link gekopieerd! 📋",
                     alertAddressReq: "Vul een geldig adres in!",
                     alertOfferDone: "Succesvol toegevoegd! 🎉",
@@ -892,22 +890,22 @@ def webapp():
                     home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
                     menu: "Menu ⚙️", welcome: "Witaj: ",
                     balTitle: "Saldo TRX", balDesc: "Szybka wypłata.",
-                    faqTitle: "❓ Jak pracować z botem?", faqDesc: "Bardzo proste, możesz zarabiać tylko oglądając reklamy.",
+                    faqTitle: "❓ Как pracować z botem?", faqDesc: "Bardzo proste, możesz zarabiać tylko oglądając reklamy.",
                     refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗",
                     phoneSubTitle: "📱 Subskrypcja tel.", phoneSubDesc: "Subskrybuj numerem:", phoneSubBtn: "Subskrybuj ✅",
                     installAppsTitle: "📲 Instaluj aplikacje", installAppsDesc: "Zainstaluj aplikacje:", installAppsBtn: "Zainstaluj ✅",
                     registerSitesTitle: "🌐 Strony", registerSitesDesc: "Zarejestruj się na stronach:", registerSitesBtn: "Zarejestruj ✅",
                     walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:",
-                    withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀",
+                    withdrawTitle: "💸 Wypłata", walletLabel: "Адрес:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź 🚀",
                     watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀",
                     termsTitle: "📜 Regulamin", 
-                    termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br><b>🌍 O bocie</b><br>Platforma do zarabiania na:<br>🎬 Oglądaniu reklam<br>📱 Subskrypcji telefonu<br>📝 Rejestracji<br>📲 Instalacji aplikacji<br><br><b>⚠️ Ostrzeżenie</b><br>Nie płac nikomu pieniędzy. Wszystko jest darmowe.<br><br><b>🚫 Zakazy</b><br>❌ Używanie VPN lub Proxy<br>❌ Używanie Wi-Fi (używaj danych mobilnych)<br>❌ Wiele kont",
+                    termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br><b>🌍 O bocie</b><br>Platforma do zarabiania na:<br>🎬 Oglądaniu reklam<br>📱 Subskrypcji telefonu<br>📝 Rejestracji<br>📲 Instalacji aplikacji<br><br><b>⚠️ Ostrzeżenie</b><br>Nie płac nikomu pieniędzy. Wszystko jest darmowe.<br><br><b>🚫 Zakazy</b><br>❌ Używanie VPN lub Proxy<br>❌ Używanie Wi-Fi (używaj danych mobilnych)<br>❌ Wiele kont<br>❌ Fałszywe dane<br><br><b>👥 Polecenia</b><br>💰 3% dożywotniej premii.",
                     alertCopy: "Link skopiowany! 📋",
                     alertAddressReq: "Wpisz poprawny adres!",
                     alertOfferDone: "Dodano pomyślnie! 🎉",
                     alertNoAddress: "Dodaj adres TRX!",
                     alertNoBalance: "Brak środków",
-                    alertWithdrawDone: "Wniosek wysłany! 🚀"
+                    alertWithdrawDone: "Wniosek wysłاني! 🚀"
                 }
             };
 
