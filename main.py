@@ -1,37 +1,44 @@
 import os
-import sqlite3
+import psycopg2
 from flask import Flask, request, jsonify, render_template_string
 import telebot
 
 TOKEN = os.environ.get('TOKEN')
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
 RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
 
-# --- إعداد قاعدة بيانات SQLite ---
+# --- إعداد قاعدة بيانات PostgreSQL الحقيقية التي أنشأناها معاً ---
+def get_db_connection():
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    return conn
+
 def init_db():
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
+            user_id BIGINT PRIMARY KEY,
             username TEXT,
             balance REAL DEFAULT 0.0,
-            referred_by INTEGER,
+            referred_by BIGINT,
             active_referrals INTEGER DEFAULT 0,
             trx_address TEXT DEFAULT '',
             completed_offer INTEGER DEFAULT 0
         )
     ''')
     conn.commit()
+    cursor.close()
     conn.close()
 
 init_db()
 
 @server.route('/')
 def home():
-    return "TRX Bot is running! 🚀"
+    return "TRX Bot is running with PostgreSQL! 🚀"
 
 @server.route('/' + TOKEN, methods=['POST'])
 def webhook():
@@ -57,28 +64,29 @@ def start(message):
             except ValueError:
                 pass
 
-        conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
         if not cursor.fetchone():
             if referrer_id and referrer_id != user_id:
-                cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
+                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (referrer_id,))
                 if cursor.fetchone():
                     cursor.execute(
-                        "INSERT INTO users (user_id, username, referred_by) VALUES (?, ?, ?)",
+                        "INSERT INTO users (user_id, username, referred_by) VALUES (%s, %s, %s)",
                         (user_id, username, referrer_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                        "INSERT INTO users (user_id, username) VALUES (%s, %s)",
                         (user_id, username)
                     )
             else:
                 cursor.execute(
-                    "INSERT INTO users (user_id, username) VALUES (?, ?)",
+                    "INSERT INTO users (user_id, username) VALUES (%s, %s)",
                     (user_id, username)
                 )
             conn.commit()
+        cursor.close()
         conn.close()
 
         terms_message = (
@@ -101,13 +109,13 @@ def start(message):
 
 @server.route('/api/user/<int:user_id>')
 def get_user_data(user_id):
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT balance, active_referrals, trx_address, completed_offer FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT balance, active_referrals, trx_address, completed_offer FROM users WHERE user_id = %s", (user_id,))
     row = cursor.fetchone()
     
     if not row:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, "WebUser"))
+        cursor.execute("INSERT INTO users (user_id, username) VALUES (%s, %s) ON CONFLICT (user_id) DO NOTHING", (user_id, "Omar"))
         conn.commit()
         balance = 0.0
         active_referrals = 0
@@ -115,6 +123,8 @@ def get_user_data(user_id):
         completed_offer = 0
     else:
         balance, active_referrals, trx_address, completed_offer = row
+    
+    cursor.close()
     conn.close()
 
     bot_username = "TRXEarnBot"
@@ -144,29 +154,26 @@ def update_address():
     if not user_id or not address:
         return jsonify({"success": False, "message": "الرجاء إدخال عنوان صحيح!"})
     
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
+    cursor.execute("INSERT INTO users (user_id, username) VALUES (%s, %s) ON CONFLICT (user_id) DO NOTHING", (user_id, "Omar"))
+    cursor.execute("UPDATE users SET trx_address = %s WHERE user_id = %s", (address, user_id))
     conn.commit()
+    cursor.close()
     conn.close()
-    return jsonify({"success": True, "message": "تم حفظ عنوان المحفظة بنجاح! 💾"})
+    return jsonify({"success": True, "message": "تم حفظ عنوان المحفظة بنجاح في قاعدة البيانات! 💾"})
 
 @server.route('/api/complete_offer', methods=['POST'])
 def complete_offer():
     data = request.json
     user_id = data.get('user_id')
     
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT completed_offer, referred_by FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    
-    if not row:
-        conn.close()
-        return jsonify({"success": False, "message": "المستخدم غير موجود"})
-    
-    cursor.execute("UPDATE users SET balance = balance + 0.5 WHERE user_id = ?", (user_id,))
+    cursor.execute("INSERT INTO users (user_id, username) VALUES (%s, %s) ON CONFLICT (user_id) DO NOTHING", (user_id, "Omar"))
+    cursor.execute("UPDATE users SET balance = balance + 0.5 WHERE user_id = %s", (user_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({"success": True, "message": "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉"})
@@ -176,26 +183,30 @@ def withdraw():
     data = request.json
     user_id = data.get('user_id')
     
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT balance, trx_address FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT balance, trx_address FROM users WHERE user_id = %s", (user_id,))
     row = cursor.fetchone()
     
     if not row:
+        cursor.close()
         conn.close()
-        return jsonify({"success": False, "message": "المستخدم غير موجود"})
+        return jsonify({"success": False, "message": "المستخدم غير مسجل بقاعدة البيانات"})
     
     balance, address = row
     if not address:
+        cursor.close()
         conn.close()
         return jsonify({"success": False, "message": "الرجاء إضافة عنوان محفظة TRX في قسم المحفظة أولاً!"})
     
     if balance <= 0:
+        cursor.close()
         conn.close()
         return jsonify({"success": False, "message": "عذراً، ليس لديك رصيد كافي للسحب"})
     
-    cursor.execute("UPDATE users SET balance = 0.0 WHERE user_id = ?", (user_id,))
+    cursor.execute("UPDATE users SET balance = 0.0 WHERE user_id = %s", (user_id,))
     conn.commit()
+    cursor.close()
     conn.close()
     
     return jsonify({"success": True, "message": "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريباً! 🚀"})
@@ -278,7 +289,6 @@ def webapp():
             }
             input:read-only { border-color: #475569; opacity: 0.8; }
 
-            /* القائمة الجانبية المنسقة تماماً مع خيار اللغة في الأسفل */
             .drawer {
                 position: fixed;
                 top: 0;
@@ -394,7 +404,6 @@ def webapp():
             <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span>▶️</span> <span id="nav-txt-watch">الربح من المشاهدة</span></button>
             <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span>📜</span> <span id="nav-txt-terms">الشروط والأحكام</span></button>
             
-            <!-- قائمة اختيار اللغات في الأسفل تماماً -->
             <div class="lang-container">
                 <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
                 <select id="language-select" onchange="changeLanguage(this.value)">
@@ -520,9 +529,12 @@ def webapp():
 
             let userId = 123456789;
             let userName = "Omar";
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                if (tg.initDataUnsafe.user.id) userId = tg.initDataUnsafe.user.id;
-                if (tg.initDataUnsafe.user.first_name) userName = tg.initDataUnsafe.user.first_name;
+
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                userId = tg.initDataUnsafe.user.id;
+                if (tg.initDataUnsafe.user.first_name) {
+                    userName = tg.initDataUnsafe.user.first_name;
+                }
             }
 
             function toggleDrawer() {
@@ -553,7 +565,7 @@ def webapp():
                     walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
                     withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal 🚀",
                     watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
-                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
+                    termsTitle: "📜 Terms & Conditions", termsContent: "1. Using Wi-Fi or VPN is strictly prohibited.<br>2. Referrals are active only after the invited user completes an offer.<br>3. 3% referral bonus is lifetime.<br>4. You can save or change your TRX wallet anytime."
                 },
                 es: {
                     home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción Telefónica", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse en Sitios", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
@@ -739,7 +751,7 @@ def webapp():
                 .then(res => res.json())
                 .then(data => {
                     alert(data.message);
-                    loadUserData.loadUserData ? loadUserData() : loadUserData();
+                    loadUserData();
                 });
             }
 
