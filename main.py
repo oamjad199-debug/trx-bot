@@ -80,8 +80,7 @@ def init_db():
     d = os.path.dirname(DB_PATH)
     if d:
         os.makedirs(d, exist_ok=True)
-    with tx() as c:
-        c.executescript("""
+    schema = """
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             username TEXT DEFAULT '',
@@ -116,7 +115,12 @@ def init_db():
             created_at INTEGER NOT NULL,
             processed_at INTEGER
         );
-        """)
+        """
+    # ملاحظة: لا نستخدم executescript لأنه يُنهي المعاملة تلقائياً ويسبب فشل COMMIT
+    with tx() as c:
+        for stmt in schema.split(";"):
+            if stmt.strip():
+                c.execute(stmt)
 
 
 def ensure_user(conn, uid, username="", referrer=None):
