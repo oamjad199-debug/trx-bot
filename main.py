@@ -1,1150 +1,957 @@
 import os
+import re
+import json
+import time
+import hmac
+import html
+import hashlib
 import sqlite3
-from flask import Flask, request, jsonify, render_template_string
-import telebot
+import threading
+from contextlib import contextmanager
+from functools import wraps
+from urllib.parse import parse_qsl
 
-TOKEN = os.environ.get('TOKEN')
-bot = telebot.TeleBot(TOKEN)
+import requests
+import telebot
+from flask import Flask, request, jsonify, Response, g
+
+# ======================================================================
+# الإعدادات (كلها من متغيرات البيئة)
+# ======================================================================
+TOKEN = os.environ["TOKEN"]
+RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+DB_PATH = os.environ.get("DB_PATH", "bot_database.db")      # على Render ضعه داخل Persistent Disk مثل /var/data/bot.db
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)        # معرّفك الرقمي في تيليجرام
+POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")     # كلمة سر طويلة تضعها في رابط Postback عند شبكة العروض
+VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))   # فترة التحقق 24-72 ساعة
+MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "100"))   # TRX
+REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))  # 3%
+IPQS_KEY = os.environ.get("IPQS_KEY", "")                   # اختياري: فحص VPN عبر ipqualityscore.com
+MICRO = 1_000_000                                           # الأرصدة تُخزَّن كأعداد صحيحة (1 TRX = 1,000,000)
+
+bot = telebot.TeleBot(TOKEN, threaded=False)
 server = Flask(__name__)
 
-RENDER_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://trx-bot-e61j.onrender.com')
+KINDS = ("phone", "app", "site", "ad")
 
-# --- إعداد قاعدة بيانات SQLite (حفظ تام للأرصدة والحسابات الحقيقية) ---
+
+def load_offers():
+    """OFFERS_JSON مثال:
+    [{"id":"app1","kind":"app","title":"Game X","reward":2.5,"url":"https://network.com/click?aff=1&sub={user_id}"}]
+    """
+    try:
+        raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
+    except Exception:
+        raw = []
+    offers = {}
+    for o in raw:
+        if (isinstance(o, dict) and o.get("id") and o.get("kind") in KINDS
+                and str(o.get("url", "")).startswith("https://") and float(o.get("reward", 0)) > 0):
+            offers[str(o["id"])] = o
+    return offers
+
+
+OFFERS = load_offers()
+
+# ======================================================================
+# قاعدة البيانات
+# ======================================================================
+@contextmanager
+def tx():
+    """اتصال مع معاملة (BEGIN IMMEDIATE) تمنع التعارض والسباق بين الطلبات."""
+    conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        yield conn
+        conn.execute("COMMIT")
+    except Exception:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+
+
 def init_db():
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute('''
+    d = os.path.dirname(DB_PATH)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    with tx() as c:
+        c.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
-            username TEXT,
-            balance REAL DEFAULT 0.0,
+            username TEXT DEFAULT '',
+            balance INTEGER NOT NULL DEFAULT 0,
             referred_by INTEGER,
-            active_referrals INTEGER DEFAULT 0,
             trx_address TEXT DEFAULT '',
-            completed_offer INTEGER DEFAULT 0
-        )
-    ''')
-    conn.commit()
-    conn.close()
+            first_offer_done INTEGER NOT NULL DEFAULT 0,
+            banned INTEGER NOT NULL DEFAULT 0,
+            ban_reason TEXT DEFAULT '',
+            created_at INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            txid TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            offer_id TEXT DEFAULT '',
+            amount INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',   -- pending / approved / reversed
+            created_at INTEGER NOT NULL,
+            release_at INTEGER NOT NULL,
+            approved_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status, release_at);
+        CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            address TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',   -- pending / paid / rejected
+            note TEXT DEFAULT '',
+            created_at INTEGER NOT NULL,
+            processed_at INTEGER
+        );
+        """)
 
-init_db()
 
-@server.route('/')
+def ensure_user(conn, uid, username="", referrer=None):
+    row = conn.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
+    if row:
+        return row
+    if referrer:
+        ok = referrer != uid and conn.execute("SELECT 1 FROM users WHERE user_id=?", (referrer,)).fetchone()
+        referrer = referrer if ok else None
+    conn.execute(
+        "INSERT INTO users(user_id, username, referred_by, created_at) VALUES(?,?,?,?)",
+        (uid, username or "", referrer, int(time.time())),
+    )
+    return conn.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
+
+
+def active_referrals(conn, uid):
+    return conn.execute(
+        "SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (uid,)
+    ).fetchone()[0]
+
+
+def ban_user(conn, uid, reason):
+    """إلغاء الحساب: حظر + تصفير الرصيد + إلغاء كل العمليات المعلقة."""
+    conn.execute("UPDATE users SET banned=1, ban_reason=?, balance=0 WHERE user_id=?", (reason, uid))
+    conn.execute("UPDATE transactions SET status='reversed' WHERE user_id=? AND status='pending'", (uid,))
+
+
+# ======================================================================
+# تحرير الأرباح بعد فترة التحقق + عمولة الإحالة 3%
+# ======================================================================
+def release_matured():
+    now = int(time.time())
+    with tx() as c:
+        rows = c.execute(
+            "SELECT * FROM transactions WHERE status='pending' AND kind!='referral' AND release_at<=?", (now,)
+        ).fetchall()
+        for t in rows:
+            u = c.execute("SELECT * FROM users WHERE user_id=?", (t["user_id"],)).fetchone()
+            if not u or u["banned"]:
+                c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
+                continue
+            c.execute("UPDATE transactions SET status='approved', approved_at=? WHERE id=?", (now, t["id"]))
+            c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (t["amount"], u["user_id"]))
+            if t["kind"] != "ad" and not u["first_offer_done"]:
+                c.execute("UPDATE users SET first_offer_done=1 WHERE user_id=?", (u["user_id"],))
+            ref_id = u["referred_by"]
+            if ref_id:
+                ref = c.execute("SELECT banned FROM users WHERE user_id=?", (ref_id,)).fetchone()
+                commission = int(t["amount"] * REF_PERCENT)
+                if ref and not ref["banned"] and commission > 0:
+                    cur = c.execute(
+                        "INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) "
+                        "VALUES(?,?,?,?,?,'approved',?,?,?)",
+                        ("ref:" + t["txid"], ref_id, "referral", str(u["user_id"]), commission, now, now, now),
+                    )
+                    if cur.rowcount:
+                        c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (commission, ref_id))
+
+
+def _release_loop():
+    while True:
+        try:
+            release_matured()
+        except Exception as e:
+            print("release error:", e, flush=True)
+        time.sleep(300)
+
+
+# ======================================================================
+# التحقق من هوية مستخدم Telegram (initData) + فحص VPN
+# ======================================================================
+def verify_init_data(init_data):
+    if not init_data:
+        return None
+    try:
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+        received = pairs.pop("hash", None)
+        if not received:
+            return None
+        check = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
+        secret = hmac.new(b"WebAppData", TOKEN.encode(), hashlib.sha256).digest()
+        calc = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(calc, received):
+            return None
+        if time.time() - int(pairs.get("auth_date", "0")) > 86400:
+            return None
+        return json.loads(pairs["user"])
+    except Exception:
+        return None
+
+
+def auth(fn):
+    @wraps(fn)
+    def wrapper(*a, **k):
+        u = verify_init_data(request.headers.get("X-Init-Data", ""))
+        if not u or "id" not in u:
+            return jsonify(success=False, code="auth"), 401
+        g.user = u
+        return fn(*a, **k)
+    return wrapper
+
+
+_ip_cache = {}
+
+
+def client_ip():
+    xff = request.headers.get("X-Forwarded-For", "")
+    return (xff.split(",")[0].strip() if xff else request.remote_addr) or ""
+
+
+def is_vpn(ip):
+    """يعمل فقط إذا وضعت IPQS_KEY. عند فشل الخدمة لا نحجب المستخدم."""
+    if not IPQS_KEY or not ip:
+        return False
+    hit = _ip_cache.get(ip)
+    if hit and time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        r = requests.get(
+            f"https://www.ipqualityscore.com/api/json/ip/{IPQS_KEY}/{ip}", params={"strictness": 1}, timeout=5
+        ).json()
+        bad = bool(r.get("vpn") or r.get("proxy") or r.get("tor") or r.get("active_vpn"))
+        _ip_cache[ip] = (time.time(), bad)
+        return bad
+    except Exception as e:
+        print("ipqs error:", e, flush=True)
+        return False
+
+
+TRX_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
+_bot_username = None
+
+
+def bot_username():
+    global _bot_username
+    if not _bot_username:
+        try:
+            _bot_username = bot.get_me().username
+        except Exception:
+            return "TRXEarnBot"
+    return _bot_username
+
+
+# ======================================================================
+# API الخاص بالتطبيق المصغر
+# ======================================================================
+@server.route("/")
 def home():
-    return "TRX Bot is running perfectly! 🚀"
+    return "TRX Bot is running 🚀"
 
-@server.route('/' + TOKEN, methods=['POST'])
+
+@server.route("/api/me")
+@auth
+def api_me():
+    try:
+        release_matured()
+    except Exception as e:
+        print("release error:", e, flush=True)
+    uid = g.user["id"]
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or g.user.get("first_name", ""))
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        pending = c.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)
+        ).fetchone()[0]
+        refs = active_referrals(c, uid)
+    return jsonify(
+        success=True,
+        name=g.user.get("first_name", ""),
+        balance=u["balance"] / MICRO,
+        pending=pending / MICRO,
+        active_referrals=refs,
+        ref_link=f"https://t.me/{bot_username()}?start={uid}",
+        trx_address=u["trx_address"] or "",
+        min_withdraw=MIN_WITHDRAW,
+    )
+
+
+@server.route("/api/offers")
+@auth
+def api_offers():
+    kind = request.args.get("kind", "")
+    if kind not in KINDS:
+        return jsonify(success=False, code="err"), 400
+    uid = g.user["id"]
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+    if is_vpn(client_ip()):
+        return jsonify(success=False, code="vpn"), 403
+    out = [
+        {
+            "id": o["id"],
+            "title": o.get("title", o["id"]),
+            "reward": float(o["reward"]),
+            "url": o["url"].replace("{user_id}", str(uid)),
+        }
+        for o in OFFERS.values() if o["kind"] == kind
+    ]
+    return jsonify(success=True, offers=out)
+
+
+@server.route("/api/address", methods=["POST"])
+@auth
+def api_address():
+    data = request.get_json(silent=True) or {}
+    address = str(data.get("address", "")).strip()
+    if not TRX_RE.match(address):
+        return jsonify(success=False, code="bad_address")
+    uid = g.user["id"]
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        c.execute("UPDATE users SET trx_address=? WHERE user_id=?", (address, uid))
+    return jsonify(success=True)
+
+
+@server.route("/api/withdraw", methods=["POST"])
+@auth
+def api_withdraw():
+    uid = g.user["id"]
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        if not u["trx_address"]:
+            return jsonify(success=False, code="no_address")
+        if u["balance"] < MIN_WITHDRAW * MICRO:
+            return jsonify(success=False, code="min_balance")
+        if active_referrals(c, uid) < 1:
+            return jsonify(success=False, code="need_referral")
+        if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone():
+            return jsonify(success=False, code="pending_exists")
+        amount = u["balance"]
+        c.execute("UPDATE users SET balance=0 WHERE user_id=?", (uid,))
+        cur = c.execute(
+            "INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)",
+            (uid, amount, u["trx_address"], int(time.time())),
+        )
+        wid = cur.lastrowid
+        address = u["trx_address"]
+    if ADMIN_ID:
+        try:
+            bot.send_message(
+                ADMIN_ID,
+                f"💸 طلب سحب جديد #{wid}\nالمستخدم: {uid}\nالمبلغ: {amount / MICRO:.2f} TRX\nالمحفظة: {address}\n\n"
+                f"/paid {wid}  أو  /reject {wid}",
+            )
+        except Exception as e:
+            print("admin notify error:", e, flush=True)
+    return jsonify(success=True)
+
+
+# ======================================================================
+# Postback من شبكة العروض (هذا هو المصدر الوحيد لإضافة الأرباح)
+# ======================================================================
+def _check_secret():
+    if not POSTBACK_SECRET:
+        return Response("postback disabled", 503)
+    if not hmac.compare_digest(request.args.get("secret", ""), POSTBACK_SECRET):
+        return Response("forbidden", 403)
+    return None
+
+
+@server.route("/postback")
+def postback():
+    bad = _check_secret()
+    if bad:
+        return bad
+    txid = request.args.get("txid", "").strip()
+    offer = OFFERS.get(request.args.get("offer_id", ""))
+    try:
+        uid = int(request.args.get("user_id", ""))
+    except ValueError:
+        return Response("bad user", 400)
+    if not txid or not offer:
+        return Response("bad request", 400)
+    now = int(time.time())
+    hold = 0 if offer["kind"] == "ad" else VERIFY_HOURS * 3600
+    amount = int(float(offer["reward"]) * MICRO)
+    with tx() as c:
+        u = c.execute("SELECT banned FROM users WHERE user_id=?", (uid,)).fetchone()
+        if not u or u["banned"]:
+            return Response("ignored", 200)
+        cur = c.execute(
+            "INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) "
+            "VALUES(?,?,?,?,?,'pending',?,?)",
+            (txid, uid, offer["kind"], offer["id"], amount, now, now + hold),
+        )
+        if not cur.rowcount:
+            return Response("duplicate", 200)
+    if hold == 0:
+        release_matured()
+    return Response("OK", 200)
+
+
+@server.route("/postback/reverse")
+def postback_reverse():
+    """تستدعيه الشبكة عند إلغاء العرض (إلغاء اشتراك / حذف تطبيق / احتيال)."""
+    bad = _check_secret()
+    if bad:
+        return bad
+    txid = request.args.get("txid", "").strip()
+    uid = None
+    with tx() as c:
+        t = c.execute("SELECT * FROM transactions WHERE txid=? AND kind!='referral'", (txid,)).fetchone()
+        if not t or t["status"] == "reversed":
+            return Response("OK", 200)
+        uid = t["user_id"]
+        c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
+        r = c.execute("SELECT * FROM transactions WHERE txid=? AND status='approved'", ("ref:" + txid,)).fetchone()
+        if r:
+            c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (r["id"],))
+            c.execute("UPDATE users SET balance=MAX(balance-?,0) WHERE user_id=?", (r["amount"], r["user_id"]))
+        ban_user(c, uid, "offer_reversed")
+    try:
+        bot.send_message(uid, "🚫 تم إلغاء حسابك لأنك ألغيت اشتراكاً/تطبيقاً/تسجيلاً مخالفاً للشروط.")
+    except Exception:
+        pass
+    return Response("OK", 200)
+
+
+# ======================================================================
+# النصوص: الشروط والأحكام + واجهة التطبيق (9 لغات)
+# ======================================================================
+HEADS = {
+    "ar": ["🌍 عن البوت", "⚠️ تنبيه مهم جداً", "💰 حد السحب الأدنى", "🚫 المحظورات", "⏳ التحقق من الأرباح", "👥 نظام الإحالة", "💸 السحب"],
+    "en": ["🌍 About", "⚠️ Important warning", "💰 Minimum withdrawal", "🚫 Prohibited", "⏳ Earnings verification", "👥 Referrals", "💸 Withdrawals"],
+    "es": ["🌍 Sobre el bot", "⚠️ Aviso importante", "💰 Retiro mínimo", "🚫 Prohibido", "⏳ Verificación", "👥 Referidos", "💸 Retiros"],
+    "de": ["🌍 Über den Bot", "⚠️ Wichtige Warnung", "💰 Mindestauszahlung", "🚫 Verboten", "⏳ Verifizierung", "👥 Empfehlungen", "💸 Auszahlungen"],
+    "fr": ["🌍 À propos", "⚠️ Avertissement important", "💰 Retrait minimum", "🚫 Interdit", "⏳ Vérification", "👥 Parrainage", "💸 Retraits"],
+    "ru": ["🌍 О боте", "⚠️ Важное предупреждение", "💰 Минимум для вывода", "🚫 Запрещено", "⏳ Проверка начислений", "👥 Рефералы", "💸 Вывод"],
+    "pt": ["🌍 Sobre o bot", "⚠️ Aviso importante", "💰 Saque mínimo", "🚫 Proibido", "⏳ Verificação", "👥 Indicações", "💸 Saques"],
+    "nl": ["🌍 Over de bot", "⚠️ Belangrijke waarschuwing", "💰 Minimum opname", "🚫 Verboden", "⏳ Verificatie", "👥 Referrals", "💸 Opnames"],
+    "pl": ["🌍 O bocie", "⚠️ Ważne ostrzeżenie", "💰 Minimalna wypłata", "🚫 Zakazy", "⏳ Weryfikacja", "👥 Polecenia", "💸 Wypłaty"],
+}
+
+BODIES = {
+    "ar": [
+        "البوت منصة لتحقيق الربح من:\n🎬 مشاهدة الإعلانات\n📱 عروض الاشتراك برقم الهاتف\n📝 عروض التسجيل\n📲 تثبيت التطبيقات",
+        "لا تدفع أي مبلغ لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل. أي جهة تطلب مالاً باسم البوت فهي احتيال، وسيتم حظر أي مستخدم يطلب أموالاً من غيره.",
+        "الحد الأدنى لسحب الأرباح هو {min} TRX.",
+        "❌ استخدام VPN أو البروكسي\n❌ استخدام الواي فاي (المطلوب بيانات الجوال)\n❌ أكثر من حساب للشخص الواحد\n❌ بيانات وهمية أو أرقام غير حقيقية\n❌ التلاعب بالعروض أو برامج الغش",
+        "لا يُضاف رصيد تثبيت التطبيقات أو التسجيل أو الاشتراك برقم الهاتف إلا بعد التحقق، وتستغرق من 24 إلى 72 ساعة (حالياً {h} ساعة). إذا ألغيت الاشتراك أو حذفت التطبيق أو ألغيت التسجيل فسيُلغى حسابك مباشرة مع أرباحه.",
+        "تحصل على 3% من أرباح كل من تدعوه، مدى الحياة. لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً ناجحاً واحداً على الأقل (اشتراك/تسجيل/تثبيت).",
+        "لا يمكن السحب إلا بعد أن تُحضر مستخدماً حقيقياً يُكمل أول عرض ناجح له، وبعد بلوغ الحد الأدنى. تراجع الإدارة كل طلب قبل الدفع، ويحق لها حظر أي حساب مخالف وإلغاء أرباحه.",
+    ],
+    "en": [
+        "A platform to earn from:\n🎬 Watching ads\n📱 Phone-number subscription offers\n📝 Registration offers\n📲 App installs",
+        "Never pay any money to any platform, website or person while using the bot. All tasks are completely free. Anyone asking for money in the bot's name is a scammer, and users who ask others for money will be banned.",
+        "The minimum withdrawal is {min} TRX.",
+        "❌ VPN or proxy of any kind\n❌ Wi-Fi (mobile data is required)\n❌ More than one account per person\n❌ Fake data or unreal numbers\n❌ Cheating or manipulating offers",
+        "Rewards for app installs, registrations and phone subscriptions are credited only after verification, which takes 24 to 72 hours (currently {h}h). If you cancel the subscription, uninstall the app or cancel the registration, your account and its earnings are cancelled immediately.",
+        "Earn 3% of your referrals' earnings for life. A referral counts only after the invited user completes at least one successful offer (subscription/registration/install).",
+        "You can withdraw only after bringing a real user who completes their first successful offer, and after reaching the minimum. Every request is reviewed before payment, and accounts that break the rules may be banned and their earnings cancelled.",
+    ],
+    "es": [
+        "Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps",
+        "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.",
+        "El retiro mínimo es de {min} TRX.",
+        "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas",
+        "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.",
+        "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.",
+        "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar.",
+    ],
+    "de": [
+        "Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen",
+        "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.",
+        "Die Mindestauszahlung beträgt {min} TRX.",
+        "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug",
+        "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.",
+        "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.",
+        "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft.",
+    ],
+    "fr": [
+        "Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps",
+        "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.",
+        "Le retrait minimum est de {min} TRX.",
+        "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche",
+        "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.",
+        "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.",
+        "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement.",
+    ],
+    "ru": [
+        "Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений",
+        "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.",
+        "Минимальная сумма вывода — {min} TRX.",
+        "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман",
+        "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.",
+        "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.",
+        "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется.",
+    ],
+    "pt": [
+        "Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps",
+        "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.",
+        "O saque mínimo é de {min} TRX.",
+        "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças",
+        "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.",
+        "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.",
+        "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento.",
+    ],
+    "nl": [
+        "Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties",
+        "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.",
+        "Minimum opname is {min} TRX.",
+        "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen",
+        "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.",
+        "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.",
+        "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld.",
+    ],
+    "pl": [
+        "Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji",
+        "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.",
+        "Minimalna wypłata to {min} TRX.",
+        "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa",
+        "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.",
+        "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.",
+        "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytkownik ukończy pierwszą udaną ofertę i osiągniesz minimum. Każdy wniosek jest sprawdzany.",
+    ],
+}
+
+TERMS_TITLE = {
+    "ar": "📜 شروط وأحكام TRX Earn Bot", "en": "📜 TRX Earn Bot Terms & Conditions",
+    "es": "📜 Términos de TRX Earn Bot", "de": "📜 AGB von TRX Earn Bot", "fr": "📜 Conditions de TRX Earn Bot",
+    "ru": "📜 Условия TRX Earn Bot", "pt": "📜 Termos do TRX Earn Bot", "nl": "📜 Voorwaarden van TRX Earn Bot",
+    "pl": "📜 Regulamin TRX Earn Bot",
+}
+
+AGREE_BTN = {
+    "ar": "أوافق وأفتح التطبيق المصغر 🚀", "en": "I Agree & Open Mini App 🚀", "es": "Aceptar y abrir Mini App 🚀",
+    "de": "Zustimmen & Mini App öffnen 🚀", "fr": "Accepter et ouvrir l'App 🚀", "ru": "Согласен, открыть Mini App 🚀",
+    "pt": "Concordar e abrir Mini App 🚀", "nl": "Akkoord & Mini App openen 🚀", "pl": "Zgadzam się i otwórz 🚀",
+}
+
+LANGS = list(HEADS.keys())
+
+
+def terms_sections(lang):
+    lang = lang if lang in HEADS else "en"
+    bodies = [b.replace("{min}", str(MIN_WITHDRAW)).replace("{h}", str(VERIFY_HOURS)) for b in BODIES[lang]]
+    return [[h, b] for h, b in zip(HEADS[lang], bodies)]
+
+
+def terms_html(lang):
+    lang = lang if lang in HEADS else "en"
+    parts = [f"<b>{html.escape(TERMS_TITLE[lang])}</b>\n"]
+    for h, b in terms_sections(lang):
+        parts.append(f"<b>{html.escape(h)}</b>\n{html.escape(b)}\n")
+    return "\n".join(parts)
+
+
+UI = {
+    "en": {
+        "home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone Subscription", "apps": "📲 Install Apps",
+        "sites": "🌐 Register on Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Watch & Earn",
+        "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Current TRX balance",
+        "pend": "Pending verification", "minline": "Minimum withdrawal: {n} TRX",
+        "faqT": "❓ When do I get paid?",
+        "faqD": "Rewards for installs, sign-ups and phone subscriptions are credited after verification (24–72 hours). Withdrawals are reviewed by the admin and require one real referral who completed a first successful offer.",
+        "refT": "👥 Referral system (3%)", "refCnt": "Active referrals",
+        "refD": "Share your link and earn 3% of your referrals' earnings for life. A referral counts only after they complete one successful offer.",
+        "copy": "Copy referral link 🔗", "copied": "Copied! 📋", "noOffers": "No offers available right now.",
+        "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after verification (24–72h). Cancelling = account ban.",
+        "wDesc": "Enter your TRX (TRC20) wallet address:", "save": "Save 💾", "change": "Change 🔄",
+        "wSaved": "Saved address:", "noAddr": "No address added yet", "wdBtn": "Request withdrawal 🚀",
+        "wdInfo": "Your whole balance is withdrawn. Needs min {n} TRX and one real active referral.",
+        "lang": "🌐 Language", "loading": "Loading…",
+        "c_auth": "Session expired. Please close and reopen the app from the bot.",
+        "c_banned": "Your account has been banned for breaking the terms.",
+        "c_vpn": "VPN/Proxy detected. Turn it off and use mobile data.",
+        "c_bad_address": "Invalid TRX address.", "c_ok_addr": "Address saved 💾",
+        "c_no_address": "Please add your TRX wallet address first.",
+        "c_min_balance": "Your balance is below the minimum withdrawal.",
+        "c_need_referral": "You need one real referral who completed their first successful offer.",
+        "c_pending_exists": "You already have a pending withdrawal.",
+        "c_ok_withdraw": "Withdrawal request submitted 🚀", "c_err": "Something went wrong. Try again.",
+    },
+    "ar": {
+        "home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الربح من الاشتراك برقم هاتف",
+        "apps": "📲 الربح من تثبيت تطبيقات", "sites": "🌐 الربح من التسجيل في المواقع", "wallet": "💳 المحفظة",
+        "withdraw": "💸 السحب", "watch": "▶️ الربح من المشاهدة", "terms": "📜 الشروط والأحكام",
+        "menu": "القائمة ⚙️", "welcome": "مرحباً بك", "bal": "رصيد TRX الحالي", "pend": "قيد التحقق",
+        "minline": "الحد الأدنى للسحب: {n} TRX",
+        "faqT": "❓ متى يتم سحب الأرباح؟",
+        "faqD": "تُضاف أرباح التثبيت والتسجيل والاشتراك بعد التحقق (24–72 ساعة). تراجع الإدارة طلب السحب، ويشترط وجود إحالة حقيقية أكملت أول عرض ناجح لها.",
+        "refT": "👥 نظام الإحالة (3%)", "refCnt": "عدد إحالاتك النشطة",
+        "refD": "شارك رابطك وخذ 3% من أرباح من تدعوه مدى الحياة. لا تُحتسب الإحالة إلا بعد إكمال المدعو عرضاً ناجحاً.",
+        "copy": "نسخ رابط الإحالة 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا توجد عروض متاحة حالياً.",
+        "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تُضاف بعد التحقق (24–72 ساعة). الإلغاء = حظر الحساب.",
+        "wDesc": "أدخل عنوان محفظة TRX (TRC20) الخاصة بك:", "save": "حفظ 💾", "change": "تغيير 🔄",
+        "wSaved": "العنوان المحفوظ:", "noAddr": "لم تضف عنواناً بعد", "wdBtn": "طلب السحب 🚀",
+        "wdInfo": "يتم سحب كامل رصيدك. الشرط: {n} TRX كحد أدنى + إحالة حقيقية نشطة.",
+        "lang": "🌐 اللغة", "loading": "جارٍ التحميل…",
+        "c_auth": "انتهت الجلسة. أغلق التطبيق وافتحه من البوت من جديد.",
+        "c_banned": "تم حظر حسابك لمخالفة الشروط.",
+        "c_vpn": "تم اكتشاف VPN/بروكسي. أطفئه واستخدم بيانات الجوال.",
+        "c_bad_address": "عنوان TRX غير صحيح.", "c_ok_addr": "تم حفظ العنوان 💾",
+        "c_no_address": "أضف عنوان محفظة TRX أولاً.",
+        "c_min_balance": "رصيدك أقل من الحد الأدنى للسحب.",
+        "c_need_referral": "يجب أن تُحضر مستخدماً حقيقياً أكمل أول عرض ناجح له.",
+        "c_pending_exists": "لديك طلب سحب قيد المراجعة.",
+        "c_ok_withdraw": "تم تقديم طلب السحب 🚀", "c_err": "حدث خطأ. حاول مرة أخرى.",
+    },
+    "es": {"home": "🏠 Inicio", "ref": "👥 Referidos", "phone": "📱 Suscripción telefónica", "apps": "📲 Instalar apps",
+           "sites": "🌐 Registrarse", "wallet": "💳 Billetera", "withdraw": "💸 Retirar", "watch": "▶️ Ver y ganar",
+           "terms": "📜 Términos", "menu": "Menú ⚙️", "welcome": "Bienvenido", "bal": "Saldo TRX", "copy": "Copiar enlace 🔗",
+           "go": "Empezar ✅", "save": "Guardar 💾", "change": "Cambiar 🔄", "wdBtn": "Solicitar retiro 🚀", "lang": "🌐 Idioma"},
+    "de": {"home": "🏠 Start", "ref": "👥 Empfehlungen", "phone": "📱 Telefon-Abo", "apps": "📲 Apps installieren",
+           "sites": "🌐 Registrieren", "wallet": "💳 Wallet", "withdraw": "💸 Auszahlen", "watch": "▶️ Ansehen",
+           "terms": "📜 AGB", "menu": "Menü ⚙️", "welcome": "Willkommen", "bal": "TRX-Guthaben", "copy": "Link kopieren 🔗",
+           "go": "Start ✅", "save": "Speichern 💾", "change": "Ändern 🔄", "wdBtn": "Auszahlung anfordern 🚀", "lang": "🌐 Sprache"},
+    "fr": {"home": "🏠 Accueil", "ref": "👥 Parrainage", "phone": "📱 Abonnement téléphone", "apps": "📲 Installer des apps",
+           "sites": "🌐 Inscriptions", "wallet": "💳 Portefeuille", "withdraw": "💸 Retirer", "watch": "▶️ Regarder",
+           "terms": "📜 Conditions", "menu": "Menu ⚙️", "welcome": "Bienvenue", "bal": "Solde TRX", "copy": "Copier le lien 🔗",
+           "go": "Commencer ✅", "save": "Enregistrer 💾", "change": "Modifier 🔄", "wdBtn": "Demander le retrait 🚀", "lang": "🌐 Langue"},
+    "ru": {"home": "🏠 Главная", "ref": "👥 Рефералы", "phone": "📱 Подписка по телефону", "apps": "📲 Установка приложений",
+           "sites": "🌐 Регистрации", "wallet": "💳 Кошелёк", "withdraw": "💸 Вывод", "watch": "▶️ Смотреть",
+           "terms": "📜 Условия", "menu": "Меню ⚙️", "welcome": "Добро пожаловать", "bal": "Баланс TRX", "copy": "Копировать ссылку 🔗",
+           "go": "Начать ✅", "save": "Сохранить 💾", "change": "Изменить 🔄", "wdBtn": "Запросить вывод 🚀", "lang": "🌐 Язык"},
+    "pt": {"home": "🏠 Início", "ref": "👥 Indicações", "phone": "📱 Assinatura por telefone", "apps": "📲 Instalar apps",
+           "sites": "🌐 Registros", "wallet": "💳 Carteira", "withdraw": "💸 Sacar", "watch": "▶️ Assistir",
+           "terms": "📜 Termos", "menu": "Menu ⚙️", "welcome": "Bem-vindo", "bal": "Saldo TRX", "copy": "Copiar link 🔗",
+           "go": "Começar ✅", "save": "Salvar 💾", "change": "Alterar 🔄", "wdBtn": "Solicitar saque 🚀", "lang": "🌐 Idioma"},
+    "nl": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Telefoonabonnement", "apps": "📲 Apps installeren",
+           "sites": "🌐 Registreren", "wallet": "💳 Wallet", "withdraw": "💸 Opnemen", "watch": "▶️ Kijken",
+           "terms": "📜 Voorwaarden", "menu": "Menu ⚙️", "welcome": "Welkom", "bal": "TRX-saldo", "copy": "Link kopiëren 🔗",
+           "go": "Start ✅", "save": "Opslaan 💾", "change": "Wijzigen 🔄", "wdBtn": "Opname aanvragen 🚀", "lang": "🌐 Taal"},
+    "pl": {"home": "🏠 Start", "ref": "👥 Polecenia", "phone": "📱 Subskrypcja tel.", "apps": "📲 Instaluj aplikacje",
+           "sites": "🌐 Rejestracje", "wallet": "💳 Portfel", "withdraw": "💸 Wypłata", "watch": "▶️ Oglądaj",
+           "terms": "📜 Regulamin", "menu": "Menu ⚙️", "welcome": "Witaj", "bal": "Saldo TRX", "copy": "Kopiuj link 🔗",
+           "go": "Start ✅", "save": "Zapisz 💾", "change": "Zmień 🔄", "wdBtn": "Złóż wniosek 🚀", "lang": "🌐 Język"},
+}
+
+LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français",
+              "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
+
+# ======================================================================
+# صفحة التطبيق المصغر
+# ======================================================================
+WEBAPP_HTML = r"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRX Earn</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+ body{font-family:Tahoma,Arial,sans-serif;background:#0f172a;color:#fff;margin:0;padding:15px}
+ .header{display:flex;justify-content:space-between;align-items:center;background:#1e293b;padding:12px 15px;border-radius:12px;margin-bottom:15px}
+ .header h2{color:#38bdf8;font-size:17px;margin:0;text-align:center;flex:1}
+ .menu-btn{background:none;border:none;color:#38bdf8;font-size:24px;cursor:pointer;width:32px}
+ .card{background:#1e293b;padding:15px;border-radius:12px;margin:10px 0;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,.3)}
+ .card h3{color:#38bdf8;font-size:16px;margin:0 0 8px}
+ .muted{font-size:12px;color:#94a3b8;line-height:1.6}
+ .big{font-size:26px;font-weight:bold;color:#4ade80;margin:6px 0}
+ .btn{background:#0284c7;color:#fff;border:none;padding:11px;border-radius:8px;cursor:pointer;font-size:15px;width:100%;margin-top:8px}
+ .btn:active{background:#0369a1}.btn.green{background:#16a34a}.btn.red{background:#e11d48}
+ input{width:100%;padding:10px;border-radius:6px;border:1px solid #475569;background:#0f172a;color:#fff;text-align:center;margin-top:8px;box-sizing:border-box;direction:ltr}
+ input[readonly]{opacity:.8}
+ details.card{text-align:start}
+ summary{color:#38bdf8;font-weight:bold;cursor:pointer;font-size:15px}
+ .pre{white-space:pre-line;text-align:start;font-size:13px;color:#cbd5e1;line-height:1.7;margin:4px 0 12px}
+ h4{color:#38bdf8;text-align:start;margin:12px 0 2px;font-size:14px}
+ .offer{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;margin-top:8px;text-align:start}
+ .offer b{display:block;font-size:14px}.offer .btn{width:auto;margin:0;padding:8px 14px}
+ .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:none}.overlay.on{display:block}
+ .drawer{position:fixed;top:0;inset-inline-end:-290px;width:270px;height:100%;background:#1e293b;z-index:1000;transition:.3s;padding:15px 10px;box-sizing:border-box;overflow-y:auto;display:flex;flex-direction:column}
+ .drawer.on{inset-inline-end:0}
+ .dhead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:10px;color:#38bdf8;font-weight:bold}
+ .dhead button{background:none;border:none;color:#ef4444;font-size:22px;cursor:pointer}
+ .item{background:#0f172a;border:1px solid #334155;color:#cbd5e1;font-size:13px;text-align:start;padding:10px 12px;cursor:pointer;border-radius:8px;margin-bottom:6px;width:100%}
+ .item.active{background:#334155;color:#38bdf8;border-color:#38bdf8;font-weight:bold}
+ select{background:#0f172a;color:#fff;border:1px solid #475569;padding:7px;border-radius:6px;width:100%;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="header"><button class="menu-btn" id="menu-open">☰</button><h2 id="title"></h2><span style="width:32px"></span></div>
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer"><div class="dhead"><button id="menu-close">✕</button><span id="menu-title"></span></div><div id="nav"></div></div>
+<p id="welcome" class="muted" style="text-align:center;margin:0"></p>
+<div id="view"></div>
+<script>
+const UI=__UI__, TERMS=__TERMS__, LANG_NAMES=__LANG_NAMES__;
+const tg=window.Telegram.WebApp; tg.ready(); tg.expand();
+const INIT=tg.initData||"";
+const $=id=>document.getElementById(id);
+const NAVKEY={home:'home',ref:'ref',phone:'phone',app:'apps',site:'sites',ad:'watch',wallet:'wallet',withdraw:'withdraw',terms:'terms'};
+const OFFER_KINDS=['phone','app','site','ad'];
+let lang=localStorage.getItem('lang')||((tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.language_code)||'ar').slice(0,2);
+if(!UI[lang]) lang='ar';
+let state={me:null,tab:'home',offers:null,offerErr:null,err:null,editing:false};
+
+const T=k=>(UI[lang]&&UI[lang][k])||UI.en[k]||k;
+function h(tag,attrs,...kids){const e=document.createElement(tag);
+  for(const k in (attrs||{})){const v=attrs[k];
+    if(k==='class') e.className=v; else if(k in e) e[k]=v; else e.setAttribute(k,v);}
+  kids.flat().forEach(c=>{if(c==null)return; e.append(c.nodeType?c:document.createTextNode(String(c)));});
+  return e;}
+function msg(t){ if(tg.showAlert) tg.showAlert(t); else alert(t); }
+async function api(path,body){
+  const opt={headers:{'X-Init-Data':INIT,'Content-Type':'application/json'}};
+  if(body!==undefined){opt.method='POST';opt.body=JSON.stringify(body);}
+  try{const r=await fetch(path,opt);return await r.json();}catch(e){return{success:false,code:'err'};}
+}
+function codeMsg(code){return T('c_'+(code||'err'));}
+async function copyText(s){
+  try{await navigator.clipboard.writeText(s);}catch(e){const i=h('input',{value:s});document.body.append(i);i.select();document.execCommand('copy');i.remove();}
+  msg(T('copied'));
+}
+function card(...kids){return h('div',{class:'card'},...kids);}
+
+async function loadMe(){const d=await api('/api/me'); if(d.success){state.me=d;state.err=null;}else{state.err=d.code||'err';} render();}
+async function go(tab){
+  state.tab=tab; closeDrawer(); state.editing=false;
+  if(OFFER_KINDS.includes(tab)){
+    state.offers=null; state.offerErr=null; render();
+    const d=await api('/api/offers?kind='+tab);
+    if(d.success) state.offers=d.offers; else {state.offers=[];state.offerErr=d.code;}
+  }
+  render();
+}
+function openDrawer(){$('drawer').classList.add('on');$('overlay').classList.add('on');}
+function closeDrawer(){$('drawer').classList.remove('on');$('overlay').classList.remove('on');}
+$('menu-open').onclick=openDrawer; $('menu-close').onclick=closeDrawer; $('overlay').onclick=closeDrawer;
+
+function buildNav(){
+  const nav=$('nav'); nav.replaceChildren();
+  Object.keys(NAVKEY).forEach(tab=>{
+    nav.append(h('button',{class:'item'+(state.tab===tab?' active':''),onclick:()=>go(tab)},T(NAVKEY[tab])));
+  });
+  const sel=h('select',{onchange:e=>{lang=e.target.value;localStorage.setItem('lang',lang);render();}},
+    Object.keys(LANG_NAMES).map(l=>h('option',{value:l,selected:l===lang},LANG_NAMES[l])));
+  nav.append(h('div',{class:'muted',style:'margin-top:14px'},T('lang')),sel);
+}
+
+const VIEWS={
+ home(v){
+  const m=state.me;
+  v.append(card(h('h3',{},T('bal')),h('div',{class:'big'},'TRX '+m.balance.toFixed(2)),
+    h('div',{class:'muted'},T('pend')+': TRX '+m.pending.toFixed(2)),
+    h('div',{class:'muted'},T('minline').replace('{n}',m.min_withdraw))));
+  v.append(h('details',{class:'card'},h('summary',{},T('faqT')),h('p',{class:'muted'},T('faqD'))));
+ },
+ ref(v){
+  const m=state.me;
+  v.append(card(h('h3',{},T('refT')),
+    h('p',{},T('refCnt')+': ',h('b',{style:'color:#38bdf8'},m.active_referrals)),
+    h('p',{class:'muted'},T('refD')),
+    h('input',{value:m.ref_link,readOnly:true,onclick:e=>e.target.select()}),
+    h('button',{class:'btn',onclick:()=>copyText(m.ref_link)},T('copy'))));
+ },
+ offers(v,kind){
+  const titleKey=NAVKEY[kind];
+  const c=card(h('h3',{},T(titleKey)));
+  if(kind!=='ad') c.append(h('p',{class:'muted'},T('pendNote')));
+  if(state.offers===null) c.append(h('p',{class:'muted'},T('loading')));
+  else if(state.offerErr) c.append(h('p',{style:'color:#fca5a5'},codeMsg(state.offerErr)));
+  else if(!state.offers.length) c.append(h('p',{class:'muted'},T('noOffers')));
+  else state.offers.forEach(o=>{
+    c.append(h('div',{class:'offer'},h('div',{},h('b',{},o.title),h('span',{class:'muted'},T('reward')+': '+o.reward+' TRX')),
+      h('button',{class:'btn green',onclick:()=>{ if(tg.openLink) tg.openLink(o.url); else window.open(o.url,'_blank'); }},T('go'))));
+  });
+  v.append(c);
+ },
+ wallet(v){
+  const m=state.me, has=!!m.trx_address;
+  const inp=h('input',{id:'addr',placeholder:'T...',value:m.trx_address,readOnly:has&&!state.editing});
+  const btn=h('button',{class:'btn',onclick:async()=>{
+    if(has&&!state.editing){state.editing=true;render();return;}
+    const d=await api('/api/address',{address:inp.value.trim()});
+    if(d.success){state.editing=false;msg(T('c_ok_addr'));await loadMe();} else msg(codeMsg(d.code));
+  }},(has&&!state.editing)?T('change'):T('save'));
+  v.append(card(h('h3',{},T('wallet')),h('p',{class:'muted'},has&&!state.editing?T('wSaved'):T('wDesc')),inp,btn));
+ },
+ withdraw(v){
+  const m=state.me;
+  v.append(card(h('h3',{},T('withdraw')),
+    h('div',{class:'big'},'TRX '+m.balance.toFixed(2)),
+    h('p',{class:'muted'},T('wSaved')),
+    h('p',{style:'color:#fbbf24;font-weight:bold;word-break:break-all;direction:ltr'},m.trx_address||T('noAddr')),
+    h('p',{class:'muted'},T('wdInfo').replace('{n}',m.min_withdraw)),
+    h('button',{class:'btn red',onclick:async()=>{
+      const d=await api('/api/withdraw',{});
+      msg(d.success?T('c_ok_withdraw'):codeMsg(d.code)); await loadMe();
+    }},T('wdBtn'))));
+ },
+ terms(v){
+  const t=TERMS[lang]||TERMS.en;
+  const c=card(h('h3',{},t.title));
+  t.sections.forEach(s=>{c.append(h('h4',{},s[0]),h('div',{class:'pre'},s[1]));});
+  c.style.textAlign='start'; v.append(c);
+ }
+};
+
+function render(){
+  document.documentElement.lang=lang; document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
+  $('title').textContent=T(NAVKEY[state.tab]); $('menu-title').textContent=T('menu'); buildNav();
+  const v=$('view'); v.replaceChildren();
+  if(state.err){v.append(card(h('p',{},codeMsg(state.err)))); return;}
+  if(!state.me){v.append(h('p',{class:'muted',style:'text-align:center'},T('loading'))); return;}
+  $('welcome').textContent=T('welcome')+(state.me.name?': '+state.me.name:'');
+  if(OFFER_KINDS.includes(state.tab)) VIEWS.offers(v,state.tab); else VIEWS[state.tab](v);
+}
+if(!INIT){state.err='auth';}
+render(); if(INIT) loadMe();
+</script>
+</body>
+</html>
+"""
+
+
+@server.route("/webapp")
+def webapp():
+    terms = {l: {"title": TERMS_TITLE[l], "sections": terms_sections(l)} for l in LANGS}
+    page = (WEBAPP_HTML
+            .replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False)))
+    resp = Response(page, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+# ======================================================================
+# بوت تيليجرام
+# ======================================================================
+@server.route("/" + TOKEN, methods=["POST"])
 def webhook():
     try:
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
+        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
         bot.process_new_updates([update])
     except Exception as e:
         print(f"Error processing update: {e}", flush=True)
-    return 'OK', 200
+    return "OK", 200
 
-telegram_terms = {
-    'ar': (
-        "📜 **شروط وأحكام TRX Earn Bot:**\n\n"
-        "🌍 **عن البوت:**\n"
-        "البوت منصة لتحقيق الربح من مشاهدة الإعلانات، عروض الاشتراك برقم الهاتف، عروض التسجيل، وتثبيت التطبيقات.\n\n"
-        "⚠️ **تنبيه مهم جداً:**\n"
-        "لا تدفع أي مبلغ مالي لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.\n\n"
-        "💰 **حد السحب الأدنى:**\n"
-        "الحد الأدنى لسحب الأرباح هو **100 ترون (TRX)**.\n\n"
-        "🚫 **المحظورات:**\n"
-        "❌ استخدام VPN أو البروكسي بجميع أنواعه.\n"
-        "❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال.\n"
-        "❌ إنشاء أكثر من حساب للشخص الواحد أو استخدام بيانات وهمية وأرقام غير حقيقية.\n\n"
-        "👥 **نظام الإحالة:**\n"
-        "💰 تحصل على 3% من أرباح كل من تدعوه مدى الحياة.\n"
-        "✅ لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً ناجحاً واحداً على الأقل.\n\n"
-        "📲 **انقر على الزر أدناه للموافقة وفتح التطبيق المصغر:**"
-    ),
-    'ru': (
-        "📜 **Условия и положения TRX Earn Bot:**\n\n"
-        "🌍 **О боте:**\n"
-        "Платформа для заработка на просмотре рекламы, подписках по телефону, регистрации и установке приложений.\n\n"
-        "⚠️ **Важное предупреждение:**\n"
-        "Не платите никому деньги. Все задания абсолютно бесплатны.\n\n"
-        "💰 **Минимум для вывода:**\n"
-        "Минимальная сумма для вывода средств составляет **100 TRX**.\n\n"
-        "🚫 **Запреты:**\n"
-        "❌ Использование VPN или прокси.\n"
-        "❌ Использование Wi-Fi (нужно использовать мобильные данные).\n"
-        "❌ Создание нескольких аккаунтов или фейковых данных.\n\n"
-        "👥 **Реферальная система:**\n"
-        "💰 Получайте 3% пожизненно от активности рефералов.\n"
-        "✅ Реферал засчитывается только после того, как приглашенный пользователь выполнит хотя бы одно успешное задание.\n\n"
-        "📲 **Нажмите кнопку ниже, чтобы согласиться и открыть Mini App:**"
-    ),
-    'es': (
-        "📜 **Términos y Condiciones de TRX Earn Bot:**\n\n"
-        "🌍 **Sobre el Bot:**\n"
-        "Plataforma para ganar viendo anuncios, suscripciones telefónicas, registros y apps.\n\n"
-        "⚠️ **Advertencia:**\n"
-        "No pagues dinero a nadie. Todas las tareas son gratuitas.\n\n"
-        "💰 **Mínimo de retiro:**\n"
-        "El monto mínimo de retiro es de **100 TRX**.\n\n"
-        "🚫 **Prohibiciones:**\n"
-        "❌ Usar VPN o Proxy.\n"
-        "❌ Usar Wi-Fi (use datos móviles).\n"
-        "❌ Cuentas múltiples o datos falsos.\n\n"
-        "👥 **Referidos:**\n"
-        "💰 Gana 3% de por vida de tus referidos.\n"
-        "✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.\n\n"
-        "📲 **Haz clic en el botón para aceptar y abrir la Mini App:**"
-    ),
-    'de': (
-        "📜 **AGB von TRX Earn Bot:**\n\n"
-        "🌍 **Über den Bot:**\n"
-        "Plattform zum Verdienen durch Werbung, Telefon-Abos, Registrierungen und Apps.\n\n"
-        "⚠️ **Warnung:**\n"
-        "Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.\n\n"
-        "💰 **Mindestauszahlung:**\n"
-        "Der Mindestbetrag für Auszahlungen beträgt **100 TRX**.\n\n"
-        "🚫 **Verbote:**\n"
-        "❌ VPN oder Proxy verwenden.\n"
-        "❌ WLAN verwenden (Mobildaten nutzen).\n"
-        "❌ Mehrfachkonten oder falsche Daten.\n\n"
-        "👥 **Empfehlungen:**\n"
-        "💰 3% lebenslanger Bonus.\n"
-        "✅ Empfehlungen zählen erst, nachdem der eingeladene Benutzer mindestens ein erfolgreiches Angebot abgeschlossen hat.\n\n"
-        "📲 **Klicken Sie unten, um zuzustimmen und die Mini-App zu öffnen:**"
-    ),
-    'fr': (
-        "📜 **Conditions de TRX Earn Bot :**\n\n"
-        "🌍 **À propos :**\n"
-        "Plateforme pour gagner avec les pubs, abonnements téléphone, inscriptions et apps.\n\n"
-        "⚠️ **Avertissement :**\n"
-        "Ne payez pas d'argent. Tout est gratuit.\n\n"
-        "💰 **Minimum de retrait :**\n"
-        "Le montant minimum de retrait est de **100 TRX**.\n\n"
-        "🚫 **Interdictions :**\n"
-        "❌ Utiliser un VPN ou Proxy.\n"
-        "❌ Utiliser le Wi-Fi (utilisez les données mobiles).\n"
-        "❌ Comptes multiples ou faux comptes.\n\n"
-        "👥 **Parrainage :**\n"
-        "💰 3% de bonus à vie.\n"
-        "✅ Les parrainages ne sont comptabilisés qu'après qu'un utilisateur invité a complété au moins une offre réussie.\n\n"
-        "📲 **Cliquez sur le bouton ci-dessous pour accepter et ouvrir l'app :**"
-    ),
-    'pt': (
-        "📜 **Termos de TRX Earn Bot:**\n\n"
-        "🌍 **Sobre o Bot:**\n"
-        "Plataforma para ganhar com anúncios, inscrições por telefone, registros e apps.\n\n"
-        "⚠️ **Aviso:**\n"
-        "Não pague dinheiro a ninguém. Tudo é gratuito.\n\n"
-        "💰 **Mínimo para saque:**\n"
-        "O valor mínimo para saque é de **100 TRX**.\n\n"
-        "🚫 **Proibições:**\n"
-        "❌ Usar VPN ou Proxy.\n"
-        "❌ Usar Wi-Fi (use dados móveis).\n"
-        "❌ Contas múltiplas ou dados falsos.\n\n"
-        "👥 **Indicações:**\n"
-        "💰 3% de bônus vitalício.\n"
-        "✅ As indicações só contam após o usuário convidado concluir pelo menos uma oferta bem-sucedida.\n\n"
-        "📲 **Clique no botão abaixo para concordar e abrir o Mini App:**"
-    ),
-    'nl': (
-        "📜 **Voorwaarden van TRX Earn Bot:**\n\n"
-        "🌍 **Over de Bot:**\n"
-        "Platform om te verdienen met advertenties, telefoon-subs, registraties en apps.\n\n"
-        "⚠️ **Waarschuwing:**\n"
-        "Betaal geen geld aan iemand. Alles is gratis.\n\n"
-        "💰 **Minimum opname:**\n"
-        "Het minimumbedrag voor opname is **100 TRX**.\n\n"
-        "🚫 **Verboden:**\n"
-        "❌ VPN of Proxy gebruiken.\n"
-        "❌ Wi-Fi gebruiken (gebruik mobiele data).\n"
-        "❌ Meerdere accounts of nepgegevens.\n\n"
-        "👥 **Referrals:**\n"
-        "💰 3% levenslange bonus.\n"
-        "✅ Referrals tellen pas mee nadat de genodigde gebruiker ten minste één succesvolle aanbieding heeft voltooid.\n\n"
-        "📲 **Klik op de knop om akkoord te gaan en de Mini App te openen:**"
-    ),
-    'pl': (
-        "📜 **Regulamin TRX Earn Bot:**\n\n"
-        "🌍 **O bocie:**\n"
-        "Platforma do zarabiania na reklamach, subskrypcjach telefonu, rejestracji i aplikacjach.\n\n"
-        "⚠️ **Ostrzeżenie:**\n"
-        "Nie płac nikomu pieniędzy. Wszystko jest darmowe.\n\n"
-        "💰 **Minimum wypłaty:**\n"
-        "Minimalna kwota wypłaty wynosi **100 TRX**.\n\n"
-        "🚫 **Zakazy:**\n"
-        "❌ Używanie VPN lub Proxy.\n"
-        "❌ Używanie Wi-Fi (używaj danych mobilnych).\n"
-        "❌ Wiele kont lub fałszywe dane.\n\n"
-        "👥 **Polecenia:**\n"
-        "💰 3% dożywotniej premii.\n"
-        "✅ Polecenia są aktywne dopiero po ukończeniu przez zaproszonego użytkownika co najmniej jednej udanej oferty.\n\n"
-        "📲 **Kliknij poniższy przycisk, aby zaakceptować i otworzyć aplikację:**"
-    )
-}
 
-telegram_terms['en'] = (
-    "📜 **TRX Earn Bot Terms & Conditions:**\n\n"
-    "🌍 **About Bot:**\n"
-    "Platform to earn from watching ads, phone subscriptions, registrations, and app installs.\n\n"
-    "⚠️ **Important Warning:**\n"
-    "Do not pay any money to anyone. All tasks are completely free.\n\n"
-    "💰 **Minimum Withdrawal:**\n"
-    "The minimum withdrawal amount is **100 TRX**.\n\n"
-    "🚫 **Prohibitions:**\n"
-    "❌ Using VPN or Proxy of any kind.\n"
-    "❌ Using Wi-Fi (mobile data is required).\n"
-    "❌ Creating multiple accounts or using fake data.\n\n"
-    "👥 **Referral System:**\n"
-    "💰 Earn 3% lifetime from your referrals' earnings.\n"
-    "✅ Referrals count only after an active offer is completed successfully.\n\n"
-    "📲 **Click the button below to agree and open the Mini App:**"
-)
-
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=["start"])
 def start(message):
     try:
-        user_id = message.from_user.id
-        username = message.from_user.username or "No Username"
-        user_lang = message.from_user.language_code or 'en'
-        
-        lang_key = user_lang[:2].lower()
-        if lang_key not in telegram_terms:
-            lang_key = 'en'
-        
-        terms_message = telegram_terms[lang_key]
-
-        text_parts = message.text.split()
-        referrer_id = None
-        if len(text_parts) > 1:
-            try:
-                referrer_id = int(text_parts[1])
-            except ValueError:
-                pass
-
-        conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-        if not cursor.fetchone():
-            if referrer_id and referrer_id != user_id:
-                cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
-                if cursor.fetchone():
-                    cursor.execute(
-                        "INSERT INTO users (user_id, username, referred_by, balance) VALUES (?, ?, ?, 0.0)",
-                        (user_id, username, referrer_id)
-                    )
-                else:
-                    cursor.execute(
-                        "INSERT INTO users (user_id, username, balance) VALUES (?, ?, 0.0)",
-                        (user_id, username)
-                    )
-            else:
-                cursor.execute(
-                    "INSERT INTO users (user_id, username, balance) VALUES (?, ?, 0.0)",
-                    (user_id, username)
-                )
-            conn.commit()
-        conn.close()
-
+        uid = message.from_user.id
+        username = message.from_user.username or message.from_user.first_name or ""
+        lang = (message.from_user.language_code or "en")[:2].lower()
+        if lang not in HEADS:
+            lang = "en"
+        referrer = None
+        parts = (message.text or "").split()
+        if len(parts) > 1 and parts[1].isdigit():
+            referrer = int(parts[1])
+        with tx() as c:
+            u = ensure_user(c, uid, username, referrer)
+        if u["banned"]:
+            bot.reply_to(message, "🚫 تم حظر حسابك / Your account is banned.")
+            return
         markup = telebot.types.InlineKeyboardMarkup()
-        web_app = telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")
-        
-        btn_text = {
-            'ar': "أوافق وأفتح التطبيق المصغر 🚀",
-            'ru': "Согласен и открыть Mini App 🚀",
-            'es': "Aceptar y abrir Mini App 🚀",
-            'de': "Akzeptieren & Mini App öffnen 🚀",
-            'fr': "Accepter et ouvrir l'App 🚀",
-            'pt': "Concordar e abrir Mini App 🚀",
-            'nl': "Akkoord & Mini App openen 🚀",
-            'pl': "Zgadzam się i otwórz aplikację 🚀"
-        }.get(lang_key, "I Agree & Open Mini App 🚀")
-
-        webapp_button = telebot.types.InlineKeyboardButton(btn_text, web_app=web_app)
-        markup.add(webapp_button)
-        
-        bot.reply_to(message, terms_message, parse_mode="Markdown", reply_markup=markup)
+        markup.add(telebot.types.InlineKeyboardButton(
+            AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
+        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
     except Exception as e:
         print(f"Error in start handler: {e}", flush=True)
 
-@server.route('/api/user/<int:user_id>')
-def get_user_data(user_id):
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute("SELECT balance, active_referrals, trx_address, completed_offer FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    
-    if not row:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username, balance) VALUES (?, ?, 0.0)", (user_id, "Omar"))
-        conn.commit()
-        balance = 0.0
-        active_referrals = 0
-        trx_address = ""
-        completed_offer = 0
-    else:
-        balance, active_referrals, trx_address, completed_offer = row
-    conn.close()
 
-    bot_username = "TRXEarnBot"
+def is_admin(m):
+    return ADMIN_ID and m.from_user.id == ADMIN_ID
+
+
+@bot.message_handler(commands=["withdrawals"])
+def cmd_withdrawals(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
+    if not rows:
+        bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅")
+        return
+    bot.reply_to(m, "\n\n".join(
+        f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
+
+
+@bot.message_handler(commands=["paid", "reject"])
+def cmd_process(m):
+    if not is_admin(m):
+        return
+    args = (m.text or "").split()
+    if len(args) < 2 or not args[1].isdigit():
+        bot.reply_to(m, "الاستخدام: /paid 12 [رقم العملية]  أو  /reject 12")
+        return
+    wid, paid = int(args[1]), args[0].startswith("/paid")
+    note = " ".join(args[2:])
+    with tx() as c:
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w:
+            bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
+            return
+        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?",
+                  ("paid" if paid else "rejected", note, int(time.time()), wid))
+        if not paid:
+            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض وإرجاع الرصيد'} للطلب #{wid} ✅")
     try:
-        bot_info = bot.get_me()
-        if bot_info and bot_info.username:
-            bot_username = bot_info.username
+        if paid:
+            bot.send_message(w["user_id"], f"✅ تم دفع {w['amount'] / MICRO:.2f} TRX إلى محفظتك.\n{note}")
+        else:
+            bot.send_message(w["user_id"], f"❌ تم رفض طلب السحب #{wid} وأُعيد الرصيد لحسابك.\n{note}")
     except Exception:
         pass
 
-    ref_link = f"https://t.me/{bot_username}?start={user_id}"
 
-    return jsonify({
-        "user_id": user_id,
-        "balance": balance,
-        "active_referrals": active_referrals,
-        "ref_link": ref_link,
-        "trx_address": trx_address or "",
-        "completed_offer": completed_offer
-    })
+@bot.message_handler(commands=["stats"])
+def cmd_stats(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
+        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
+        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
+    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
 
-@server.route('/api/update_address', methods=['POST'])
-def update_address():
-    data = request.json
-    user_id = data.get('user_id')
-    address = data.get('address')
-    if not user_id or not address:
-        return jsonify({"success": False, "message": "Invalid address!"})
-    
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET trx_address = ? WHERE user_id = ?", (address, user_id))
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True, "message": "Wallet address saved successfully! 💾"})
 
-@server.route('/api/complete_offer', methods=['POST'])
-def complete_offer():
-    data = request.json
-    user_id = data.get('user_id')
-    
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET balance = balance + 0.5 WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"success": True, "message": "Reward added to your balance successfully! 🎉"})
+# ======================================================================
+# التشغيل (يعمل مع gunicorn أيضاً)
+# ======================================================================
+init_db()
+threading.Thread(target=_release_loop, daemon=True).start()
 
-@server.route('/api/withdraw', methods=['POST'])
-def withdraw():
-    data = request.json
-    user_id = data.get('user_id')
-    
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute("SELECT balance, trx_address FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    
-    if not row:
-        conn.close()
-        return jsonify({"success": False, "message": "User not registered"})
-    
-    balance, address = row
-    if not address:
-        conn.close()
-        return jsonify({"success": False, "message": "Please add your TRX wallet address first!"})
-    
-    # الحد الأدنى للسحب أصبح 100 ترون
-    if balance < 100.0:
-        conn.close()
-        return jsonify({"success": False, "message": "Minimum withdrawal limit is 100 TRX"})
-    
-    cursor.execute("UPDATE users SET balance = balance - 100.0 WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"success": True, "message": "Withdrawal request submitted successfully! 🚀"})
+if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    except Exception as e:
+        print("set_webhook error:", e, flush=True)
 
-@server.route('/webapp')
-def webapp():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl" id="html-root">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>TRX Earn Mini App</title>
-        <script src="https://telegram.org/js/telegram-web-app.js"></script>
-        <style>
-            body {
-                font-family: Tahoma, sans-serif;
-                background-color: #0f172a;
-                color: #ffffff;
-                margin: 0;
-                padding: 15px;
-            }
-            .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: #1e293b;
-                padding: 12px 15px;
-                border-radius: 12px;
-                margin-bottom: 15px;
-            }
-            .menu-btn {
-                background: none;
-                border: none;
-                color: #38bdf8;
-                font-size: 24px;
-                cursor: pointer;
-            }
-            h2 { color: #38bdf8; font-size: 18px; margin: 0; text-align: center; }
-            .section { display: none; }
-            .section.active { display: block; }
-            .card {
-                background: #1e293b;
-                padding: 15px;
-                border-radius: 12px;
-                margin: 10px 0;
-                text-align: center;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            }
-            .btn {
-                background: #0284c7;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 8px;
-                cursor: pointer;
-                font-size: 15px;
-                width: 100%;
-                margin-top: 8px;
-            }
-            .btn:active { background: #0369a1; }
-            input {
-                width: 100%;
-                padding: 10px;
-                border-radius: 5px;
-                border: 1px solid #475569;
-                background: #0f172a;
-                color: white;
-                text-align: center;
-                margin-top: 8px;
-                box-sizing: border-box;
-            }
-            #ref-link {
-                background: #ffffff !important;
-                color: #0f172a !important;
-                font-weight: bold;
-                font-size: 11px;
-                direction: ltr !important;
-                text-align: center !important;
-            }
-            input:read-only { border-color: #475569; opacity: 0.8; }
-
-            .accordion-card {
-                background: #1e293b;
-                border-radius: 12px;
-                margin: 10px 0;
-                overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            }
-            .accordion-header {
-                padding: 15px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                cursor: pointer;
-                user-select: none;
-                background: #1e293b;
-            }
-            .accordion-header h3 {
-                color: #38bdf8;
-                font-size: 15px;
-                margin: 0;
-            }
-            .accordion-arrow {
-                font-size: 18px;
-                color: #38bdf8;
-                transition: transform 0.3s ease;
-            }
-            .accordion-content {
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease, padding 0.3s ease;
-                background: #0f172a;
-                padding: 0 15px;
-                text-align: right;
-                font-size: 13px;
-                color: #cbd5e1;
-                line-height: 1.6;
-            }
-            .accordion-card.open .accordion-content {
-                max-height: 250px;
-                padding: 12px 15px;
-            }
-            .accordion-card.open .accordion-arrow {
-                transform: rotate(180deg);
-            }
-
-            .drawer {
-                position: fixed;
-                top: 0;
-                right: -280px;
-                width: 270px;
-                height: 100%;
-                background: #1e293b;
-                z-index: 1000;
-                transition: 0.3s ease;
-                box-shadow: -5px 0 15px rgba(0,0,0,0.5);
-                display: flex;
-                flex-direction: column;
-                padding: 15px 10px;
-                box-sizing: border-box;
-                overflow-y: auto;
-            }
-            .drawer.open { right: 0; }
-            .drawer-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 1px solid #334155;
-                padding-bottom: 10px;
-                margin-bottom: 10px;
-            }
-            .close-drawer {
-                background: none;
-                border: none;
-                color: #ef4444;
-                font-size: 22px;
-                cursor: pointer;
-            }
-            .drawer-item {
-                background: #0f172a;
-                border: 1px solid #334155;
-                color: #cbd5e1;
-                font-size: 13px;
-                text-align: right;
-                padding: 10px 12px;
-                cursor: pointer;
-                border-radius: 8px;
-                margin-bottom: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: flex-start;
-                gap: 10px;
-                width: 100%;
-                box-sizing: border-box;
-            }
-            .drawer-item:hover, .drawer-item.active {
-                background: #334155;
-                color: #38bdf8;
-                border-color: #38bdf8;
-                font-weight: bold;
-            }
-            .overlay {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
-                display: none;
-            }
-            .overlay.active { display: block; }
-
-            .lang-container {
-                margin-top: auto;
-                border-top: 1px solid #334155;
-                padding-top: 15px;
-                text-align: center;
-            }
-            .lang-container select {
-                background: #0f172a;
-                color: white;
-                border: 1px solid #475569;
-                padding: 6px 12px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 12px;
-                width: 100%;
-            }
-
-            .terms-text {
-                font-size: 13px;
-                color: #cbd5e1;
-                text-align: right;
-                line-height: 1.6;
-            }
-        </style>
-    </head>
-    <body>
-
-        <!-- الهيدر -->
-        <div class="header">
-            <button class="menu-btn" onclick="toggleDrawer()">☰</button>
-            <h2 id="page-title">🏠 الرئيسية</h2>
-            <div style="width: 24px;"></div>
-        </div>
-
-        <!-- القائمة الجانبية -->
-        <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
-        <div class="drawer" id="drawer">
-            <div class="drawer-header">
-                <button class="close-drawer" onclick="toggleDrawer()">✕</button>
-                <span id="menu-title" style="font-weight: bold; color: #38bdf8; font-size: 15px;">القائمة ⚙️</span>
-            </div>
-            <button class="drawer-item active" onclick="switchTab('home', currentTitles.home, this)"><span id="nav-txt-home">🏠 الرئيسية</span></button>
-            <button class="drawer-item" onclick="switchTab('ref', currentTitles.ref, this)"><span id="nav-txt-ref">👥 الإحالة</span></button>
-            <button class="drawer-item" onclick="switchTab('phone_sub', currentTitles.phoneSub, this)"><span id="nav-txt-phonesub">📱 الربح من الاشتراك في رقم هاتف</span></button>
-            <button class="drawer-item" onclick="switchTab('install_apps', currentTitles.installApps, this)"><span id="nav-txt-installapps">📲 الربح من تثبيت تطبيقات</span></button>
-            <button class="drawer-item" onclick="switchTab('register_sites', currentTitles.registerSites, this)"><span id="nav-txt-registersites">🌐 الربح من التسجيل في المواقع</span></button>
-            <button class="drawer-item" onclick="switchTab('wallet', currentTitles.wallet, this)"><span id="nav-txt-wallet">💳 المحفظة</span></button>
-            <button class="drawer-item" onclick="switchTab('withdraw', currentTitles.withdraw, this)"><span id="nav-txt-withdraw">💸 السحب</span></button>
-            <button class="drawer-item" onclick="switchTab('watch', currentTitles.watch, this)"><span id="nav-txt-watch">▶️ الربح من المشاهدة</span></button>
-            <button class="drawer-item" onclick="switchTab('terms', currentTitles.terms, this)"><span id="nav-txt-terms">📜 الشروط والأحكام</span></button>
-            
-            <!-- قائمة اللغات والترجمة -->
-            <div class="lang-container">
-                <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 5px;">🌐 Language / اللغة:</span>
-                <select id="language-select" onchange="changeLanguage(this.value)">
-                    <option value="ar">🇸🇦 العربية</option>
-                    <option value="en">🇬🇧 English</option>
-                    <option value="es">🇪🇸 Español</option>
-                    <option value="de">🇩🇪 Deutsch</option>
-                    <option value="fr">🇫🇷 Français</option>
-                    <option value="ru">🇷🇺 Русский</option>
-                    <option value="pt">🇧🇷/🇵🇹 Português</option>
-                    <option value="nl">🇳🇱 Nederlands</option>
-                    <option value="pl">🇵🇱 Polski</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="container">
-            <p id="welcome" style="text-align:center; font-size: 13px; color: #94a3b8; margin-top:0;"></p>
-
-            <!-- 1. الرئيسية -->
-            <div id="tab-home" class="section active">
-                <div class="card">
-                    <h3 id="txt-bal-title">رصيد TRX الحالي</h3>
-                    <p id="balance-val" style="font-size: 26px; font-weight: bold; color: #4ade80;">TRX 0.00</p>
-                    <p id="txt-bal-desc" style="font-size: 12px; color: #94a3b8;">الحد الأدنى للسحب هو 100 ترون (TRX).</p>
-                </div>
-
-                <!-- الأكورديون للسؤال وتوضيح المراجعة والسحب -->
-                <div class="accordion-card" id="faq-accordion">
-                    <div class="accordion-header" onclick="toggleAccordion()">
-                        <h3 id="txt-faq-title">❓ متى يتم سحب الأرباح؟</h3>
-                        <span class="accordion-arrow">⌄</span>
-                    </div>
-                    <div class="accordion-content">
-                        <p id="txt-faq-desc" style="margin: 0;">يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد الوصول للحد الأدنى (100 TRX) والتأكد من اكتمال الشروط.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. الإحالة -->
-            <div id="tab-ref" class="section">
-                <div class="card">
-                    <h3 id="txt-ref-title">👥 نظام الإحالات النشطة (3%)</h3>
-                    <p><span id="txt-ref-count-label">عدد إحالاتك النشطة:</span> <span id="ref-count" style="color: #38bdf8; font-weight: bold;">0</span></p>
-                    <p id="txt-ref-desc" style="font-size: 13px; color: #94a3b8;">شارك رابطك وخذ 3% أرباح للأبد:</p>
-                    <input type="text" id="ref-link" readonly onclick="this.select();">
-                    <button id="txt-copy-btn" class="btn" onclick="copyRefLink()">نسخ رابط الإحالة 🔗</button>
-                </div>
-            </div>
-
-            <!-- 3. اشتراك رقم هاتف -->
-            <div id="tab-phone_sub" class="section">
-                <div class="card">
-                    <h3 id="txt-phonesub-title">📱 الربح من الاشتراك في رقم هاتف</h3>
-                    <p id="txt-phonesub-desc" style="font-size: 13px; color: #cbd5e1;">اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:</p>
-                    <button id="txt-phonesub-btn" class="btn" style="background: #eab308; margin-top: 10px;" onclick="completeTask()">تنفيذ الاشتراك ✅</button>
-                </div>
-            </div>
-
-            <!-- 4. تثبيت تطبيقات -->
-            <div id="tab-install_apps" class="section">
-                <div class="card">
-                    <h3 id="txt-installapps-title">📲 الربح من تثبيت تطبيقات</h3>
-                    <p id="txt-installapps-desc" style="font-size: 13px; color: #cbd5e1;">قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:</p>
-                    <button id="txt-installapps-btn" class="btn" style="background: #16a34a; margin-top: 10px;" onclick="completeTask()">تثبيت التطبيق ✅</button>
-                </div>
-            </div>
-
-            <!-- 5. التسجيل في المواقع -->
-            <div id="tab-register_sites" class="section">
-                <div class="card">
-                    <h3 id="txt-registersites-title">🌐 الربح من التسجيل في المواقع</h3>
-                    <p id="txt-registersites-desc" style="font-size: 13px; color: #cbd5e1;">سجل في المواقع الإلكترونية المتاحة لكسب نقاط TRX:</p>
-                    <button id="txt-registersites-btn" class="btn" style="background: #0284c7; margin-top: 10px;" onclick="completeTask()">التسجيل في الموقع ✅</button>
-                </div>
-            </div>
-
-            <!-- 6. المحفظة -->
-            <div id="tab-wallet" class="section">
-                <div class="card">
-                    <h3 id="txt-wallet-title">💳 إدارة المحفظة</h3>
-                    <p id="wallet-desc" style="font-size: 13px; color: #94a3b8;">أدخل عنوان محفظة TRX الخاصة بك:</p>
-                    <input type="text" id="trx-input" placeholder="أدخل عنوان TRX هنا...">
-                    <button id="wallet-btn" class="btn" onclick="handleWalletAction()">حفظ العنوان 💾</button>
-                </div>
-            </div>
-
-            <!-- 7. السحب -->
-            <div id="tab-withdraw" class="section">
-                <div class="card">
-                    <h3 id="txt-withdraw-title">💸 سحب الأرباح</h3>
-                    <p id="txt-wallet-label" style="font-size: 13px; color: #94a3b8;">عنوان المحفظة المسجل للسحب:</p>
-                    <p id="current-address" style="font-size: 14px; font-weight: bold; color: #fbbf24; word-break: break-all; margin: 10px 0;"></p>
-                    <button id="txt-withdraw-btn" class="btn" style="background: #e11d48;" onclick="requestWithdraw()">تأكيد طلب السحب (الحد الأدنى 100 ترون) 🚀</button>
-                </div>
-            </div>
-
-            <!-- 8. المشاهدة -->
-            <div id="tab-watch" class="section">
-                <div class="card">
-                    <h3 id="txt-watch-title">▶️ الربح من المشاهدة</h3>
-                    <p id="txt-watch-desc" style="font-size: 13px; color: #cbd5e1;">قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:</p>
-                    <button id="txt-watch-btn" class="btn" style="background: #16a34a;" onclick="completeTask()">مشاهدة الإعلان والربح 🚀</button>
-                </div>
-            </div>
-
-            <!-- 9. الشروط والأحكام الكاملة والمترجمة بدقة متطابقة لكل اللغات الـ 9 -->
-            <div id="tab-terms" class="section">
-                <div class="card" style="text-align: right;" id="terms-card">
-                    <h3 id="txt-terms-title" style="color: #38bdf8; text-align: center; margin-bottom: 10px;">📜 الشروط والأحكام</h3>
-                    <div id="txt-terms-content" class="terms-text"></div>
-                </div>
-            </div>
-
-        </div>
-
-        <script>
-            let tg = window.Telegram.WebApp;
-            tg.expand();
-
-            let userId = 123456789;
-            let userName = "Omar";
-
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
-                userId = tg.initDataUnsafe.user.id;
-                if (tg.initDataUnsafe.user.first_name) {
-                    userName = tg.initDataUnsafe.user.first_name;
-                }
-            }
-
-            function toggleDrawer() {
-                document.getElementById('drawer').classList.toggle('open');
-                document.getElementById('overlay').classList.toggle('active');
-            }
-
-            function toggleAccordion() {
-                document.getElementById('faq-accordion').classList.toggle('open');
-            }
-
-            const translations = {
-                ar: {
-                    home: "🏠 الرئيسية", ref: "👥 الإحالة",
-                    phoneSub: "📱 الربح من الاشتراك في رقم هاتف", installApps: "📲 الربح من تثبيت تطبيقات", registerSites: "🌐 الربح من التسجيل في المواقع",
-                    wallet: "💳 المحفظة", withdraw: "💸 السحب", watch: "▶️ الربح من المشاهدة", terms: "📜 الشروط والأحكام",
-                    menu: "القائمة ⚙️", welcome: "مرحباً بك: ",
-                    balTitle: "رصيد TRX الحالي", balDesc: "الحد الأدنى للسحب هو 100 ترون (TRX).",
-                    faqTitle: "❓ متى يتم سحب الأرباح؟", faqDesc: "يتم معالجة ومراجعة طلب السحب وإرسال الأرباح فوراً بعد الوصول للحد الأدنى (100 TRX) والتأكد من اكتمال الشروط.",
-                    refTitle: "👥 نظام الإحالات النشطة (3%)", refCountLbl: "عدد إحالاتك النشطة:", refDesc: "شارك رابطك وخذ 3% أرباح للأبد:", copyBtn: "نسخ رابط الإحالة 🔗",
-                    phoneSubTitle: "📱 الربح من الاشتراك في رقم هاتف", phoneSubDesc: "اشترك برقم هاتفك في العروض المتاحة أدناه لكسب نقاط TRX:", phoneSubBtn: "تنفيذ الاشتراك ✅",
-                    installAppsTitle: "📲 الربح من تثبيت تطبيقات", installAppsDesc: "قم بتثبيت التطبيقات المطلوبة وافتحها لكسب نقاط TRX:", installAppsBtn: "تثبيت التطبيق ✅",
-                    registerSitesTitle: "🌐 الربح من التسجيل في المواقع", registerSitesDesc: "سجل في المواقع الإلكترونية المتاحة لكسب نقاط TRX:", registerSitesBtn: "التسجيل في الموقع ✅",
-                    walletTitle: "💳 إدارة المحفظة", walletDesc: "أدخل عنوان محفظة TRX الخاصة بك:", walletPlaceholder: "أدخل عنوان TRX هنا...", saveBtn: "حفظ العنوان 💾", changeBtn: "تغيير المحفظة 🔄", saveChangeBtn: "حفظ التغيير 💾", walletSavedDesc: "العنوان المحفوظ حالياً (اضغط تغيير لتعديله):",
-                    withdrawTitle: "💸 سحب الأرباح", walletLabel: "عنوان المحفظة المسجل للسحب:", noAddress: "لم تقم باضافة عنوان بعد!", withdrawBtn: "تأكيد طلب السحب (الحد الأدنى 100 ترون) 🚀",
-                    watchTitle: "▶️ الربح من المشاهدة", watchDesc: "قم بمشاهدة الإعلانات لكسب نقاط TRX إضافية:", watchBtn: "مشاهدة الإعلان والربح 🚀",
-                    termsTitle: "📜 الشروط والأحكام", 
-                    termsContent: "<b>مرحباً بك 👋 باستخدامك للبوت فإنك توافق على الشروط التالية:</b><br><br><b>🌍 عن البوت</b><br>البوت منصة لتحقيق الربح من:<br>🎬 مشاهدة الإعلانات<br>📱 عروض الاشتراك برقم الهاتف<br>📝 عروض التسجيل<br>📲 تثبيت التطبيقات<br><br><b>⚠️ تنبيه مهم جداً</b><br>لا تدفع أي مبلغ مالى لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل.<br><br><b>💰 حد السحب الأدنى</b><br>الحد الأدنى لسحب الأرباح هو <b>100 ترون (TRX)</b>.<br><br><b>🚫 المحظورات</b><br>❌ استخدام VPN أو البروكسي بجميع أنواعه<br>❌ استخدام شبكات الواي فاي، والمطلوب استخدام بيانات الجوال<br>❌ إنشاء أكثر من حساب للشخص الواحد<br>❌ استخدام بيانات وهمية وأرقام غير حقيقية<br><br><b>👥 نظام الإحالة</b><br>💰 تحصل على 3% من أرباح كل من تدعوه، مدى الحياة.<br>✅ لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً واحداً ناجحاً على الأقل.",
-                    alertCopy: "تم نسخ رابط الإحالة بنجاح! 📋",
-                    alertAddressReq: "الرجاء إدخال عنوان صحيح!",
-                    alertOfferDone: "مبروك! تمت إضافة المكافأة إلى رصيدك بنجاح! 🎉",
-                    alertNoAddress: "الرجاء إضافة عنوان محفظة TRX في قسم المحفظة أولاً!",
-                    alertNoBalance: "عذراً، الحد الأدنى للسحب هو 100 ترون (TRX)",
-                    alertWithdrawDone: "تم تقديم طلب السحب بنجاح وسيتم المعالجة قريباً! 🚀"
-                },
-                en: {
-                    home: "🏠 Home", ref: "👥 Referrals",
-                    phoneSub: "📱 Phone Number Sub", installApps: "📲 Install Apps", registerSites: "🌐 Register Sites",
-                    wallet: "💳 Wallet", withdraw: "💸 Withdraw", watch: "▶️ Watch & Earn", terms: "📜 Terms",
-                    menu: "Menu ⚙️", welcome: "Welcome: ",
-                    balTitle: "Your Current TRX Balance", balDesc: "Minimum withdrawal limit is 100 TRX.",
-                    faqTitle: "❓ When are earnings withdrawn?", faqDesc: "Withdrawal requests are processed and reviewed, and funds are sent after reaching 100 TRX and verifying all terms.",
-                    refTitle: "👥 Active Referral System (3%)", refCountLbl: "Active Referrals:", refDesc: "Share your link and earn 3% lifetime profits:", copyBtn: "Copy Referral Link 🔗",
-                    phoneSubTitle: "📱 Phone Number Sub", phoneSubDesc: "Subscribe with your phone number in available offers to earn TRX:", phoneSubBtn: "Complete Subscription ✅",
-                    installAppsTitle: "📲 Install Apps", installAppsDesc: "Install required apps and open them to earn TRX points:", installAppsBtn: "Install App ✅",
-                    registerSitesTitle: "🌐 Register Sites", registerSitesDesc: "Register on available websites to earn TRX points:", registerSitesBtn: "Register on Site ✅",
-                    walletTitle: "💳 Wallet Management", walletDesc: "Enter your TRX wallet address:", walletPlaceholder: "Enter TRX address here...", saveBtn: "Save Address 💾", changeBtn: "Change Wallet 🔄", saveChangeBtn: "Save Changes 💾", walletSavedDesc: "Current saved address:",
-                    withdrawTitle: "💸 Withdraw Earnings", walletLabel: "Registered Wallet Address:", noAddress: "No address added yet!", withdrawBtn: "Confirm Withdrawal (Min 100 TRX) 🚀",
-                    watchTitle: "▶️ Watch & Earn", watchDesc: "Watch ads to earn bonus TRX points:", watchBtn: "Watch Ad & Earn 🚀",
-                    termsTitle: "📜 Terms & Conditions", 
-                    termsContent: "<b>Welcome 👋 By using the bot, you agree to the following terms:</b><br><br><b>🌍 About Bot</b><br>Platform to earn from:<br>🎬 Watching Ads<br>📱 Phone Sub<br>📝 Registration<br>📲 App Install<br><br><b>⚠️ Warning</b><br>Do not pay any money to anyone. All tasks are free.<br><br><b>💰 Minimum Withdrawal</b><br>The minimum withdrawal amount is <b>100 TRX</b>.<br><br><b>🚫 Prohibitions</b><br>❌ Using VPN or Proxy<br>❌ Using Wi-Fi (use mobile data)<br>❌ Multiple accounts<br>❌ Fake data or unreal numbers<br><br><b>👥 Referrals</b><br>💰 Earn 3% lifetime from your referrals.<br>✅ Referrals count only after an active offer is completed successfully.",
-                    alertCopy: "Referral link copied successfully! 📋",
-                    alertAddressReq: "Please enter a valid address!",
-                    alertOfferDone: "Congratulations! Reward added successfully! 🎉",
-                    alertNoAddress: "Please add your TRX wallet address first!",
-                    alertNoBalance: "Sorry, minimum withdrawal limit is 100 TRX",
-                    alertWithdrawDone: "Withdrawal request submitted successfully! 🚀"
-                },
-                es: {
-                    home: "🏠 Inicio", ref: "👥 Referidos", phoneSub: "📱 Suscripción", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrarse", wallet: "💳 Billetera", withdraw: "💸 Retirar", watch: "▶️ Ver y Ganar", terms: "📜 Términos",
-                    menu: "Menú ⚙️", welcome: "Bienvenido: ",
-                    balTitle: "Saldo Actual", balDesc: "Mínimo de retiro: 100 TRX.",
-                    faqTitle: "❓ ¿Cuándo se retiran las ganancias?", faqDesc: "Se procesa tras alcanzar los 100 TRX y verificar los términos.",
-                    refTitle: "👥 Referidos (3%)", refCountLbl: "Activos:", refDesc: "Comparte tu enlace:", copyBtn: "Copiar Enlace 🔗",
-                    phoneSubTitle: "📱 Suscripción", phoneSubDesc: "Suscríbete con tu número:", phoneSubBtn: "Suscribirse ✅",
-                    installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instala apps requeridas:", installAppsBtn: "Instalar App ✅",
-                    registerSitesTitle: "🌐 Registrarse", registerSitesDesc: "Regístrate en sitios:", registerSitesBtn: "Registrarse ✅",
-                    walletTitle: "💳 Billetera", walletDesc: "Ingresa tu dirección TRX:", walletPlaceholder: "Ingresa TRX...", saveBtn: "Guardar 💾", changeBtn: "Cambiar 🔄", saveChangeBtn: "Guardar 💾", walletSavedDesc: "Dirección guardada:",
-                    withdrawTitle: "💸 Retirar", walletLabel: "Dirección:", noAddress: "¡Sin dirección!", withdrawBtn: "Confirmar Retiro (Mín 100 TRX) 🚀",
-                    watchTitle: "▶️ Ver y Ganar", watchDesc: "Mira anuncios:", watchBtn: "Ver Anuncio 🚀",
-                    termsTitle: "📜 Términos", 
-                    termsContent: "<b>Bienvenido 👋 Al usar el bot aceptas los términos:</b><br><br><b>🌍 Sobre el Bot</b><br>Plataforma para ganar con:<br>🎬 Ver anuncios<br>📱 Suscripción telefónica<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Advertencia</b><br>No pagues dinero a nadie. Todo es gratis.<br><br><b>💰 Mínimo de Retiro</b><br>El monto mínimo es de <b>100 TRX</b>.<br><br><b>🚫 Prohibiciones</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (usa datos móviles)<br>❌ Cuentas múltiples<br>❌ Datos falsos o números irreales<br><br><b>👥 Referidos</b><br>💰 Gana 3% de por vida.<br>✅ Los referidos cuentan solo después de que el usuario invitado complete al menos una oferta exitosa.",
-                    alertCopy: "¡Enlace copiado con éxito! 📋",
-                    alertAddressReq: "¡Por favor ingresa una dirección válida!",
-                    alertOfferDone: "¡Recompensa añadida con éxito! 🎉",
-                    alertNoAddress: "¡Añade tu dirección TRX primero!",
-                    alertNoBalance: "El saldo mínimo de retiro es de 100 TRX",
-                    alertWithdrawDone: "¡Solicitud de retiro enviada! 🚀"
-                },
-                de: {
-                    home: "🏠 Startseite", ref: "👥 Empfehlungen", phoneSub: "📱 Telefon-Abo", installApps: "📲 Apps installieren", registerSites: "🌐 Websites", wallet: "💳 Wallet", withdraw: "💸 Auszahlen", watch: "▶️ Ansehen", terms: "📜 AGB",
-                    menu: "Menü ⚙️", welcome: "Willkommen: ",
-                    balTitle: "Aktuelles Guthaben", balDesc: "Mindestauszahlung: 100 TRX.",
-                    faqTitle: "❓ Wann werden Gewinne ausgezahlt?", faqDesc: "Nach Erreichen von 100 TRX und Prüfung.",
-                    refTitle: "👥 Empfehlungen (3%)", refCountLbl: "Aktiv:", refDesc: "Link teilen:", copyBtn: "Link kopieren 🔗",
-                    phoneSubTitle: "📱 Telefon-Abo", phoneSubDesc: "Abonnieren Sie mit Ihrer Nummer:", phoneSubBtn: "Abonnieren ✅",
-                    installAppsTitle: "📲 Apps installieren", installAppsDesc: "Apps installieren:", installAppsBtn: "App installieren ✅",
-                    registerSitesTitle: "🌐 Websites", registerSitesDesc: "Auf Websites registrieren:", registerSitesBtn: "Registrieren ✅",
-                    walletTitle: "💳 Wallet", walletDesc: "TRX-Adresse eingeben:", walletPlaceholder: "TRX eingeben...", saveBtn: "Speichern 💾", changeBtn: "Ändern 🔄", saveChangeBtn: "Speichern 💾", walletSavedDesc: "Gespeicherte Adresse:",
-                    withdrawTitle: "💸 Auszahlen", walletLabel: "Adresse:", noAddress: "Keine Adresse!", withdrawBtn: "Bestätigen (Min 100 TRX) 🚀",
-                    watchTitle: "▶️ Ansehen", watchDesc: "Anzeigen ansehen:", watchBtn: "Anzeigen 🚀",
-                    termsTitle: "📜 AGB", 
-                    termsContent: "<b>Willkommen 👋 Durch die Nutzung akzeptieren Sie die AGB:</b><br><br><b>🌍 Über den Bot</b><br>Plattform zum Verdienen durch:<br>🎬 Anzeigen ansehen<br>📱 Telefon-Abo<br>📝 Registrierung<br>📲 Apps installieren<br><br><b>⚠️ Warnung</b><br>Zahlen Sie kein Geld an niemanden. Alles ist kostenlos.<br><br><b>💰 Mindestauszahlung</b><br>Der Mindestbetrag beträgt <b>100 TRX</b>.<br><br><b>🚫 Verbote</b><br>❌ VPN oder Proxy verwenden<br>❌ WLAN verwenden (Mobildaten nutzen)<br>❌ Mehrfachkonten<br>❌ Falsche Daten<br><br><b>👥 Empfehlungen</b><br>💰 3% lebenslanger Bonus.<br>✅ Empfehlungen zählen erst, nachdem der eingeladene Benutzer mindestens ein erfolgreiches Angebot abgeschlossen hat.",
-                    alertCopy: "Link kopiert! 📋",
-                    alertAddressReq: "Gültige Adresse eingeben!",
-                    alertOfferDone: "Erfolgreich hinzugefügt! 🎉",
-                    alertNoAddress: "Bitte TRX-Adresse hinzufügen!",
-                    alertNoBalance: "Mindestauszahlung beträgt 100 TRX",
-                    alertWithdrawDone: "Auszahlung eingereicht! 🚀"
-                },
-                fr: {
-                    home: "🏠 Accueil", ref: "👥 Parrainages", phoneSub: "📱 Abonn. Téléphone", installApps: "📲 Installer Apps", registerSites: "🌐 Inscription", wallet: "💳 Portefeuille", withdraw: "💸 Retirer", watch: "▶️ Regarder", terms: "📜 Conditions",
-                    menu: "Menu ⚙️", welcome: "Bienvenue : ",
-                    balTitle: "Solde Actuel", balDesc: "Minimum de retrait : 100 TRX.",
-                    faqTitle: "❓ Quand les gains sont-ils retirés ?", faqDesc: "Après avoir atteint 100 TRX et vérification.",
-                    refTitle: "👥 Parrainage (3%)", refCountLbl: "Actifs :", refDesc: "Partagez :", copyBtn: "Copier 🔗",
-                    phoneSubTitle: "📱 Abonn. Téléphone", phoneSubDesc: "Abonnez-vous avec votre numéro:", phoneSubBtn: "S'abonner ✅",
-                    installAppsTitle: "📲 Installer Apps", installAppsDesc: "Installez les apps requises:", installAppsBtn: "Installer ✅",
-                    registerSitesTitle: "🌐 Inscription", registerSitesDesc: "Inscrivez-vous sur les sites:", registerSitesBtn: "S'inscrire ✅",
-                    walletTitle: "💳 Portefeuille", walletDesc: "Adresse TRX :", walletPlaceholder: "Entrez TRX...", saveBtn: "Enregistrer 💾", changeBtn: "Modifier 🔄", saveChangeBtn: "Enregistrer 💾", walletSavedDesc: "Adresse :",
-                    withdrawTitle: "💸 Retirer", walletLabel: "Adresse :", noAddress: "Aucune !", withdrawBtn: "Confirmer (Min 100 TRX) 🚀",
-                    watchTitle: "▶️ Regarder", watchDesc: "Regardez :", watchBtn: "Voir 🚀",
-                    termsTitle: "📜 Conditions", 
-                    termsContent: "<b>Bienvenue 👋 En utilisant le bot, vous acceptez les conditions :</b><br><br><b>🌍 À propos du Bot</b><br>Plateforme pour gagner avec :<br>🎬 Regarder des pubs<br>📱 Abonn. téléphone<br>📝 Inscription<br>📲 Installer des apps<br><br><b>⚠️ Avertissement</b><br>Ne payez pas d'argent. Tout est gratuit.<br><br><b>💰 Minimum de Retrait</b><br>Le montant minimum est de <b>100 TRX</b>.<br><br><b>🚫 Interdictions</b><br>❌ Utiliser un VPN ou Proxy<br>❌ Utiliser le Wi-Fi (utilisez les données mobiles)<br>❌ Comptes multiples<br>❌ Faux comptes<br><br><b>👥 Parrainage</b><br>💰 3% de bonus à vie.<br>✅ Les parrainages ne sont comptabilisés qu'après qu'un utilisateur invité a complété au moins une offre réussie.",
-                    alertCopy: "Lien copié ! 📋",
-                    alertAddressReq: "Entrez une adresse valide !",
-                    alertOfferDone: "Ajouté avec succès ! 🎉",
-                    alertNoAddress: "Ajoutez votre adresse TRX !",
-                    alertNoBalance: "Le minimum de retrait est de 100 TRX",
-                    alertWithdrawDone: "Demande de retrait envoyée ! 🚀"
-                },
-                ru: {
-                    home: "🏠 Главная", ref: "👥 Рефералы", phoneSub: "📱 Подписка по тел.", installApps: "📲 Установка апп", registerSites: "🌐 Сайты", wallet: "💳 Кошелек", withdraw: "💸 Вывод", watch: "▶️ Смотреть", terms: "📜 Условия",
-                    menu: "Меню ⚙️", welcome: "Добро пожаловать: ",
-                    balTitle: "Баланс TRX", balDesc: "Минимум для вывода: 100 TRX.",
-                    faqTitle: "❓ Когда выводятся средства?", faqDesc: "После достижения 100 TRX и проверки.",
-                    refTitle: "👥 Рефералы (3%)", refCountLbl: "Активные:", refDesc: "Ссылка:", copyBtn: "Копировать 🔗",
-                    phoneSubTitle: "📱 Подписка по тел.", phoneSubDesc: "Подпишитесь с номером:", phoneSubBtn: "Подписаться ✅",
-                    installAppsTitle: "📲 Установка апп", installAppsDesc: "Установите нужные приложения:", installAppsBtn: "Установить ✅",
-                    registerSitesTitle: "🌐 Сайты", registerSitesDesc: "Регистрируйтесь на сайтах:", registerSitesBtn: "Регистрация ✅",
-                    walletTitle: "💳 Кошелек", walletDesc: "Введите TRX адрес:", walletPlaceholder: "TRX адрес...", saveBtn: "Сохранить 💾", changeBtn: "Изменить 🔄", saveChangeBtn: "Сохранить 💾", walletSavedDesc: "Адрес:",
-                    withdrawTitle: "💸 Вывод", walletLabel: "Адрес:", noAddress: "Нет адреса!", withdrawBtn: "Подтвердить (Мин 100 TRX) 🚀",
-                    watchTitle: "▶️ Смотреть", watchDesc: "Смотрите рекламу:", watchBtn: "Смотреть 🚀",
-                    termsTitle: "📜 Условия", 
-                    termsContent: "<b>Добро пожаловать 👋 Используя бота, вы соглашаетесь с условиями:</b><br><br><b>🌍 О боте</b><br>Платформа для заработка на:<br>🎬 Просмотре рекламы<br>📱 Подписках по телефону<br>📝 Регистрации<br>📲 Установке приложений<br><br><b>⚠️ Важное предупреждение</b><br>Не платите никому деньги. Все задания абсолютно бесплатны.<br><br><b>💰 Минимальный вывод</b><br>Минимальная сумма вывода составляет <b>100 TRX</b>.<br><br><b>🚫 Запреты</b><br>❌ Использование VPN или прокси<br>❌ Использование Wi-Fi (используйте мобильный интернет)<br>❌ Создание нескольких аккаунтов<br>❌ Фейковые данные<br><br><b>👥 Рефералы</b><br>💰 Получайте 3% пожизненно от активности рефералов.<br>✅ Реферал засчитывается только после того, как приглашенный пользователь выполнит хотя бы одно успешное задание.",
-                    alertCopy: "Ссылка скопирована! 📋",
-                    alertAddressReq: "Введите правильный адрес!",
-                    alertOfferDone: "Успешно добавлено! 🎉",
-                    alertNoAddress: "Добавьте адрес кошелька TRX!",
-                    alertNoBalance: "Минимальный лимит вывода: 100 TRX",
-                    alertWithdrawDone: "Запрос отправлен! 🚀"
-                },
-                pt: {
-                    home: "🏠 Início", ref: "👥 Indicações", phoneSub: "📱 Sub. de Telefone", installApps: "📲 Instalar Apps", registerSites: "🌐 Registrar", wallet: "💳 Carteira", withdraw: "💸 Sacar", watch: "▶️ Assistir", terms: "📜 Termos",
-                    menu: "Menu ⚙️", welcome: "Bem-vindo: ",
-                    balTitle: "Saldo TRX", balDesc: "Mínimo para saque: 100 TRX.",
-                    faqTitle: "❓ Когда os ganhos são retirados?", faqDesc: "Após atingir 100 TRX e verificação.",
-                    refTitle: "👥 Indicações (3%)", refCountLbl: "Ativas:", refDesc: "Link:", copyBtn: "Copiar 🔗",
-                    phoneSubTitle: "📱 Sub. de Telefone", phoneSubDesc: "Inscreva-se com seu número:", phoneSubBtn: "Inscrever-se ✅",
-                    installAppsTitle: "📲 Instalar Apps", installAppsDesc: "Instale os aplicativos:", installAppsBtn: "Instalar ✅",
-                    registerSitesTitle: "🌐 Registrar", registerSitesDesc: "Registre-se nos sites:", registerSitesBtn: "Registrar ✅",
-                    walletTitle: "💳 Carteira", walletDesc: "Endereço TRX:", walletPlaceholder: "Insira TRX...", saveBtn: "Salvar 💾", changeBtn: "Alterar 🔄", saveChangeBtn: "Salvar 💾", walletSavedDesc: "Endereço:",
-                    withdrawTitle: "💸 Sacar", walletLabel: "Endereço:", noAddress: "Nenhum!", withdrawBtn: "Confirmar (Mín 100 TRX) 🚀",
-                    watchTitle: "▶️ Assistir", watchDesc: "Assista:", watchBtn: "Ver 🚀",
-                    termsTitle: "📜 Termos", 
-                    termsContent: "<b>Bem-vindo 👋 Ao usar o bot, você concorda com os termos:</b><br><br><b>🌍 Sobre o Bot</b><br>Plataforma para ganhar com:<br>🎬 Assistir anúncios<br>📱 Sub. de telefone<br>📝 Registro<br>📲 Instalar apps<br><br><b>⚠️ Aviso</b><br>Não pague dinheiro a ninguém. Tudo é gratuito.<br><br><b>💰 Mínimo para Saque</b><br>O valor mínimo para saque é de <b>100 TRX</b>.<br><br><b>🚫 Proibições</b><br>❌ Usar VPN ou Proxy<br>❌ Usar Wi-Fi (use dados móveis)<br>❌ Contas múltiplas<br>❌ Dados falsos<br><br><b>👥 Indicações</b><br>💰 3% de bônus vitalício.<br>✅ As indicações só contam após o usuário convidado concluir pelo menos uma oferta bem-sucedida.",
-                    alertCopy: "Link copiado! 📋",
-                    alertAddressReq: "Insira um endereço válido!",
-                    alertOfferDone: "Adicionado com sucesso! 🎉",
-                    alertNoAddress: "Adicione seu endereço TRX!",
-                    alertNoBalance: "O saque mínimo é de 100 TRX",
-                    alertWithdrawDone: "Solicitud enviada! 🚀"
-                },
-                nl: {
-                    home: "🏠 Home", ref: "👥 Referrals", phoneSub: "📱 Telefoon Sub", installApps: "📲 Apps Installeren", registerSites: "🌐 Sites", wallet: "💳 Wallet", withdraw: "💸 Opnemen", watch: "▶️ Kijken", terms: "📜 Voorwaarden",
-                    menu: "Menu ⚙️", welcome: "Welkom: ",
-                    balTitle: "Saldo", balDesc: "Minimum opname: 100 TRX.",
-                    faqTitle: "❓ Wanneer worden winsten opgenomen?", faqDesc: "Na het bereiken van 100 TRX en verificatie.",
-                    refTitle: "👥 Referrals (3%)", refCountLbl: "Actief:", refDesc: "Deel:", copyBtn: "Kopieer 🔗",
-                    phoneSubTitle: "📱 Telefoon Sub", phoneSubDesc: "Abonneer met je nummer:", phoneSubBtn: "Abonneren ✅",
-                    installAppsTitle: "📲 Apps Installeren", installAppsDesc: "Installeer vereiste apps:", installAppsBtn: "Installeren ✅",
-                    registerSitesTitle: "🌐 Sites", registerSitesDesc: "Registreer op sites:", registerSitesBtn: "Registreren ✅",
-                    walletTitle: "💳 Wallet", walletDesc: "TRX adres:", walletPlaceholder: "Voer TRX in...", saveBtn: "Opslaan 💾", changeBtn: "Wijzigen 🔄", saveChangeBtn: "Opslaan 💾", walletSavedDesc: "Adres:",
-                    withdrawTitle: "💸 Opnemen", walletLabel: "Adres:", noAddress: "Geen adres!", withdrawBtn: "Bevestigen (Min 100 TRX) 🚀",
-                    watchTitle: "▶️ Kijken", watchDesc: "Bekijk advertenties:", watchBtn: "Kijk 🚀",
-                    termsTitle: "📜 Voorwaarden", 
-                    termsContent: "<b>Welkom 👋 Door de bot te gebruiken ga je akkoord:</b><br><br><b>🌍 Over de Bot</b><br>Platform om te verdienen met:<br>🎬 Advertenties kijken<br>📱 Telefoon sub<br>📝 Registratie<br>📲 Apps installeren<br><br><b>⚠️ Waarschuwing</b><br>Betaal geen geld aan iemand. Alles is gratis.<br><br><b>💰 Minimum Opname</b><br>Het minimumbedrag is <b>100 TRX</b>.<br><br><b>🚫 Verboden</b><br>❌ VPN of Proxy gebruiken<br>❌ Wi-Fi gebruiken (gebruik mobiele data)<br>❌ Meerdere accounts<br>❌ Nepgegevens<br><br><b>👥 Referrals</b><br>💰 3% levenslange bonus.<br>✅ Referrals tellen pas mee nadat de genodigde gebruiker ten minste één succesvolle aanbieding heeft voltooid.",
-                    alertCopy: "Link gekopieerd! 📋",
-                    alertAddressReq: "Vul een geldig adres in!",
-                    alertOfferDone: "Succesvol toegevoegd! 🎉",
-                    alertNoAddress: "Voeg TRX adres toe!",
-                    alertNoBalance: "Minimum opname is 100 TRX",
-                    alertWithdrawDone: "Verzoek verzonden! 🚀"
-                },
-                pl: {
-                    home: "🏠 Strona główna", ref: "👥 Polecenia", phoneSub: "📱 Subskrypcja tel.", installApps: "📲 Instaluj aplikacje", registerSites: "🌐 Strony", wallet: "💳 Portfel", withdraw: "💸 Wypłata", watch: "▶️ Oglądaj", terms: "📜 Regulamin",
-                    menu: "Menu ⚙️", welcome: "Witaj: ",
-                    balTitle: "Saldo TRX", balDesc: "Minimum wypłaty: 100 TRX.",
-                    faqTitle: "❓ Kiedy wypłacane są środki?", faqDesc: "Po osiągnięciu 100 TRX i weryfikacji.",
-                    refTitle: "👥 Polecenia (3%)", refCountLbl: "Aktywne:", refDesc: "Link:", copyBtn: "Kopiuj 🔗",
-                    phoneSubTitle: "📱 Subskrypcja tel.", phoneSubDesc: "Subskrybuj numerem:", phoneSubBtn: "Subskrybuj ✅",
-                    installAppsTitle: "📲 Instaluj aplikacje", installAppsDesc: "Zainstaluj aplikacje:", installAppsBtn: "Zainstaluj ✅",
-                    registerSitesTitle: "🌐 Strony", registerSitesDesc: "Zarejestruj się na stronach:", registerSitesBtn: "Zarejestruj ✅",
-                    walletTitle: "💳 Portfel", walletDesc: "Adres TRX:", walletPlaceholder: "Wpisz TRX...", saveBtn: "Zapisz 💾", changeBtn: "Zmień 🔄", saveChangeBtn: "Zapisz 💾", walletSavedDesc: "Adres:",
-                    withdrawTitle: "💸 Wypłata", walletLabel: "Adres:", noAddress: "Brak adresu!", withdrawBtn: "Potwierdź (Min 100 TRX) 🚀",
-                    watchTitle: "▶️ Oglądaj", watchDesc: "Oglądaj reklamy:", watchBtn: "Oglądaj 🚀",
-                    termsTitle: "📜 Regulamin", 
-                    termsContent: "<b>Witaj 👋 Korzystając z bota akceptujesz regulamin:</b><br><br><b>🌍 O bocie</b><br>Platforma do zarabiania na:<br>🎬 Oglądaniu reklam<br>📱 Subskrypcji telefonu<br>📝 Rejestracji<br>📲 Instalacji aplikacji<br><br><b>⚠️ Ostrzeżenie</b><br>Nie płac nikomu pieniędzy. Wszystko jest darmowe.<br><br><b>💰 Minimum Wypłaty</b><br>Minimalna kwota wypłaty to <b>100 TRX</b>.<br><br><b>🚫 Zakazy</b><br>❌ Używanie VPN lub Proxy<br>❌ Używanie Wi-Fi (używaj danych mobilnych)<br>❌ Wiele kont<br>❌ Fałszywe dane<br><br><b>👥 Polecenia</b><br>💰 3% dożywotniej premii.<br>✅ Polecenia są aktywne dopiero po ukończeniu przez zaproszonego użytkownika co najmniej jednej udanej oferty.",
-                    alertCopy: "Link skopiowany! 📋",
-                    alertAddressReq: "Wpisz poprawny adres!",
-                    alertOfferDone: "Dodano pomyślnie! 🎉",
-                    alertNoAddress: "Dodaj adres TRX!",
-                    alertNoBalance: "Minimalna kwota wypłaty to 100 TRX",
-                    alertWithdrawDone: "Wniosek wysłany! 🚀"
-                }
-            };
-
-            let currentLang = 'ar';
-            let currentTitles = translations[currentLang];
-
-            function changeLanguage(lang) {
-                currentLang = lang;
-                let t = translations[lang] || translations['ar'];
-                currentTitles = t;
-
-                if (lang === 'ar') {
-                    document.getElementById('html-root').setAttribute('dir', 'rtl');
-                    document.getElementById('html-root').setAttribute('lang', 'ar');
-                } else {
-                    document.getElementById('html-root').setAttribute('dir', 'ltr');
-                    document.getElementById('html-root').setAttribute('lang', lang);
-                }
-
-                document.getElementById('page-title').innerText = t.home;
-                document.getElementById('menu-title').innerText = t.menu;
-                
-                document.getElementById('txt-bal-title').innerText = t.balTitle;
-                document.getElementById('txt-bal-desc').innerText = t.balDesc;
-                document.getElementById('txt-faq-title').innerText = t.faqTitle;
-                document.getElementById('txt-faq-desc').innerText = t.faqDesc;
-
-                document.getElementById('txt-ref-title').innerText = t.refTitle;
-                document.getElementById('txt-ref-count-label').innerText = t.refCountLbl;
-                document.getElementById('txt-ref-desc').innerText = t.refDesc;
-                document.getElementById('txt-copy-btn').innerText = t.copyBtn;
-
-                document.getElementById('txt-phonesub-title').innerText = t.phoneSubTitle;
-                document.getElementById('txt-phonesub-desc').innerText = t.phoneSubDesc;
-                document.getElementById('txt-phonesub-btn').innerText = t.phoneSubBtn;
-
-                document.getElementById('txt-installapps-title').innerText = t.installAppsTitle;
-                document.getElementById('txt-installapps-desc').innerText = t.installAppsDesc;
-                document.getElementById('txt-installapps-btn').innerText = t.installAppsBtn;
-
-                document.getElementById('txt-registersites-title').innerText = t.registerSitesTitle;
-                document.getElementById('txt-registersites-desc').innerText = t.registerSitesDesc;
-                document.getElementById('txt-registersites-btn').innerText = t.registerSitesBtn;
-
-                document.getElementById('txt-wallet-title').innerText = t.walletTitle;
-                document.getElementById('wallet-desc').innerText = t.walletDesc;
-                document.getElementById('trx-input').placeholder = t.walletPlaceholder;
-                document.getElementById('txt-withdraw-title').innerText = t.withdrawTitle;
-                document.getElementById('txt-wallet-label').innerText = t.walletLabel;
-                document.getElementById('txt-withdraw-btn').innerText = t.withdrawBtn;
-                document.getElementById('txt-watch-title').innerText = t.watchTitle;
-                document.getElementById('txt-watch-desc').innerText = t.watchDesc;
-                document.getElementById('txt-watch-btn').innerText = t.watchBtn;
-
-                document.getElementById('txt-terms-title').innerText = t.termsTitle;
-                document.getElementById('txt-terms-content').innerHTML = t.termsContent;
-
-                document.getElementById('nav-txt-home').innerText = t.home;
-                document.getElementById('nav-txt-ref').innerText = t.ref;
-                document.getElementById('nav-txt-phonesub').innerText = t.phoneSub;
-                document.getElementById('nav-txt-installapps').innerText = t.installApps;
-                document.getElementById('nav-txt-registersites').innerText = t.registerSites;
-                document.getElementById('nav-txt-wallet').innerText = t.wallet;
-                document.getElementById('nav-txt-withdraw').innerText = t.withdraw;
-                document.getElementById('nav-txt-watch').innerText = t.watch;
-                document.getElementById('nav-txt-terms').innerText = t.terms;
-
-                document.getElementById('welcome').innerText = t.welcome + userName;
-                loadUserData();
-            }
-
-            let savedTrxAddress = "";
-
-            function loadUserData() {
-                let t = translations[currentLang] || translations['ar'];
-                let localAddress = localStorage.getItem('trx_address_' + userId) || "";
-
-                fetch('/api/user/' + userId)
-                    .then(res => res.json())
-                    .then(data => {
-                        document.getElementById('balance-val').innerText = "TRX " + data.balance.toFixed(2);
-                        document.getElementById('ref-count').innerText = data.active_referrals;
-                        document.getElementById('ref-link').value = data.ref_link;
-                        
-                        savedTrxAddress = data.trx_address || localAddress || "";
-                        let input = document.getElementById('trx-input');
-                        let btn = document.getElementById('wallet-btn');
-                        let desc = document.getElementById('wallet-desc');
-
-                        if (savedTrxAddress) {
-                            input.value = savedTrxAddress;
-                            input.readOnly = true;
-                            btn.innerText = t.changeBtn;
-                            desc.innerText = t.walletSavedDesc;
-                            document.getElementById('current-address').innerText = savedTrxAddress;
-                        } else {
-                            input.value = "";
-                            input.readOnly = false;
-                            btn.innerText = t.saveBtn;
-                            desc.innerText = t.walletDesc;
-                            document.getElementById('current-address').innerText = t.noAddress;
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error:", err);
-                        if (localAddress) {
-                            savedTrxAddress = localAddress;
-                            document.getElementById('trx-input').value = savedTrxAddress;
-                            document.getElementById('trx-input').readOnly = true;
-                            document.getElementById('current-address').innerText = savedTrxAddress;
-                        }
-                    });
-            }
-
-            function handleWalletAction() {
-                let t = translations[currentLang] || translations['ar'];
-                let input = document.getElementById('trx-input');
-                let btn = document.getElementById('wallet-btn');
-                let address = input.value.trim();
-
-                if (!address) {
-                    alert(t.alertAddressReq);
-                    return;
-                }
-
-                if (input.readOnly) {
-                    input.readOnly = false;
-                    input.focus();
-                    btn.innerText = t.saveChangeBtn;
-                } else {
-                    localStorage.setItem('trx_address_' + userId, address);
-
-                    fetch('/api/update_address', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({user_id: userId, address: address})
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        alert(currentLang === 'ar' ? "تم حفظ عنوان المحفظة بنجاح! 💾" : "Wallet address saved successfully! 💾");
-                        loadUserData();
-                    });
-                }
-            }
-
-            function switchTab(tabName, titleText, btnElement) {
-                document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.drawer-item').forEach(el => el.classList.remove('active'));
-                
-                document.getElementById('tab-' + tabName).classList.add('active');
-                btnElement.classList.add('active');
-                document.getElementById('page-title').innerText = titleText;
-                toggleDrawer();
-            }
-
-            function copyRefLink() {
-                let t = translations[currentLang] || translations['ar'];
-                var copyText = document.getElementById("ref-link");
-                copyText.select();
-                copyText.setSelectionRange(0, 99999);
-                navigator.clipboard.writeText(copyText.value);
-                alert(t.alertCopy);
-            }
-
-            function completeTask() {
-                let t = translations[currentLang] || translations['ar'];
-                fetch('/api/complete_offer', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    alert(t.alertOfferDone);
-                    loadUserData();
-                });
-            }
-
-            function requestWithdraw() {
-                let t = translations[currentLang] || translations['ar'];
-                fetch('/api/withdraw', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: userId})
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(t.alertWithdrawDone);
-                    } else {
-                        if (data.message.includes("address")) {
-                            alert(t.alertNoAddress);
-                        } else {
-                            alert(t.alertNoBalance);
-                        }
-                    }
-                    loadUserData();
-                });
-            }
-
-            document.getElementById('language-select').value = 'ar';
-            changeLanguage('ar');
-        </script>
-    </body>
-    </html>
-    """
-    return render_template_string(html_content)
-
-if __name__ == '__main__':
-    bot.remove_webhook()
-    webhook_url = f"{RENDER_URL}/{TOKEN}"
-    bot.set_webhook(url=webhook_url)
-    
-    port = int(os.environ.get('PORT', 10000))
-    server.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
