@@ -1,24 +1,10 @@
-import os
-import re
-import json
-import time
-import hmac
-import html
-import hashlib
-import sqlite3
-import threading
-import secrets
+import os, re, json, time, hmac, html, hashlib, sqlite3, threading, secrets
 from contextlib import contextmanager
 from functools import wraps
 from urllib.parse import parse_qsl
-
-import requests
-import telebot
+import requests, telebot
 from flask import Flask, request, jsonify, Response, g
 
-# ======================================================================
-# الإعدادات
-# ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
@@ -32,7 +18,6 @@ MICRO = 1_000_000
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 server = Flask(__name__)
-
 KINDS = ("phone", "app", "site", "ad")
 
 def load_offers():
@@ -40,26 +25,18 @@ def load_offers():
         raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
     except Exception:
         raw = []
-    if not isinstance(raw, list):
-        return {}
+    if not isinstance(raw, list): return {}
     offers = {}
     for o in raw:
-        if not isinstance(o, dict):
-            continue
-        try:
-            reward = float(o.get("reward", 0))
-        except (ValueError, TypeError):
-            continue
-        if (o.get("id") and o.get("kind") in KINDS
-                and str(o.get("url", "")).startswith("https://") and reward > 0):
+        if not isinstance(o, dict): continue
+        try: reward = float(o.get("reward", 0))
+        except (ValueError, TypeError): continue
+        if (o.get("id") and o.get("kind") in KINDS and str(o.get("url", "")).startswith("https://") and reward > 0):
             offers[str(o["id"])] = o
     return offers
 
 OFFERS = load_offers()
 
-# ======================================================================
-# قاعدة البيانات
-# ======================================================================
 @contextmanager
 def tx():
     conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
@@ -70,86 +47,38 @@ def tx():
         yield conn
         conn.execute("COMMIT")
     except Exception:
-        try:
-            conn.execute("ROLLBACK")
-        except Exception:
-            pass
+        try: conn.execute("ROLLBACK")
+        except Exception: pass
         raise
-    finally:
-        conn.close()
+    finally: conn.close()
 
 def init_db():
     d = os.path.dirname(DB_PATH)
-    if d:
-        os.makedirs(d, exist_ok=True)
+    if d: os.makedirs(d, exist_ok=True)
     schema = """
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            username TEXT DEFAULT '',
-            balance INTEGER NOT NULL DEFAULT 0,
-            referred_by INTEGER,
-            trx_address TEXT DEFAULT '',
-            first_offer_done INTEGER NOT NULL DEFAULT 0,
-            banned INTEGER NOT NULL DEFAULT 0,
-            ban_reason TEXT DEFAULT '',
-            created_at INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            txid TEXT UNIQUE NOT NULL,
-            user_id INTEGER NOT NULL,
-            kind TEXT NOT NULL,
-            offer_id TEXT DEFAULT '',
-            amount INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at INTEGER NOT NULL,
-            release_at INTEGER NOT NULL,
-            approved_at INTEGER
-        );
+        CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT DEFAULT '', balance INTEGER NOT NULL DEFAULT 0, referred_by INTEGER, trx_address TEXT DEFAULT '', first_offer_done INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT DEFAULT '', created_at INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, txid TEXT UNIQUE NOT NULL, user_id INTEGER NOT NULL, kind TEXT NOT NULL, offer_id TEXT DEFAULT '', amount INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, release_at INTEGER NOT NULL, approved_at INTEGER);
         CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status, release_at);
-        CREATE TABLE IF NOT EXISTS withdrawals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            amount INTEGER NOT NULL,
-            address TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            note TEXT DEFAULT '',
-            created_at INTEGER NOT NULL,
-            processed_at INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS ad_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            session_token TEXT UNIQUE NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at INTEGER NOT NULL
-        );
-        """
+        CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, address TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '', created_at INTEGER NOT NULL, processed_at INTEGER);
+        CREATE TABLE IF NOT EXISTS ad_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, session_token TEXT UNIQUE NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);
+    """
     with tx() as c:
         for stmt in schema.split(";"):
-            if stmt.strip():
-                c.execute(stmt)
+            if stmt.strip(): c.execute(stmt)
         cols = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
-        if "lang" not in cols:
-            c.execute("ALTER TABLE users ADD COLUMN lang TEXT DEFAULT ''")
+        if "lang" not in cols: c.execute("ALTER TABLE users ADD COLUMN lang TEXT DEFAULT ''")
 
 def ensure_user(conn, uid, username="", referrer=None):
     row = conn.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
-    if row:
-        return row
+    if row: return row
     if referrer:
         ok = referrer != uid and conn.execute("SELECT 1 FROM users WHERE user_id=?", (referrer,)).fetchone()
         referrer = referrer if ok else None
-    conn.execute(
-        "INSERT INTO users(user_id, username, referred_by, created_at) VALUES(?,?,?,?)",
-        (uid, username or "", referrer, int(time.time())),
-    )
+    conn.execute("INSERT INTO users(user_id, username, referred_by, created_at) VALUES(?,?,?,?)", (uid, username or "", referrer, int(time.time())))
     return conn.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
 
 def active_referrals(conn, uid):
-    return conn.execute(
-        "SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (uid,)
-    ).fetchone()[0]
+    return conn.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (uid,)).fetchone()[0]
 
 def ban_user(conn, uid, reason):
     conn.execute("UPDATE users SET banned=1, ban_reason=?, balance=0 WHERE user_id=?", (reason, uid))
@@ -159,9 +88,7 @@ def release_matured():
     now = int(time.time())
     unbanned_users = []
     with tx() as c:
-        rows = c.execute(
-            "SELECT * FROM transactions WHERE status='pending' AND kind!='referral' AND release_at<=?", (now,)
-        ).fetchall()
+        rows = c.execute("SELECT * FROM transactions WHERE status='pending' AND kind!='referral' AND release_at<=?", (now,)).fetchall()
         for t in rows:
             u = c.execute("SELECT * FROM users WHERE user_id=?", (t["user_id"],)).fetchone()
             if not u or u["banned"]:
@@ -169,70 +96,48 @@ def release_matured():
                 continue
             c.execute("UPDATE transactions SET status='approved', approved_at=? WHERE id=?", (now, t["id"]))
             c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (t["amount"], u["user_id"]))
-            if t["kind"] != "ad" and not u["first_offer_done"]:
-                c.execute("UPDATE users SET first_offer_done=1 WHERE user_id=?", (u["user_id"],))
-            
+            if t["kind"] != "ad" and not u["first_offer_done"]: c.execute("UPDATE users SET first_offer_done=1 WHERE user_id=?", (u["user_id"],))
             ref_id = u["referred_by"]
             if ref_id:
                 ref = c.execute("SELECT banned, ban_reason FROM users WHERE user_id=?", (ref_id,)).fetchone()
                 commission = int(t["amount"] * REF_PERCENT)
-                
                 if ref and ref["banned"] and ref["ban_reason"] == 'offer_reversed':
                     refs_count = c.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (ref_id,)).fetchone()[0]
                     if refs_count >= 5:
                         c.execute("UPDATE users SET banned=0, ban_reason='' WHERE user_id=?", (ref_id,))
                         unbanned_users.append(ref_id)
                 elif ref and not ref["banned"] and commission > 0:
-                    cur = c.execute(
-                        "INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) "
-                        "VALUES(?,?,?,?,?,'approved',?,?,?)",
-                        ("ref:" + t["txid"], ref_id, "referral", str(u["user_id"]), commission, now, now, now),
-                    )
-                    if cur.rowcount:
-                        c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (commission, ref_id))
-    
+                    cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", ("ref:" + t["txid"], ref_id, "referral", str(u["user_id"]), commission, now, now, now))
+                    if cur.rowcount: c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (commission, ref_id))
     for u_id in unbanned_users:
-        try:
-            bot.send_message(u_id, "🎉 تم فتح حسابك بنجاح لأنك أحضرت 5 إحالات مكتملة! يمكنك الآن استخدام التطبيق.")
-        except Exception:
-            pass
+        try: bot.send_message(u_id, "🎉 تم فتح حسابك بنجاح لأنك أحضرت 5 إحالات مكتملة!")
+        except Exception: pass
 
 def _release_loop():
     while True:
-        try:
-            release_matured()
-        except Exception as e:
-            print("release error:", e, flush=True)
+        try: release_matured()
+        except Exception as e: print("release error:", e, flush=True)
         time.sleep(300)
 
-# ======================================================================
-# التحقق من الهوية
-# ======================================================================
 def verify_init_data(init_data):
-    if not init_data:
-        return None
+    if not init_data: return None
     try:
         pairs = dict(parse_qsl(init_data, keep_blank_values=True))
         received = pairs.pop("hash", None)
-        if not received:
-            return None
+        if not received: return None
         check = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
         secret = hmac.new(b"WebAppData", TOKEN.encode(), hashlib.sha256).digest()
         calc = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(calc, received):
-            return None
-        if time.time() - int(pairs.get("auth_date", "0")) > 86400:
-            return None
+        if not hmac.compare_digest(calc, received): return None
+        if time.time() - int(pairs.get("auth_date", "0")) > 86400: return None
         return json.loads(pairs["user"])
-    except Exception:
-        return None
+    except Exception: return None
 
 def auth(fn):
     @wraps(fn)
     def wrapper(*a, **k):
         u = verify_init_data(request.headers.get("X-Init-Data", ""))
-        if not u or "id" not in u:
-            return jsonify(success=False, code="auth"), 401
+        if not u or "id" not in u: return jsonify(success=False, code="auth"), 401
         g.user = u
         return fn(*a, **k)
     return wrapper
@@ -243,80 +148,54 @@ def client_ip():
     return (xff.split(",")[0].strip() if xff else request.remote_addr) or ""
 
 def is_vpn(ip):
-    if not IPQS_KEY or not ip:
-        return False
+    if not IPQS_KEY or not ip: return False
     hit = _ip_cache.get(ip)
-    if hit and time.time() - hit[0] < 3600:
-        return hit[1]
+    if hit and time.time() - hit[0] < 3600: return hit[1]
     try:
-        r = requests.get(
-            f"https://www.ipqualityscore.com/api/json/ip/{IPQS_KEY}/{ip}", params={"strictness": 1}, timeout=5
-        ).json()
+        r = requests.get(f"https://www.ipqualityscore.com/api/json/ip/{IPQS_KEY}/{ip}", params={"strictness": 1}, timeout=5).json()
         bad = bool(r.get("vpn") or r.get("proxy") or r.get("tor") or r.get("active_vpn"))
         _ip_cache[ip] = (time.time(), bad)
         return bad
-    except Exception:
-        return False
+    except Exception: return False
 
 TRX_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
-_bot_username = None
-_bot_username_ts = 0.0
+_bot_username, _bot_username_ts = None, 0.0
 
 def bot_username():
     global _bot_username, _bot_username_ts
     now = time.time()
-    if _bot_username and now - _bot_username_ts < 3600:
-        return _bot_username
-    try:
-        got = bot.get_me().username
-        _bot_username = got or _bot_username or "TRXEarnBot"
-    except Exception:
-        _bot_username = _bot_username or "TRXEarnBot"
+    if _bot_username and now - _bot_username_ts < 3600: return _bot_username
+    try: _bot_username = bot.get_me().username or _bot_username or "TRXEarnBot"
+    except Exception: _bot_username = _bot_username or "TRXEarnBot"
     _bot_username_ts = now
     return _bot_username
 
-# ======================================================================
-# API
-# ======================================================================
 @server.route("/")
-def home():
-    return "TRX Bot is running 🚀"
+def home(): return "TRX Bot is running 🚀"
 
 @server.route("/api/me")
 @auth
 def api_me():
-    try:
-        release_matured()
-    except Exception:
-        pass
+    try: release_matured()
+    except Exception: pass
     uid = g.user["id"]
     with tx() as c:
         u = ensure_user(c, uid, g.user.get("username") or g.user.get("first_name", ""))
-        if u["banned"]:
-            return jsonify(success=False, code="banned", reason=u["ban_reason"]), 403
-        pending = c.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)
-        ).fetchone()[0]
+        if u["banned"]: return jsonify(success=False, code="banned", reason=u["ban_reason"]), 403
+        pending = c.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)).fetchone()[0]
         refs = active_referrals(c, uid)
-    return jsonify(
-        success=True, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO,
-        pending=pending / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}",
-        trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW,
-    )
+    return jsonify(success=True, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO, pending=pending / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}", trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW)
 
 @server.route("/api/offers")
 @auth
 def api_offers():
     kind = request.args.get("kind", "")
-    if kind not in KINDS:
-        return jsonify(success=False, code="err"), 400
+    if kind not in KINDS: return jsonify(success=False, code="err"), 400
     uid = g.user["id"]
     with tx() as c:
         u = ensure_user(c, uid, g.user.get("username") or "")
-        if u["banned"]:
-            return jsonify(success=False, code="banned"), 403
-    if is_vpn(client_ip()):
-        return jsonify(success=False, code="vpn"), 403
+        if u["banned"]: return jsonify(success=False, code="banned"), 403
+    if is_vpn(client_ip()): return jsonify(success=False, code="vpn"), 403
     out = [{"id": o["id"], "title": o.get("title", o["id"]), "reward": float(o["reward"]), "url": o["url"].replace("{user_id}", str(uid))} for o in OFFERS.values() if o["kind"] == kind]
     return jsonify(success=True, offers=out)
 
@@ -325,13 +204,11 @@ def api_offers():
 def api_address():
     data = request.get_json(silent=True) or {}
     address = str(data.get("address", "")).strip()
-    if not TRX_RE.match(address):
-        return jsonify(success=False, code="bad_address")
+    if not TRX_RE.match(address): return jsonify(success=False, code="bad_address")
     uid = g.user["id"]
     with tx() as c:
         u = ensure_user(c, uid, g.user.get("username") or "")
-        if u["banned"]:
-            return jsonify(success=False, code="banned"), 403
+        if u["banned"]: return jsonify(success=False, code="banned"), 403
         c.execute("UPDATE users SET trx_address=? WHERE user_id=?", (address, uid))
     return jsonify(success=True)
 
@@ -345,18 +222,15 @@ def api_withdraw():
         if not u["trx_address"]: return jsonify(success=False, code="no_address")
         if u["balance"] < MIN_WITHDRAW * MICRO: return jsonify(success=False, code="min_balance")
         if active_referrals(c, uid) < 1: return jsonify(success=False, code="need_referral")
-        if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone():
-            return jsonify(success=False, code="pending_exists")
+        if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone(): return jsonify(success=False, code="pending_exists")
         amount = u["balance"]
         c.execute("UPDATE users SET balance=0 WHERE user_id=?", (uid,))
         cur = c.execute("INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)", (uid, amount, u["trx_address"], int(time.time())))
         wid = cur.lastrowid
         address = u["trx_address"]
     if ADMIN_ID:
-        try:
-            bot.send_message(ADMIN_ID, f"💸 طلب سحب جديد #{wid}\nالمستخدم: {uid}\nالمبلغ: {amount / MICRO:.2f} TRX\nالمحفظة: {address}\n\n/paid {wid}  أو  /reject {wid}")
-        except Exception:
-            pass
+        try: bot.send_message(ADMIN_ID, f"💸 طلب سحب جديد #{wid}\nالمستخدم: {uid}\nالمبلغ: {amount / MICRO:.2f} TRX\nالمحفظة: {address}\n\n/paid {wid}  أو  /reject {wid}")
+        except Exception: pass
     return jsonify(success=True)
 
 def _check_secret():
@@ -370,10 +244,8 @@ def postback():
     if bad: return bad
     txid = request.args.get("txid", "").strip()
     offer = OFFERS.get(request.args.get("offer_id", ""))
-    try:
-        uid = int(request.args.get("user_id", ""))
-    except ValueError:
-        return Response("bad user", 400)
+    try: uid = int(request.args.get("user_id", ""))
+    except ValueError: return Response("bad user", 400)
     if not txid or not offer: return Response("bad request", 400)
     now = int(time.time())
     hold = 0 if offer["kind"] == "ad" else VERIFY_HOURS * 3600
@@ -391,7 +263,6 @@ def postback_reverse():
     bad = _check_secret()
     if bad: return bad
     txid = request.args.get("txid", "").strip()
-    uid = None
     with tx() as c:
         t = c.execute("SELECT * FROM transactions WHERE txid=? AND kind!='referral'", (txid,)).fetchone()
         if not t or t["status"] == "reversed": return Response("OK", 200)
@@ -403,13 +274,10 @@ def postback_reverse():
             c.execute("UPDATE users SET balance=MAX(balance-?,0) WHERE user_id=?", (r["amount"], r["user_id"]))
         ban_user(c, uid, "offer_reversed")
         lang = user_lang(c, uid)
-    try:
-        bot.send_message(uid, msg_for(lang, "reversed"))
-    except Exception:
-        pass
+    try: bot.send_message(uid, msg_for(lang, "reversed"))
+    except Exception: pass
     return Response("OK", 200)
 
-# ---------------- إعلانات Monetag ----------------
 @server.route("/api/ad/start", methods=["POST"])
 @auth
 def api_ad_start():
@@ -425,10 +293,9 @@ def api_ad_start():
 @auth
 def api_ad_complete():
     uid = g.user["id"]
-    data = request.get_json(silent=True) or {}
-    token = data.get("token")
+    token = (request.get_json(silent=True) or {}).get("token")
     if not token: return jsonify(success=False, code="err")
-    AD_REWARD = int(0.05 * MICRO)  # مكافأة الإعلان (0.05 TRX)
+    AD_REWARD = int(0.05 * MICRO)
     with tx() as c:
         sess = c.execute("SELECT * FROM ad_sessions WHERE session_token=? AND user_id=? AND status='pending'", (token, uid)).fetchone()
         if not sess: return jsonify(success=False, code="err")
@@ -438,32 +305,43 @@ def api_ad_complete():
         c.execute("UPDATE ad_sessions SET status='completed' WHERE id=?", (sess["id"],))
         c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (AD_REWARD, uid))
         now = int(time.time())
-        txid = f"ad_{token}"
-        c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (txid, uid, "ad", "monetag", AD_REWARD, now, now, now))
+        c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (f"ad_{token}", uid, "ad", "monetag", AD_REWARD, now, now, now))
     return jsonify(success=True, reward=AD_REWARD / MICRO)
 
-# ======================================================================
-# النصوص والترجمات
-# ======================================================================
-HEADS = {
-    "ar": ["🌍 عن البوت", "⚠️ تنبيه مهم جداً", "💰 حد السحب الأدنى", "🚫 المحظورات", "⏳ التحقق من الأرباح", "👥 نظام الإحالة", "💸 السحب"],
-    "en": ["🌍 About", "⚠️ Important warning", "💰 Minimum withdrawal", "🚫 Prohibited", "⏳ Earnings verification", "👥 Referrals", "💸 Withdrawals"],
-    "es": ["🌍 Sobre el bot", "⚠️ Aviso importante", "💰 Retiro mínimo", "🚫 Prohibido", "⏳ Verificación", "👥 Referidos", "💸 Retiros"],
-    "de": ["🌍 Über den Bot", "⚠️ Wichtige Warnung", "💰 Mindestauszahlung", "🚫 Verboten", "⏳ Verifizierung", "👥 Empfehlungen", "💸 Auszahlungen"],
-    "fr": ["🌍 À propos", "⚠️ Avertissement important", "💰 Retrait minimum", "🚫 Interdit", "⏳ Vérification", "👥 Parrainage", "💸 Retraits"],
-    "ru": ["🌍 О боте", "⚠️ Важное предупреждение", "💰 Минимум для вывода", "🚫 Запрещено", "⏳ Проверка начислений", "👥 Рефералы", "💸 Вывод"],
-    "pt": ["🌍 Sobre o bot", "⚠️ Aviso importante", "💰 Saque mínimo", "🚫 Proibido", "⏳ Verificação", "👥 Indicações", "💸 Saques"],
-    "nl": ["🌍 Over de bot", "⚠️ Belangrijke waarschuwing", "💰 Minimum opname", "🚫 Verboden", "⏳ Verificatie", "👥 Referrals", "💸 Opnames"],
-    "pl": ["🌍 O bocie", "⚠️ Ważne ostrzeżenie", "💰 Minimalna wypłata", "🚫 Zakazy", "⏳ Weryfikacja", "👥 Polecenia", "💸 Wypłaty"],
-}
+HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"], "es": ["🌍 Sobre", "⚠️ Aviso", "💰 Retiro", "🚫 Prohibido", "⏳ Verificar", "👥 Referidos", "💸 Retiros"], "de": ["🌍 Info", "⚠️ Warnung", "💰 Minimum", "🚫 Verboten", "⏳ Prüfen", "👥 Empfehlungen", "💸 Auszahlen"], "fr": ["🌍 À propos", "⚠️ Avis", "💰 Minimum", "🚫 Interdit", "⏳ Vérifier", "👥 Parrainage", "💸 Retraits"], "ru": ["🌍 О боте", "⚠️ Важно", "💰 Минимум", "🚫 Запрещено", "⏳ Проверка", "👥 Рефералы", "💸 Вывод"], "pt": ["🌍 Sobre", "⚠️ Aviso", "💰 Saque", "🚫 Proibido", "⏳ Verificar", "👥 Indicações", "💸 Saques"], "nl": ["🌍 Over", "⚠️ Waarschuwing", "💰 Minimum", "🚫 Verboden", "⏳ Verificatie", "👥 Referrals", "💸 Opnames"], "pl": ["🌍 Info", "⚠️ Ostrzeżenie", "💰 Minimum", "🚫 Zakazy", "⏳ Weryfikacja", "👥 Polecenia", "💸 Wypłaty"]}
 
 BODIES = {
-    "ar": ["البوت منصة لتحقيق الربح من:\n🎬 مشاهدة الإعلانات\n📱 عروض الاشتراك برقم الهاتف\n📝 عروض التسجيل\n📲 تثبيت التطبيقات", "لا تدفع أي مبلغ لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل. أي جهة تطلب مالاً باسم البوت فهي احتيال، وسيتم حظر أي مستخدم يطلب أموالاً من غيره.", "الحد الأدنى لسحب الأرباح هو {min} TRX.", "❌ استخدام VPN أو البروكسي\n❌ استخدام الواي فاي (المطلوب بيانات الجوال)\n❌ أكثر من حساب للشخص الواحد\n❌ بيانات وهمية أو أرقام غير حقيقية\n❌ التلاعب بالعروض أو برامج الغش", "لا يُضاف رصيد تثبيت التطبيقات أو التسجيل أو الاشتراك برقم الهاتف إلا بعد التحقق، وتستغرق من 24 إلى 72 ساعة (حالياً {h} ساعة). إذا ألغيت الاشتراك أو حذفت التطبيق أو ألغيت التسجيل فسيُلغى حسابك مباشرة مع أرباحه.", "تحصل على 3% من أرباح كل من تدعوه، مدى الحياة. لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً ناجحاً واحداً على الأقل (اشتراك/تسجيل/تثبيت).", "لا يمكن السحب إلا بعد أن تُحضر مستخدماً حقيقياً يُكمل أول عرض ناجح له، وبعد بلوغ الحد الأدنى. تراجع الإدارة كل طلب قبل الدفع، ويحق لها حظر أي حساب مخالف وإلغاء أرباحه."],
-    "en": ["A platform to earn from:\n🎬 Watching ads\n📱 Phone-number subscription offers\n📝 Registration offers\n📲 App installs", "Never pay any money to any platform, website or person while using the bot. All tasks are completely free. Anyone asking for money in the bot's name is a scammer, and users who ask others for money will be banned.", "The minimum withdrawal is {min} TRX.", "❌ VPN or proxy of any kind\n❌ Wi-Fi (mobile data is required)\n❌ More than one account per person\n❌ Fake data or unreal numbers\n❌ Cheating or manipulating offers", "Rewards for app installs, registrations and phone subscriptions are credited only after verification, which takes 24 to 72 hours (currently {h}h). If you cancel the subscription, uninstall the app or cancel the registration, your account and its earnings are cancelled immediately.", "Earn 3% of your referrals' earnings for life. A referral counts only after the invited user completes at least one successful offer (subscription/registration/install).", "You can withdraw only after bringing a real user who completes their first successful offer, and after reaching the minimum. Every request is reviewed before payment, and accounts that break the rules may be banned and their earnings cancelled."],
-    "es": ["Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps", "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.", "El retiro mínimo es de {min} TRX.", "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas", "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.", "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.", "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar."],
-    "de": ["Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen", "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.", "Die Mindestauszahlung beträgt {min} TRX.", "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug", "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.", "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.", "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft."],
-    "fr": ["Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps", "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.", "Le retrait minimum est de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche", "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.", "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.", "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement."],
-    "ru": ["Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений", "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.", "Минимальная сумма вывода — {min} TRX.", "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман", "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.", "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.", "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется."],
-    "pt": ["Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps", "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.", "O saque mínimo é de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças", "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.", "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.", "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento."],
-    "nl": ["Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties", "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.", "Minimum opname is {min} TRX.", "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen", "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.", "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.", "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld."],
-    "pl": ["Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji", "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.", "Minimalna wypłata to {min} TRX.", "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa", "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.", "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.", "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytk
+    "ar": ["الربح من:\n🎬 الإعلانات\n📱 الاشتراك\n📝 التسجيل\n📲 التطبيقات", "لا تدفع أي مبلغ. المهام مجانية. من يطلب مالاً سيتم حظره.", "الحد الأدنى للسحب: {min} TRX.", "❌ VPN\n❌ الواي فاي\n❌ حسابات متعددة\n❌ بيانات وهمية", "التحقق يستغرق {h} ساعة. إلغاء العرض = حظر الحساب.", "3% من أرباح الإحالات مدى الحياة. تُحسب بعد إكمال المدعو عرضاً.", "السحب يتطلب {min} TRX وإحالة حقيقية مكتملة."],
+    "en": ["Earn from:\n🎬 Ads\n📱 Subscriptions\n📝 Sign-ups\n📲 Apps", "Never pay money. Tasks are free. Scammers will be banned.", "Min withdrawal: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Fake data", "Verification takes {h}h. Cancelling = ban.", "3% for life. Counts after 1 offer.", "Requires {min} TRX and 1 real referral."],
+    "es": ["Gana con:\n🎬 Anuncios\n📱 Suscripciones\n📝 Registros\n📲 Apps", "No pagues dinero. Tareas gratis. Estafadores bloqueados.", "Retiro mínimo: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-cuentas\n❌ Datos falsos", "Verificación {h}h. Cancelar = bloqueo.", "3% de por vida. Cuenta tras 1 oferta.", "Requiere {min} TRX y 1 referido real."],
+    "de": ["Verdienen mit:\n🎬 Werbung\n📱 Abos\n📝 Registrierung\n📲 Apps", "Zahle niemals Geld. Aufgaben sind kostenlos. Betrüger werden gesperrt.", "Min Auszahlung: {min} TRX.", "❌ VPN\n❌ WLAN\n❌ Multi-Accounts\n❌ Fake-Daten", "Prüfung {h} Std. Kündigung = Sperre.", "3% lebenslang. Zählt nach 1 Angebot.", "Erfordert {min} TRX und 1 echte Empfehlung."],
+    "fr": ["Gagnez avec:\n🎬 Pubs\n📱 Abos\n📝 Inscriptions\n📲 Apps", "Ne payez jamais. Tout est gratuit. Les escrocs sont bannis.", "Retrait min : {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-comptes\n❌ Fausses données", "Vérification {h}h. Annuler = bannissement.", "3% à vie. Compte après 1 offre.", "Nécessite {min} TRX et 1 vrai filleul."],
+    "ru": ["Заработок на:\n🎬 Рекламе\n📱 Подписках\n📝 Регистрациях\n📲 Приложениях", "Никогда не платите. Все задания бесплатны. Мошенники блокируются.", "Мин вывод: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Мультиаккаунты\n❌ Фейки", "Проверка {h} ч. Отмена = блокировка.", "3% пожизненно. Считается после 1 задания.", "Требуется {min} TRX и 1 реальный реферал."],
+    "pt": ["Ganhe com:\n🎬 Anúncios\n📱 Assinaturas\n📝 Registros\n📲 Apps", "Nunca pague. Tudo é grátis. Golpistas são banidos.", "Saque mínimo: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Múltiplas contas\n❌ Dados falsos", "Verificação {h}h. Cancelar = banimento.", "3% vitalício. Conta após 1 oferta.", "Requer {min} TRX e 1 indicado real."],
+    "nl": ["Verdien met:\n🎬 Ads\n📱 Abonnementen\n📝 Registraties\n📲 Apps", "Betaal nooit. Alles is gratis. Oplichters worden geblokkeerd.", "Min opname: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Nepdata", "Verificatie {h} uur. Annuleren = blokkade.", "3% levenslang. Telt na 1 aanbieding.", "Vereist {min} TRX en 1 echte referral."],
+    "pl": ["Zarabiaj na:\n🎬 Reklamach\n📱 Subskrypcjach\n📝 Rejestracjach\n📲 Aplikacjach", "Nigdy nie płać. Zadania są darmowe. Oszuści są blokowani.", "Min wypłata: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Wiele kont\n❌ Fałszywe dane", "Weryfikacja {h} godz. Anulowanie = blokada.", "3% dożywotnio. Liczy się po 1 ofercie.", "Wymaga {min} TRX i 1 prawdziwego poleconego."]
+}
+
+TERMS_TITLE = {"ar": "📜 شروط وأحكام TRX Earn", "en": "📜 TRX Earn Terms", "es": "📜 Términos de TRX Earn", "de": "📜 AGB von TRX Earn", "fr": "📜 Conditions de TRX Earn", "ru": "📜 Условия TRX Earn", "pt": "📜 Termos do TRX Earn", "nl": "📜 Voorwaarden TRX Earn", "pl": "📜 Regulamin TRX Earn"}
+AGREE_BTN = {"ar": "أوافق وأفتح التطبيق 🚀", "en": "I Agree & Open 🚀", "es": "Aceptar y abrir 🚀", "de": "Zustimmen & öffnen 🚀", "fr": "Accepter et ouvrir 🚀", "ru": "Согласен, открыть 🚀", "pt": "Concordar e abrir 🚀", "nl": "Akkoord & openen 🚀", "pl": "Zgadzam się i otwórz 🚀"}
+LANGS = list(HEADS.keys())
+
+def terms_sections(lang):
+    lang = lang if lang in HEADS else "en"
+    bodies = [b.replace("{min}", str(MIN_WITHDRAW)).replace("{h}", str(VERIFY_HOURS)) for b in BODIES[lang]]
+    return [[h, b] for h, b in zip(HEADS[lang], bodies)]
+
+def terms_html(lang):
+    lang = lang if lang in HEADS else "en"
+    parts = [f"<b>{html.escape(TERMS_TITLE[lang])}</b>\n"]
+    for h, b in terms_sections(lang): parts.append(f"<b>{html.escape(h)}</b>\n{html.escape(b)}\n")
+    return "\n".join(parts)
+
+UI = {
+    "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone", "apps": "📲 Apps", "sites": "🌐 Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Ads", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Balance", "pend": "Pending", "minline": "Min: {n} TRX", "faqT": "❓ Rules & Info", "faqD": "💸 **Withdrawal:** Min {n} TRX and 1 real referral.\n👥 **Referrals:** Earn 3%.\n🚫 **Cancelling:** Account suspended. Unlock with 5 referrals.", "refT": "👥 Referrals (3%)", "refCnt": "Active", "refD": "Earn 3% for life.", "copy": "Copy Link 🔗", "copied": "Copied! 📋", "noOffers": "No offers.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after 24-72h.", "wDesc": "Enter TRX wallet:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved:", "noAddr": "No address", "wdBtn": "Withdraw 🚀", "wdInfo": "Min {n} TRX and 1 active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired.", "c_banned": "Banned.", "c_vpn": "VPN detected.", "c_bad_address": "Invalid address.", "c_ok_addr": "Saved 💾", "c_no_address": "Add address first.", "c_min_balance": "Below minimum.", "c_need_referral": "Need 1 real referral.", "c_pending_exists": "Pending withdrawal.", "c_ok_withdraw": "Submitted 🚀", "c_err": "Error."},
+    "ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الهاتف", "apps": "📲 التطبيقات", "sites": "🌐 المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الإعلانات", "terms": "📜 الشروط", "menu": "القائمة ⚙️", "welcome": "مرحباً", "bal": "الرصيد", "pend": "قيد التحقق", "minline": "الأدنى: {n} TRX", "faqT": "❓ القواعد", "faqD": "💸 **السحب:** حد أدنى {n} TRX وإحالة حقيقية.\n👥 **الإحالة:** اربح 3%.\n🚫 **الإلغاء:** إيقاف الحساب. افتحه بـ 5 إحالات.", "refT": "👥 الإحالة (3%)", "refCnt": "نشط", "refD": "اربح 3% مدى الحياة.", "copy": "نسخ الرابط 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا عروض.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تضاف بعد 24-72 ساعة.", "wDesc": "أدخل محفظة TRX:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "المحفوظ:", "noAddr": "لا يوجد عنوان", "wdBtn": "طلب السحب 🚀", "wdInfo": "حد أدنى {n} TRX وإحالة نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة.", "c_banned": "محظور.", "c_vpn": "VPN مكتشف.", "c_bad_address": "عنوان خاطئ.", "c_ok_addr": "تم الحفظ 💾", "c_no_address": "أضف عنواناً أولاً.", "c_min_balance": "أقل من الحد الأدنى.", "c_need_referral": "تحتاج إحالة حقيقية.", "c_pending_exists": "لديك طلب سحب.", "c_ok_withdraw": "تم التقديم 🚀", "c_err": "خطأ."}
+}
+UI["es"], UI["de"], UI["fr"], UI["ru"], UI["pt"], UI["nl"], UI["pl"] = [UI["en"]] * 7
+LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français", "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
+MSG = {"ar": {"banned_start": "🚫 محظور.", "reversed": "🚫 تم إيقاف حسابك. افتحه بـ 5 إحالات.", "paid": "✅ دفع {amt} TRX.\n{note}", "rejected": "❌ رفض #{id}.\n{note}"}, "en": {"banned_start": "🚫 Banned.", "reversed": "🚫 Suspended. Unlock with 5 referrals.", "paid": "✅ {amt} TRX sent.\n{note}", "rejected": "❌ #{id} rejected.\n{note}"}}
+MSG["es"], MSG["de"], MSG["fr"], MSG["ru"], MSG["pt"], MSG["nl"], MSG
