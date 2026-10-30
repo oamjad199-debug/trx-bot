@@ -5,6 +5,7 @@ import time
 import hmac
 import html
 import hashlib
+import secrets
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -33,6 +34,16 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 server = Flask(__name__)
 
 KINDS = ("phone", "app", "site", "ad")
+
+# إعلانات Monetag: مرحلتان (الأولى فيديو 50 مشاهدة، الثانية سريع 100 مشاهدة). كل القيم قابلة للتغيير من متغيرات البيئة
+MONETAG_ZONE = "".join(ch for ch in os.environ.get("MONETAG_ZONE", "12130531") if ch.isdigit()) or "12130531"
+MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
+AD_STAGES = [
+    {"fmt": "interstitial", "views": int(os.environ.get("AD_STAGE1_VIEWS", "50")), "reward": float(os.environ.get("AD_REWARD_INTERSTITIAL", "0.0005")), "min": 5},
+    {"fmt": "pop", "views": int(os.environ.get("AD_STAGE2_VIEWS", "100")), "reward": float(os.environ.get("AD_REWARD_POP", "0.0005")), "min": 2},
+]
+AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "30"))   # الفاصل بين مشاهدة وأخرى
+AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # القفل بعد إنهاء المرحلتين
 
 def load_offers():
     try:
@@ -115,6 +126,21 @@ def init_db():
             note TEXT DEFAULT '',
             created_at INTEGER NOT NULL,
             processed_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS ad_sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            fmt TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS ad_progress (
+            user_id INTEGER PRIMARY KEY,
+            stage INTEGER NOT NULL DEFAULT 0,
+            views INTEGER NOT NULL DEFAULT 0,
+            earned INTEGER NOT NULL DEFAULT 0,
+            last_view INTEGER NOT NULL DEFAULT 0,
+            locked_until INTEGER NOT NULL DEFAULT 0
         );
         """
     with tx() as c:
@@ -310,7 +336,11 @@ def api_offers():
     if is_vpn(client_ip()):
         return jsonify(success=False, code="vpn"), 403
     out = [{"id": o["id"], "title": o.get("title", o["id"]), "reward": float(o["reward"]), "url": o["url"].replace("{user_id}", str(uid))} for o in OFFERS.values() if o["kind"] == kind]
-    return jsonify(success=True, offers=out)
+    resp = dict(success=True, offers=out)
+    if kind == "ad":
+        with tx() as c:
+            resp["ads"] = ad_info(ad_get(c, uid, int(time.time())), int(time.time()))
+    return jsonify(resp)
 
 @server.route("/api/address", methods=["POST"])
 @auth
@@ -350,6 +380,119 @@ def api_withdraw():
         except Exception:
             pass
     return jsonify(success=True)
+
+# ======================================================================
+# إعلانات Monetag: مراحل مشاهدة، الأرباح تتراكم ثم تُجمع بزر، وبعد آخر مرحلة قفل 24 ساعة
+# ======================================================================
+def ad_get(conn, uid, now):
+    """يرجع صف تقدم المستخدم (وينشئه إن لم يوجد) ويفك القفل تلقائياً بعد انتهاء المدة."""
+    r = conn.execute("SELECT * FROM ad_progress WHERE user_id=?", (uid,)).fetchone()
+    if not r:
+        conn.execute("INSERT INTO ad_progress(user_id) VALUES(?)", (uid,))
+        r = conn.execute("SELECT * FROM ad_progress WHERE user_id=?", (uid,)).fetchone()
+    if r["locked_until"] and now >= r["locked_until"]:
+        conn.execute("UPDATE ad_progress SET stage=0, views=0, earned=0, locked_until=0 WHERE user_id=?", (uid,))
+        r = conn.execute("SELECT * FROM ad_progress WHERE user_id=?", (uid,)).fetchone()
+    return r
+
+def ad_info(r, now):
+    st = AD_STAGES[r["stage"]]
+    lock_left = max(0, r["locked_until"] - now) if r["locked_until"] else 0
+    wait = max(0, AD_COOLDOWN - (now - r["last_view"])) if r["last_view"] else 0
+    return {
+        "stages": [{"id": s["fmt"], "target": s["views"]} for s in AD_STAGES],
+        "stage": r["stage"], "views": r["views"], "target": st["views"],
+        "earned": r["earned"] / MICRO, "ready": bool(r["views"] >= st["views"] and not lock_left),
+        "wait": wait, "lock_left": lock_left,
+    }
+
+@server.route("/api/ad/start", methods=["POST"])
+@auth
+def api_ad_start():
+    uid = g.user["id"]
+    if is_vpn(client_ip()):
+        return jsonify(success=False, code="vpn"), 403
+    now = int(time.time())
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        r = ad_get(c, uid, now)
+        info = ad_info(r, now)
+        if info["lock_left"] > 0:
+            return jsonify(success=False, code="ad_locked")
+        if info["ready"]:
+            return jsonify(success=False, code="ad_collect")
+        if info["wait"] > 0:
+            return jsonify(success=False, code="ad_cooldown", wait=info["wait"])
+        fmt = AD_STAGES[r["stage"]]["fmt"]
+        token = secrets.token_urlsafe(24)
+        c.execute("INSERT INTO ad_sessions(token,user_id,fmt,created_at) VALUES(?,?,?,?)", (token, uid, fmt, now))
+        c.execute("DELETE FROM ad_sessions WHERE created_at<?", (now - 86400,))
+    return jsonify(success=True, token=token, fmt=fmt)
+
+@server.route("/api/ad/complete", methods=["POST"])
+@auth
+def api_ad_complete():
+    token = str((request.get_json(silent=True) or {}).get("token", ""))
+    uid = g.user["id"]
+    now = int(time.time())
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        s = c.execute("SELECT * FROM ad_sessions WHERE token=? AND user_id=?", (token, uid)).fetchone()
+        if not s or s["used"] or now - s["created_at"] > 900:
+            return jsonify(success=False, code="ad_invalid")
+        r = ad_get(c, uid, now)
+        info = ad_info(r, now)
+        cfg = AD_STAGES[r["stage"]]
+        if s["fmt"] != cfg["fmt"]:
+            return jsonify(success=False, code="ad_invalid")
+        if now - s["created_at"] < cfg["min"]:
+            return jsonify(success=False, code="ad_early")
+        if info["lock_left"] > 0:
+            return jsonify(success=False, code="ad_locked")
+        if info["ready"]:
+            return jsonify(success=False, code="ad_collect")
+        if info["wait"] > 0:
+            return jsonify(success=False, code="ad_cooldown", wait=info["wait"])
+        c.execute("UPDATE ad_sessions SET used=1 WHERE token=?", (token,))
+        c.execute("UPDATE ad_progress SET views=views+1, earned=earned+?, last_view=? WHERE user_id=?",
+                  (int(cfg["reward"] * MICRO), now, uid))
+        r2 = ad_get(c, uid, now)
+        out = ad_info(r2, now)
+    return jsonify(success=True, ads=out)
+
+@server.route("/api/ad/collect", methods=["POST"])
+@auth
+def api_ad_collect():
+    uid = g.user["id"]
+    now = int(time.time())
+    with tx() as c:
+        u = ensure_user(c, uid, g.user.get("username") or "")
+        if u["banned"]:
+            return jsonify(success=False, code="banned"), 403
+        r = ad_get(c, uid, now)
+        info = ad_info(r, now)
+        if info["lock_left"] > 0:
+            return jsonify(success=False, code="ad_locked")
+        if not info["ready"]:
+            return jsonify(success=False, code="ad_notready")
+        amount = r["earned"]
+        if amount > 0:
+            c.execute(
+                "INSERT INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) "
+                "VALUES(?,?,?,?,?,'pending',?,?)",
+                ("adclaim:%d:%s" % (uid, secrets.token_hex(8)), uid, "ad", "monetag:stage%d" % (r["stage"] + 1), amount, now, now))
+        if r["stage"] + 1 < len(AD_STAGES):
+            c.execute("UPDATE ad_progress SET stage=?, views=0, earned=0 WHERE user_id=?", (r["stage"] + 1, uid))
+        else:
+            c.execute("UPDATE ad_progress SET stage=0, views=0, earned=0, locked_until=? WHERE user_id=?",
+                      (now + AD_LOCK_HOURS * 3600, uid))
+        out = ad_info(ad_get(c, uid, now), now)
+    release_matured()
+    return jsonify(success=True, reward=amount / MICRO, ads=out)
 
 def _check_secret():
     if not POSTBACK_SECRET: return Response("postback disabled", 503)
@@ -446,6 +589,20 @@ UI = {
     "pl": {"home": "🏠 Start", "ref": "👥 Polecenia", "phone": "📱 Subskrypcja telefoniczna", "apps": "📲 Instaluj aplikacje", "sites": "🌐 Rejestracja na stronach", "wallet": "💳 Portfel", "withdraw": "💸 Wypłata", "watch": "▶️ Oglądaj i zarabiaj", "terms": "📜 Regulamin", "menu": "Menu ⚙️", "welcome": "Witaj", "bal": "Aktualne saldo TRX", "pend": "Oczekuje na weryfikację", "minline": "Minimalna wypłata: {n} TRX", "faqT": "❓ Ważne zasady i instrukcje", "faqD": "💸 **Wypłata:** Możesz wypłacić po osiągnięciu minimum i przyprowadzeniu 1 prawdziwego ukończonego poleconego.\n👥 **Polecenia:** Zarabiaj 3% dożywotnio z zarobków swoich poleconych.\n🚫 **Anulowanie ofert:** Jeśli anulujesz subskrypcję lub usuniesz aplikację, Twoje konto zostanie zawieszone. Aby je odblokować, musisz przyprowadzić 5 ukończonych poleconych LUB ukończyć nową udaną ofertę.", "refT": "👥 System poleceń (3%)", "refCnt": "Aktywne polecenia", "refD": "Udostępnij swój link i zarabiaj dożywotnio 3% zarobków poleconych. Polecenie liczy się dopiero po jednej udanej ofercie.", "copy": "Kopiuj link polecający 🔗", "copied": "Skopiowano! 📋", "noOffers": "Brak dostępnych ofert.", "go": "Start ✅", "reward": "Nagroda", "pendNote": "Dodawane po weryfikacji (24–72 godz.). Anulowanie = blokada konta.", "wDesc": "Wpisz adres swojego portfela TRX (TRC20):", "save": "Zapisz 💾", "change": "Zmień 🔄", "wSaved": "Zapisany adres:", "noAddr": "Nie dodano jeszcze adresu", "wdBtn": "Złóż wniosek o wypłatę 🚀", "wdInfo": "Wypłacane jest całe saldo. Wymagane minimum {n} TRX i jeden prawdziwy aktywny polecony.", "lang": "🌐 Język", "loading": "Ładowanie…", "c_auth": "Sesja wygasła. Zamknij aplikację i otwórz ją ponownie przez bota.", "c_banned": "Twoje konto zostało zablokowane za naruszenie regulaminu.", "c_vpn": "Wykryto VPN/proxy. Wyłącz je i użyj danych mobilnych.", "c_bad_address": "Nieprawidłowy adres TRX.", "c_ok_addr": "Adres zapisany 💾", "c_no_address": "Najpierw dodaj adres portfela TRX.", "c_min_balance": "Twoje saldo jest niższe niż minimalna wypłata.", "c_need_referral": "Potrzebujesz jednego prawdziwego poleconego, który ukończył pierwszą udaną ofertę.", "c_pending_exists": "Masz już oczekującą wypłatę.", "c_ok_withdraw": "Wniosek o wypłatę wysłany 🚀", "c_err": "Coś poszło nie tak. Spróbuj ponownie."}
 }
 
+AD_UI = {
+    "en": {"adInterT": "Rewarded video ad", "adPopT": "Quick rewarded ad", "adWatch": "Watch ad", "adWait": "Next ad in {s}s", "adStepOf": "Stage {a} of {b}", "adProgress": "{v} / {t} views", "adEarned": "Accumulated earnings: {r} TRX", "adDoneHint": "Stage complete! Collect your balance to continue.", "adCollect": "Collect your balance", "adLockedT": "All stages completed", "adLockedD": "You can watch ads again in:", "c_ok_collect": "Added to your balance: +{r} TRX 🎉", "c_ad_cooldown": "Please wait a little before the next ad.", "c_ad_early": "The ad wasn't completed, so it was not counted.", "c_ad_invalid": "The ad session expired. Please try again.", "c_ad_fail": "The ad could not be shown right now. Try again later.", "c_ad_sdk": "Ads are not available right now. Reload the app and try again.", "c_ad_locked": "Ads are locked until the timer ends.", "c_ad_collect": "Collect your balance first to continue.", "c_ad_notready": "This stage is not complete yet."},
+    "ar": {"adInterT": "إعلان فيديو بمكافأة", "adPopT": "إعلان سريع بمكافأة", "adWatch": "شاهد الإعلان", "adWait": "الإعلان التالي بعد {s} ث", "adStepOf": "المرحلة {a} من {b}", "adProgress": "{v} / {t} مشاهدة", "adEarned": "الأرباح المتراكمة: {r} TRX", "adDoneHint": "اكتملت المرحلة! اجمع رصيدك للمتابعة.", "adCollect": "اجمع رصيدك", "adLockedT": "أنهيت جميع المراحل", "adLockedD": "ستتمكن من المشاهدة مجدداً خلال:", "c_ok_collect": "تمت إضافة {r} TRX إلى رصيدك 🎉", "c_ad_cooldown": "انتظر قليلاً قبل الإعلان التالي.", "c_ad_early": "لم يكتمل الإعلان، لذلك لم تُحسب المشاهدة.", "c_ad_invalid": "انتهت جلسة الإعلان. حاول مرة أخرى.", "c_ad_fail": "تعذّر عرض الإعلان الآن. حاول لاحقاً.", "c_ad_sdk": "الإعلانات غير متاحة حالياً. أعد فتح التطبيق وحاول مجدداً.", "c_ad_locked": "الإعلانات مقفلة حتى ينتهي العداد.", "c_ad_collect": "اجمع رصيدك أولاً للمتابعة.", "c_ad_notready": "المرحلة لم تكتمل بعد."},
+    "es": {"adInterT": "Anuncio en vídeo con recompensa", "adPopT": "Anuncio rápido con recompensa", "adWatch": "Ver anuncio", "adWait": "Próximo anuncio en {s} s", "adStepOf": "Etapa {a} de {b}", "adProgress": "{v} / {t} vistas", "adEarned": "Ganancias acumuladas: {r} TRX", "adDoneHint": "¡Etapa completada! Recoge tu saldo para continuar.", "adCollect": "Recoger saldo", "adLockedT": "Completaste todas las etapas", "adLockedD": "Podrás ver anuncios de nuevo en:", "c_ok_collect": "Añadido a tu saldo: +{r} TRX 🎉", "c_ad_cooldown": "Espera un poco antes del siguiente anuncio.", "c_ad_early": "El anuncio no se completó, por lo que no se contó.", "c_ad_invalid": "La sesión del anuncio expiró. Inténtalo de nuevo.", "c_ad_fail": "No se pudo mostrar el anuncio ahora. Inténtalo más tarde.", "c_ad_sdk": "Los anuncios no están disponibles ahora. Recarga la app e inténtalo de nuevo.", "c_ad_locked": "Los anuncios están bloqueados hasta que termine el temporizador.", "c_ad_collect": "Recoge tu saldo primero para continuar.", "c_ad_notready": "Esta etapa aún no está completa."},
+    "de": {"adInterT": "Video-Werbung mit Belohnung", "adPopT": "Kurzwerbung mit Belohnung", "adWatch": "Werbung ansehen", "adWait": "Nächste Werbung in {s} s", "adStepOf": "Stufe {a} von {b}", "adProgress": "{v} / {t} Aufrufe", "adEarned": "Gesammelte Einnahmen: {r} TRX", "adDoneHint": "Stufe abgeschlossen! Hole dir dein Guthaben, um fortzufahren.", "adCollect": "Guthaben einsammeln", "adLockedT": "Alle Stufen abgeschlossen", "adLockedD": "Du kannst wieder Werbung ansehen in:", "c_ok_collect": "Deinem Guthaben gutgeschrieben: +{r} TRX 🎉", "c_ad_cooldown": "Bitte warte kurz bis zur nächsten Werbung.", "c_ad_early": "Die Werbung wurde nicht abgeschlossen und deshalb nicht gezählt.", "c_ad_invalid": "Die Werbesitzung ist abgelaufen. Bitte versuche es erneut.", "c_ad_fail": "Die Werbung konnte gerade nicht angezeigt werden. Versuche es später erneut.", "c_ad_sdk": "Werbung ist derzeit nicht verfügbar. Lade die App neu und versuche es erneut.", "c_ad_locked": "Werbung ist gesperrt, bis der Timer abläuft.", "c_ad_collect": "Hole zuerst dein Guthaben, um fortzufahren.", "c_ad_notready": "Diese Stufe ist noch nicht abgeschlossen."},
+    "fr": {"adInterT": "Vidéo publicitaire récompensée", "adPopT": "Pub rapide récompensée", "adWatch": "Regarder la pub", "adWait": "Prochaine pub dans {s} s", "adStepOf": "Étape {a} sur {b}", "adProgress": "{v} / {t} vues", "adEarned": "Gains accumulés : {r} TRX", "adDoneHint": "Étape terminée ! Récupérez votre solde pour continuer.", "adCollect": "Récupérer mon solde", "adLockedT": "Toutes les étapes sont terminées", "adLockedD": "Vous pourrez revoir des pubs dans :", "c_ok_collect": "Ajouté à votre solde : +{r} TRX 🎉", "c_ad_cooldown": "Patientez un peu avant la prochaine pub.", "c_ad_early": "La pub n'a pas été terminée, elle n'est donc pas comptée.", "c_ad_invalid": "La session publicitaire a expiré. Réessayez.", "c_ad_fail": "La pub n'a pas pu s'afficher pour le moment. Réessayez plus tard.", "c_ad_sdk": "Les pubs ne sont pas disponibles pour le moment. Rechargez l'app et réessayez.", "c_ad_locked": "Les pubs sont verrouillées jusqu'à la fin du minuteur.", "c_ad_collect": "Récupérez d'abord votre solde pour continuer.", "c_ad_notready": "Cette étape n'est pas encore terminée."},
+    "ru": {"adInterT": "Видеореклама с наградой", "adPopT": "Быстрая реклама с наградой", "adWatch": "Смотреть рекламу", "adWait": "Следующая реклама через {s} с", "adStepOf": "Этап {a} из {b}", "adProgress": "{v} / {t} просмотров", "adEarned": "Накопленный заработок: {r} TRX", "adDoneHint": "Этап завершён! Заберите баланс, чтобы продолжить.", "adCollect": "Забрать баланс", "adLockedT": "Все этапы пройдены", "adLockedD": "Снова смотреть рекламу можно через:", "c_ok_collect": "Добавлено на баланс: +{r} TRX 🎉", "c_ad_cooldown": "Подождите немного перед следующей рекламой.", "c_ad_early": "Реклама не была досмотрена, поэтому просмотр не засчитан.", "c_ad_invalid": "Сессия рекламы истекла. Попробуйте ещё раз.", "c_ad_fail": "Не удалось показать рекламу. Попробуйте позже.", "c_ad_sdk": "Реклама сейчас недоступна. Перезапустите приложение и попробуйте снова.", "c_ad_locked": "Реклама заблокирована до конца таймера.", "c_ad_collect": "Сначала заберите баланс, чтобы продолжить.", "c_ad_notready": "Этот этап ещё не завершён."},
+    "pt": {"adInterT": "Anúncio em vídeo com recompensa", "adPopT": "Anúncio rápido com recompensa", "adWatch": "Assistir anúncio", "adWait": "Próximo anúncio em {s} s", "adStepOf": "Etapa {a} de {b}", "adProgress": "{v} / {t} visualizações", "adEarned": "Ganhos acumulados: {r} TRX", "adDoneHint": "Etapa concluída! Colete seu saldo para continuar.", "adCollect": "Coletar saldo", "adLockedT": "Todas as etapas concluídas", "adLockedD": "Você poderá assistir anúncios novamente em:", "c_ok_collect": "Adicionado ao seu saldo: +{r} TRX 🎉", "c_ad_cooldown": "Aguarde um pouco antes do próximo anúncio.", "c_ad_early": "O anúncio não foi concluído, então não foi contado.", "c_ad_invalid": "A sessão do anúncio expirou. Tente novamente.", "c_ad_fail": "Não foi possível exibir o anúncio agora. Tente mais tarde.", "c_ad_sdk": "Os anúncios não estão disponíveis agora. Recarregue o app e tente novamente.", "c_ad_locked": "Os anúncios estão bloqueados até o fim do cronômetro.", "c_ad_collect": "Colete seu saldo primeiro para continuar.", "c_ad_notready": "Esta etapa ainda não foi concluída."},
+    "nl": {"adInterT": "Videoadvertentie met beloning", "adPopT": "Snelle advertentie met beloning", "adWatch": "Advertentie bekijken", "adWait": "Volgende advertentie over {s} s", "adStepOf": "Fase {a} van {b}", "adProgress": "{v} / {t} weergaven", "adEarned": "Opgebouwde winst: {r} TRX", "adDoneHint": "Fase voltooid! Haal je saldo op om door te gaan.", "adCollect": "Saldo ophalen", "adLockedT": "Alle fases voltooid", "adLockedD": "Je kunt weer advertenties bekijken over:", "c_ok_collect": "Toegevoegd aan je saldo: +{r} TRX 🎉", "c_ad_cooldown": "Wacht even voor de volgende advertentie.", "c_ad_early": "De advertentie is niet voltooid en telt dus niet mee.", "c_ad_invalid": "De advertentiesessie is verlopen. Probeer het opnieuw.", "c_ad_fail": "De advertentie kon nu niet worden getoond. Probeer het later opnieuw.", "c_ad_sdk": "Advertenties zijn nu niet beschikbaar. Laad de app opnieuw en probeer het nog eens.", "c_ad_locked": "Advertenties zijn vergrendeld tot de timer afloopt.", "c_ad_collect": "Haal eerst je saldo op om door te gaan.", "c_ad_notready": "Deze fase is nog niet voltooid."},
+    "pl": {"adInterT": "Reklama wideo z nagrodą", "adPopT": "Szybka reklama z nagrodą", "adWatch": "Obejrzyj reklamę", "adWait": "Następna reklama za {s} s", "adStepOf": "Etap {a} z {b}", "adProgress": "{v} / {t} wyświetleń", "adEarned": "Zgromadzone zarobki: {r} TRX", "adDoneHint": "Etap ukończony! Odbierz saldo, aby kontynuować.", "adCollect": "Odbierz saldo", "adLockedT": "Wszystkie etapy ukończone", "adLockedD": "Reklamy będzie można obejrzeć ponownie za:", "c_ok_collect": "Dodano do salda: +{r} TRX 🎉", "c_ad_cooldown": "Poczekaj chwilę przed kolejną reklamą.", "c_ad_early": "Reklama nie została ukończona, więc nie została zaliczona.", "c_ad_invalid": "Sesja reklamy wygasła. Spróbuj ponownie.", "c_ad_fail": "Nie udało się teraz wyświetlić reklamy. Spróbuj później.", "c_ad_sdk": "Reklamy są obecnie niedostępne. Odśwież aplikację i spróbuj ponownie.", "c_ad_locked": "Reklamy są zablokowane do końca odliczania.", "c_ad_collect": "Najpierw odbierz saldo, aby kontynuować.", "c_ad_notready": "Ten etap nie został jeszcze ukończony."},
+}
+for _l, _d in AD_UI.items():
+    UI[_l].update(_d)
+
 LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français", "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
 
 MSG = {
@@ -491,6 +648,7 @@ WEBAPP_HTML = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
 <title>TRX Earn</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+__AD_SDK__
 <style>
  :root{--bg:#060608;--gold:#f5c542;--gold1:#fff1b8;--gold3:#c8921a;--goldsoft:#fde9a8;--text:#f6f1e4;--muted:#9a9384;--line:rgba(245,197,66,.22)}
  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
@@ -578,6 +736,18 @@ WEBAPP_HTML = r"""<!DOCTYPE html>
  @keyframes shine{0%,60%{left:-70%}100%{left:140%}}
  @keyframes drift{from{transform:translateY(0)}to{transform:translateY(-22px)}}
  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+ .adstage{padding:6px 4px 2px;text-align:center}
+ .adstage b{font-size:15px;color:var(--text)}
+ .adstep{font-size:11px;letter-spacing:1px;color:var(--muted);margin-bottom:5px}
+ .adearn{margin-top:12px;font-size:13px;color:var(--goldsoft)}
+ .adlock{text-align:center;padding:14px 6px 8px}
+ .adlock b{font-size:16px;color:var(--gold)}
+ .adlock-ic{display:grid;place-items:center;margin:0 auto 8px;color:var(--gold)}
+ .adlock-ic svg{width:38px;height:38px;filter:drop-shadow(0 0 8px rgba(245,197,66,.45))}
+ .adclock{margin-top:8px;font-size:36px;font-weight:800;letter-spacing:2px;direction:ltr;background:linear-gradient(180deg,#fff7cf,#f5c542 55%,#c8921a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 12px rgba(245,197,66,.35))}
+ .btn:disabled{opacity:.55;filter:grayscale(.3);cursor:default}
+ .btn.pulse{animation:pulseG 1.7s ease-in-out infinite}
+ @keyframes pulseG{0%,100%{box-shadow:0 6px 18px rgba(245,197,66,.28)}50%{box-shadow:0 6px 30px rgba(245,197,66,.65)}}
 </style>
 </head>
 <body>
@@ -608,7 +778,7 @@ WEBAPP_HTML = r"""<!DOCTYPE html>
 <div id="view"></div>
 <div id="bottom"></div>
 <script>
-const UI=__UI__, TERMS=__TERMS__, LANG_NAMES=__LANG_NAMES__;
+const UI=__UI__, TERMS=__TERMS__, LANG_NAMES=__LANG_NAMES__, AD_ZONE='__AD_ZONE__';
 const tg=window.Telegram.WebApp; tg.ready(); tg.expand();
 try{tg.setHeaderColor('#060608');tg.setBackgroundColor('#060608');}catch(e){}
 const INIT=tg.initData||"";
@@ -661,7 +831,7 @@ async function go(tab){
   if(OFFER_KINDS.includes(tab)){
     state.offers=null; state.offerErr=null; render();
     const d=await api('/api/offers?kind='+tab);
-    if(d.success) state.offers=d.offers; else {state.offers=[];state.offerErr=d.code;}
+    if(d.success){state.offers=d.offers;adApply(d.ads||null);} else {state.offers=[];state.offerErr=d.code;}
   }
   render();
 }
@@ -703,6 +873,88 @@ function buildBottom(){
     h('span',{class:'ni',innerHTML:ICONS.menu}),h('span',{},stripAll(T('menu')))));
 }
 
+let adBusy=false;
+const CLOCK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+const fm=n=>String(+Number(n).toFixed(6));
+const hms=s=>[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(n=>String(n).padStart(2,'0')).join(':');
+const secsLeft=base=>Math.max(0,Math.ceil(base-(Date.now()-(state.adsAt||Date.now()))/1000));
+function adApply(a){state.ads=a; state.adsAt=Date.now();}
+async function refreshAds(){
+  const o=await api('/api/offers?kind=ad');
+  if(o.success){state.offers=o.offers; adApply(o.ads||null);}
+  if(state.tab==='ad') render();
+}
+async function watchAd(btn){
+  if(adBusy) return;
+  const show=window['show_'+AD_ZONE];
+  if(typeof show!=='function'){msg(T('c_ad_sdk'));return;}
+  adBusy=true; btn.disabled=true;
+  try{
+    const s=await api('/api/ad/start',{});
+    if(!s.success){msg(codeMsg(s.code)); await refreshAds(); return;}
+    try{
+      if(s.fmt==='pop'){ await show('pop'); } else { await show(); }
+    }catch(e){msg(T('c_ad_fail'));return;}
+    const d=await api('/api/ad/complete',{token:s.token});
+    if(d.success){adApply(d.ads);} else {msg(codeMsg(d.code)); await refreshAds();}
+  }finally{
+    adBusy=false; if(state.tab==='ad') render();
+  }
+}
+async function collectAd(btn){
+  if(adBusy) return;
+  adBusy=true; btn.disabled=true;
+  try{
+    const d=await api('/api/ad/collect',{});
+    if(d.success){adApply(d.ads); msg(T('c_ok_collect').replace('{r}',fm(d.reward))); await loadMe();}
+    else {msg(codeMsg(d.code)); await refreshAds();}
+  }finally{
+    adBusy=false; if(state.tab==='ad') render();
+  }
+}
+function adCards(c){
+  const a=state.ads; if(!a) return;
+  if(a.lock_left>0){
+    c.append(h('div',{class:'adlock'},
+      h('div',{class:'adlock-ic',innerHTML:CLOCK_SVG}),
+      h('b',{},T('adLockedT')),
+      h('p',{class:'muted'},T('adLockedD')),
+      h('div',{class:'adclock',id:'adLock'},hms(secsLeft(a.lock_left)))));
+    return;
+  }
+  const names=[T('adInterT'),T('adPopT')];
+  const pct=Math.min(100,Math.round(a.views/a.target*100));
+  c.append(h('div',{class:'adstage'},
+    h('div',{class:'adstep'},T('adStepOf').replace('{a}',a.stage+1).replace('{b}',a.stages.length)),
+    h('b',{},names[a.stage]||''),
+    h('div',{class:'prog',style:'margin-top:12px'},h('i',{style:'width:'+pct+'%'})),
+    h('div',{class:'prog-txt'},h('span',{},T('adProgress').replace('{v}',a.views).replace('{t}',a.target)),h('b',{},pct+'%')),
+    h('div',{class:'adearn'},T('adEarned').replace('{r}',fm(a.earned)))));
+  if(a.ready){
+    c.append(h('p',{class:'muted'},T('adDoneHint')));
+    const cb=h('button',{class:'btn pulse',id:'adBtn'},T('adCollect'));
+    cb.onclick=()=>collectAd(cb); c.append(cb);
+  }else{
+    const w=a.wait>0?secsLeft(a.wait):0;
+    const wb=h('button',{class:'btn green',id:'adBtn'},w>0?T('adWait').replace('{s}',w):T('adWatch'));
+    wb.disabled=w>0; wb.onclick=()=>watchAd(wb); c.append(wb);
+  }
+}
+setInterval(()=>{
+  const a=state.ads; if(state.tab!=='ad'||!a||adBusy) return;
+  if(a.lock_left>0){
+    const l=secsLeft(a.lock_left), el=$('adLock');
+    if(el) el.textContent=hms(l);
+    if(l<=0) refreshAds();
+  }else if(a.wait>0&&!a.ready){
+    const btn=$('adBtn'); if(!btn) return;
+    const w=secsLeft(a.wait);
+    if(w>0){btn.disabled=true; btn.textContent=T('adWait').replace('{s}',w);}
+    else{btn.disabled=false; btn.textContent=T('adWatch'); a.wait=0;}
+  }
+},1000);
+
+
 const VIEWS={
  home(v){
   const m=state.me, pct=Math.min(100,Math.round(m.balance/m.min_withdraw*100));
@@ -739,11 +991,11 @@ const VIEWS={
   if(kind!=='ad') c.append(h('p',{class:'muted'},T('pendNote')));
   if(state.offers===null) c.append(h('p',{class:'muted'},T('loading')));
   else if(state.offerErr) c.append(h('p',{style:'color:#fda4af'},codeMsg(state.offerErr)));
-  else if(!state.offers.length) c.append(h('p',{class:'muted'},T('noOffers')));
-  else state.offers.forEach(o=>{
+  else if(!state.offers.length && !(kind==='ad'&&state.ads)) c.append(h('p',{class:'muted'},T('noOffers')));
+  else { if(kind==='ad') adCards(c); state.offers.forEach(o=>{
     c.append(h('div',{class:'offer'},h('div',{class:'oic',innerHTML:ICONS[kind]}),h('div',{class:'otx'},h('b',{},o.title),h('span',{class:'pill'},'+'+o.reward+' TRX')),
       h('button',{class:'btn green',onclick:()=>{ if(tg.openLink) tg.openLink(o.url); else window.open(o.url,'_blank'); }},T('go'))));
-  });
+  });}
   v.append(c);
  },
  wallet(v){
@@ -800,125 +1052,4 @@ render(); if(INIT){ api('/api/lang',{lang}); loadMe(); }
 def webapp():
     terms = {l: {"title": TERMS_TITLE[l], "sections": terms_sections(l)} for l in LANGS}
     page = (WEBAPP_HTML
-            .replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/"))
-            .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
-            .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False)))
-    resp = Response(page, mimetype="text/html")
-    resp.headers["Cache-Control"] = "no-store"
-    return resp
-
-# ======================================================================
-# بوت تيليجرام
-# ======================================================================
-@server.route("/" + TOKEN, methods=["POST"])
-def webhook():
-    try:
-        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
-        bot.process_new_updates([update])
-    except Exception as e:
-        print(f"Error processing update: {e}", flush=True)
-    return "OK", 200
-
-@bot.message_handler(commands=["start"])
-def start(message):
-    try:
-        uid = message.from_user.id
-        username = message.from_user.username or message.from_user.first_name or ""
-        referrer = None
-        parts = (message.text or "").split()
-        if len(parts) > 1 and parts[1].isdigit():
-            referrer = int(parts[1])
-        
-        with tx() as c:
-            u = ensure_user(c, uid, username, referrer)
-            saved_lang = u["lang"]
-            if saved_lang in HEADS:
-                lang = saved_lang
-            else:
-                lang = (message.from_user.language_code or "en")[:2].lower()
-                if lang not in HEADS:
-                    lang = "en"
-                c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, uid))
-                
-        if u["banned"]:
-            if u["ban_reason"] == 'offer_reversed':
-                msg = f"🚫 حسابك موقوف بسبب إلغاء عرض سابق.\n\nلفتح الحساب مرة أخرى، يجب عليك إحضار 5 إحالات مكتملة (أكملن عرضاً ناجحاً).\n\n🔗 رابط الإحالة الخاص بك:\nhttps://t.me/{bot_username()}?start={uid}"
-                bot.reply_to(message, msg)
-            else:
-                bot.reply_to(message, msg_for(lang, "banned_start"))
-            return
-            
-        markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton(
-            AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
-        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
-    except Exception as e:
-        print(f"Error in start handler: {e}", flush=True)
-
-def is_admin(m):
-    return ADMIN_ID and m.from_user.id == ADMIN_ID
-
-@bot.message_handler(commands=["withdrawals"])
-def cmd_withdrawals(m):
-    if not is_admin(m):
-        return
-    with tx() as c:
-        rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
-    if not rows:
-        bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅")
-        return
-    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
-
-@bot.message_handler(commands=["paid", "reject"])
-def cmd_process(m):
-    if not is_admin(m):
-        return
-    args = (m.text or "").split()
-    if len(args) < 2 or not args[1].isdigit():
-        bot.reply_to(m, "الاستخدام: /paid 12 [رقم العملية]  أو  /reject 12")
-        return
-    wid, paid = int(args[1]), args[0].startswith("/paid")
-    note = " ".join(args[2:])
-    with tx() as c:
-        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
-        if not w:
-            bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
-            return
-        lang = user_lang(c, w["user_id"])
-        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
-        if not paid:
-            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
-    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض وإرجاع الرصيد'} للطلب #{wid} ✅")
-    try:
-        if paid:
-            bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
-        else:
-            bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
-    except Exception:
-        pass
-
-@bot.message_handler(commands=["stats"])
-def cmd_stats(m):
-    if not is_admin(m):
-        return
-    with tx() as c:
-        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
-        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
-        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
-    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
-
-init_db()
-
-if os.environ.get("RUN_RELEASE_LOOP", "1") == "1":
-    threading.Thread(target=_release_loop, daemon=True).start()
-
-if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    except Exception as e:
-        print("set_webhook error:", e, flush=True)
-
-if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+            .replace("__UI__", json.dumps(UI, en
