@@ -21,415 +21,133 @@ from flask import Flask, request, jsonify, Response, g
 # ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
-WEBAPP_HTML = r"""<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#060608">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-<title>TRX Earn</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-__AD_SDK__
-<style>
- :root{--bg:#060608;--gold:#f5c542;--gold1:#fff1b8;--gold3:#c8921a;--goldsoft:#fde9a8;--text:#f6f1e4;--muted:#9a9384;--line:rgba(245,197,66,.22)}
- *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
- html,body{margin:0}
- body{font-family:'Cairo','Manrope',Tahoma,Arial,sans-serif;color:var(--text);padding:15px 15px 108px;min-height:100vh;background:radial-gradient(120% 60% at 50% -10%,rgba(245,197,66,.17),transparent 60%),radial-gradient(80% 50% at 100% 100%,rgba(200,146,26,.10),transparent 60%),var(--bg);background-attachment:fixed;overflow-x:hidden}
- body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.7;background-image:radial-gradient(1.6px 1.6px at 12% 22%,rgba(245,197,66,.7) 50%,transparent 52%),radial-gradient(1.2px 1.2px at 78% 14%,rgba(255,241,184,.6) 50%,transparent 52%),radial-gradient(1.8px 1.8px at 88% 58%,rgba(245,197,66,.55) 50%,transparent 52%),radial-gradient(1.2px 1.2px at 30% 72%,rgba(255,241,184,.5) 50%,transparent 52%),radial-gradient(1.5px 1.5px at 55% 40%,rgba(245,197,66,.45) 50%,transparent 52%),radial-gradient(1.2px 1.2px at 8% 90%,rgba(245,197,66,.5) 50%,transparent 52%);animation:drift 16s ease-in-out infinite alternate}
- .header,#welcome,#view{position:relative;z-index:1}
- .header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;margin:-15px -15px 12px;padding:12px 15px;background:rgba(6,6,8,.74);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
- .header h2{flex:1;margin:0;text-align:center;font-size:16px;font-weight:700;letter-spacing:.4px;background:linear-gradient(180deg,var(--gold1),var(--gold) 60%,var(--gold3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
- .menu-btn{width:36px;height:36px;border-radius:12px;border:1px solid var(--line);background:rgba(245,197,66,.07);color:var(--gold);font-size:19px;cursor:pointer;display:grid;place-items:center;}
- .logo{width:36px;height:36px;display:grid;place-items:center}
- .logo svg{width:30px;height:30px;filter:drop-shadow(0 0 8px rgba(245,197,66,.55))}
- #welcome{text-align:center;margin:0 0 4px}
- .muted{font-size:12px;color:var(--muted);line-height:1.7}
- .card{position:relative;margin:12px 0;padding:16px;border-radius:20px;text-align:center;border:1px solid transparent;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02)) padding-box,linear-gradient(#0d0b07,#0d0b07) padding-box,linear-gradient(135deg,rgba(255,226,130,.55),rgba(245,197,66,.07) 40%,rgba(245,197,66,.34)) border-box;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.5);animation:rise .45s ease both}
- .card h3{margin:0 0 8px;font-size:16px;color:var(--gold)}
- .big{font-size:36px;font-weight:800;margin:8px 0;direction:ltr;background:linear-gradient(180deg,#fff7cf,#f5c542 55%,#c8921a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 12px rgba(245,197,66,.35))}
- .hero{position:relative;overflow:hidden;margin:12px 0;padding:18px 18px 16px;border-radius:24px;text-align:start;border:1px solid transparent;background:linear-gradient(135deg,#221a08 0%,#0b0905 48%,#2b2009 100%) padding-box,linear-gradient(135deg,rgba(255,232,150,.95),rgba(245,197,66,.10) 38%,rgba(245,197,66,.6) 100%) border-box;box-shadow:0 18px 44px rgba(0,0,0,.65),0 0 0 1px rgba(245,197,66,.05),0 0 40px rgba(245,197,66,.10);animation:rise .5s ease both}
- .hero::before{content:"";position:absolute;top:-60%;left:-40%;width:45%;height:220%;transform:rotate(18deg);background:linear-gradient(90deg,transparent,rgba(255,241,184,.16),transparent);animation:sweep 6.5s ease-in-out infinite}
- .hero::after{content:"";position:absolute;width:190px;height:190px;right:-60px;top:-70px;border-radius:50%;background:radial-gradient(circle,rgba(245,197,66,.28),transparent 68%)}
- .hero>*{position:relative;z-index:1}
- .hero-top{display:flex;justify-content:space-between;align-items:center;direction:ltr}
- .chip{width:42px;height:31px;border-radius:7px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),linear-gradient(135deg,#fbe9a0,#b9861b);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 2px 8px rgba(0,0,0,.5)}
- .brand{font-size:11px;letter-spacing:3.5px;font-weight:800;color:var(--gold);opacity:.95}
- .hero-label{margin-top:16px;font-size:12px;color:#c9b98a;letter-spacing:.6px}
- .amt{display:flex;align-items:baseline;gap:8px;direction:ltr;margin:2px 0 12px}
- .amt .cur{font-size:15px;font-weight:800;color:var(--gold);letter-spacing:2px}
- .amt .amt-n{font-size:42px;font-weight:800;line-height:1.1;background:linear-gradient(180deg,#fffbe0,#f5c542 52%,#c8921a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 14px rgba(245,197,66,.4))}
- .prog{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;direction:ltr}
- .prog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#c8921a,#f5c542,#fff1b8);box-shadow:0 0 12px rgba(245,197,66,.6);transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
- .prog-txt{display:flex;justify-content:space-between;margin-top:7px;font-size:11px;color:#b7a77a}
- .prog-txt b{color:var(--gold)}
- .who{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(245,197,66,.14);font-size:13px;color:#e8dcb8}
- .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#1c1403;background:linear-gradient(135deg,#fff1b8,#c8921a);box-shadow:0 0 0 2px rgba(245,197,66,.25)}
- .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
- .tile{padding:13px;border-radius:18px;text-align:start;border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));animation:rise .55s ease both}
- .tile small{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
- .tile b{font-size:18px;color:var(--gold);direction:ltr;display:inline-block}
- .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
- .earn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;border-radius:20px;cursor:pointer;color:var(--text);font-family:inherit;border:1px solid var(--line);background:linear-gradient(160deg,rgba(245,197,66,.10),rgba(255,255,255,.02));transition:transform .15s,border-color .15s;animation:rise .6s ease both}
- .earn:active{transform:scale(.96);border-color:var(--gold)}
- .earn .ic{width:50px;height:50px;border-radius:16px;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,rgba(255,241,184,.28),rgba(245,197,66,.07));border:1px solid rgba(245,197,66,.4);box-shadow:0 0 18px rgba(245,197,66,.18);color:var(--gold)}
- .earn .ic svg{width:26px;height:26px}
- .earn .lb{font-size:12px;font-weight:700;line-height:1.35;text-align:center;color:var(--goldsoft)}
- .btn{position:relative;overflow:hidden;width:100%;margin-top:10px;padding:13px;border:none;border-radius:14px;cursor:pointer;font-family:inherit;font-size:15px;font-weight:800;color:#1c1403;text-shadow:0 1px 0 rgba(255,255,255,.35);background:linear-gradient(135deg,#fff1b8 0%,#f5c542 38%,#c8921a 72%,#f2c548 100%);box-shadow:0 6px 18px rgba(245,197,66,.28),inset 0 1px 0 rgba(255,255,255,.55);transition:transform .12s,filter .12s}
- .btn::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;transform:skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:shine 4.2s ease-in-out infinite}
- .btn:active{transform:scale(.97);filter:brightness(.93)}
- .btn.green{background:linear-gradient(135deg,#fff1b8 0%,#f5c542 38%,#c8921a 72%,#f2c548 100%)}
- .btn.red{color:#ffe9b0;text-shadow:none;background:linear-gradient(135deg,#9f1239,#e11d48 55%,#7f0f2e);box-shadow:0 6px 18px rgba(225,29,72,.35),inset 0 1px 0 rgba(255,255,255,.25)}
- input{width:100%;margin-top:8px;padding:12px;border-radius:14px;direction:ltr;text-align:center;outline:none;color:var(--goldsoft);font-family:inherit;border:1px solid var(--line);background:rgba(0,0,0,.45)}
- input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.16)}
- input[readonly]{opacity:.85}
- details.card{text-align:start}
- summary{cursor:pointer;font-size:15px;font-weight:700;color:var(--gold)}
- .pre{white-space:pre-line;text-align:start;font-size:13px;color:#e4dcc4;line-height:1.85;margin:4px 0 12px}
- h4{margin:14px 0 2px;padding-top:12px;text-align:start;font-size:14px;color:var(--gold);border-top:1px solid var(--line)}
- h4:first-of-type{border-top:none;padding-top:0}
- .offer{display:flex;align-items:center;gap:11px;margin-top:10px;padding:11px;border-radius:18px;text-align:start;border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(0,0,0,.25))}
- .oic{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,rgba(255,241,184,.28),rgba(245,197,66,.07));border:1px solid rgba(245,197,66,.4);color:var(--gold)}
- .oic svg{width:22px;height:22px}
- .otx{flex:1;min-width:0}
- .otx b{display:block;font-size:14px;color:var(--text);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
- .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:800;color:#1c1403;direction:ltr;background:linear-gradient(135deg,#fff1b8,#f5c542)}
- .offer .btn{flex:none;width:auto;margin:0;padding:10px 16px}
- .overlay{position:fixed;inset:0;z-index:1500;display:none;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.overlay.on{display:block}
- .drawer{position:fixed;top:0;inset-inline-end:-300px;z-index:1600;width:280px;height:100%;display:flex;flex-direction:column;padding:16px 12px;overflow-y:auto;transition:.32s cubic-bezier(.2,.8,.2,1);background:linear-gradient(180deg,#17130a,#060608);border-inline-start:1px solid var(--line)}
- .drawer.on{inset-inline-end:0}
- .dhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line);color:var(--gold);font-weight:800}
- .dhead button{background:none;border:none;color:#fb7185;font-size:22px;cursor:pointer}
- .item{width:100%;margin-bottom:7px;padding:12px;text-align:start;cursor:pointer;font-family:inherit;font-size:13px;color:#e4dcc4;border-radius:14px;border:1px solid rgba(245,197,66,.12);background:rgba(255,255,255,.03);display:flex;align-items:center;gap:10px;}
- .item.active{color:var(--gold);font-weight:800;border-color:var(--gold);background:linear-gradient(135deg,rgba(245,197,66,.22),rgba(245,197,66,.05))}
- .item svg{width:20px;height:20px;flex:none;}
- .item .nav-svg{color:var(--muted);display:flex;}
- .item.active .nav-svg{color:var(--gold);}
- select{width:100%;margin-top:6px;padding:9px;border-radius:12px;color:var(--goldsoft);font-family:inherit;border:1px solid var(--line);background:rgba(0,0,0,.5)}
- #bottom{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:900;height:66px;display:flex;align-items:center;justify-content:space-around;padding:0 6px;border-radius:24px;border:1px solid rgba(245,197,66,.3);background:rgba(16,13,7,.86);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 14px 34px rgba(0,0,0,.7),0 0 26px rgba(245,197,66,.08)}
- .nb{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;background:none;border:none;cursor:pointer;font-family:inherit;font-size:10px;color:var(--muted);transition:color .2s}
- .nb .ni{width:22px;height:22px;display:grid;place-items:center;transition:.2s}
- .nb .ni svg{width:100%;height:100%}
- .nb.on{color:var(--gold);font-weight:800}
- .nb.on .ni{transform:translateY(-2px) scale(1.12);filter:drop-shadow(0 0 8px rgba(245,197,66,.6))}
- .nb.on::before{content:"";position:absolute;top:-1px;width:24px;height:3px;border-radius:0 0 4px 4px;background:var(--gold);box-shadow:0 0 12px var(--gold)}
- @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
- @keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
- @keyframes shine{0%,60%{left:-70%}100%{left:140%}}
- @keyframes drift{from{transform:translateY(0)}to{transform:translateY(-22px)}}
- @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
- .adstage{padding:6px 4px 2px;text-align:center}
- .adstage b{font-size:15px;color:var(--text)}
- .adstep{font-size:11px;letter-spacing:1px;color:var(--muted);margin-bottom:5px}
- .adearn{margin-top:12px;font-size:13px;color:var(--goldsoft)}
- .adlock{text-align:center;padding:14px 6px 8px}
- .adlock b{font-size:16px;color:var(--gold)}
- .adlock-ic{display:grid;place-items:center;margin:0 auto 8px;color:var(--gold)}
- .adlock-ic svg{width:38px;height:38px;filter:drop-shadow(0 0 8px rgba(245,197,66,.45))}
- .adclock{margin-top:8px;font-size:36px;font-weight:800;letter-spacing:2px;direction:ltr;background:linear-gradient(180deg,#fff7cf,#f5c542 55%,#c8921a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 12px rgba(245,197,66,.35))}
- .btn:disabled{opacity:.55;filter:grayscale(.3);cursor:default}
- .btn.pulse{animation:pulseG 1.7s ease-in-out infinite}
- @keyframes pulseG{0%,100%{box-shadow:0 6px 18px rgba(245,197,66,.28)}50%{box-shadow:0 6px 30px rgba(245,197,66,.65)}}
-</style>
-</head>
-<body>
-<div class="header">
-  <button class="menu-btn" id="menu-open">☰</button>
-  <h2 id="title"></h2>
-  <span class="logo">
-    <svg viewBox="0 0 32 32" fill="none">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#fff1b8"/>
-          <stop offset=".55" stop-color="#f5c542"/>
-          <stop offset="1" stop-color="#b9861b"/>
-        </linearGradient>
-      </defs>
-      <circle cx="16" cy="16" r="14" stroke="url(#g)" stroke-width="2"/>
-      <path d="M16 6L24 16L16 26L8 16L16 6Z" fill="url(#g)"/>
-      <path d="M16 11L20 16L16 21L12 16L16 11Z" fill="#060608"/>
-    </svg>
-  </span>
-</div>
-<div class="overlay" id="overlay"></div>
-<div class="drawer" id="drawer">
-  <div class="dhead"><button id="menu-close">✕</button><span id="menu-title"></span></div>
-  <div id="nav"></div>
-</div>
-<p id="welcome" class="muted" style="text-align:center;margin:0"></p>
-<div id="view"></div>
-<div id="bottom"></div>
-<script>
-const UI=__UI__, TERMS=__TERMS__, LANG_NAMES=__LANG_NAMES__, AD_ZONE='__AD_ZONE__';
-const tg=window.Telegram.WebApp; tg.ready(); tg.expand();
-try{tg.setHeaderColor('#060608');tg.setBackgroundColor('#060608');}catch(e){}
-const INIT=tg.initData||"";
-const $=id=>document.getElementById(id);
-const NAVKEY={home:'home',ref:'ref',phone:'phone',app:'apps',site:'sites',ad:'watch',wallet:'wallet',withdraw:'withdraw',terms:'terms'};
-const OFFER_KINDS=['phone','app','site','ad'];
-
-const ICONS = {
-  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-  ref: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-  wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>',
-  withdraw: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
-  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>',
-  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>',
-  app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
-  site: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
-  ad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
-  terms: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-  lang: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
-};
-
-let lang=localStorage.getItem('lang')||((tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.language_code)||'ar').slice(0,2);
-if(!UI[lang]) lang='ar';
-let state={me:null,tab:'home',offers:null,offerErr:null,err:null,editing:false};
-
-const T=k=>(UI[lang]&&UI[lang][k])||UI.en[k]||k;
-function h(tag,attrs,...kids){const e=document.createElement(tag);
-  for(const k in (attrs||{})){const v=attrs[k];
-    if(k==='class') e.className=v; 
-    else if(k==='innerHTML') e.innerHTML=v;
-    else if(k in e) e[k]=v; else e.setAttribute(k,v);}
-  kids.flat().forEach(c=>{if(c==null)return; e.append(c.nodeType?c:document.createTextNode(String(c)));});
-  return e;}
-function msg(t){ if(tg.showAlert) tg.showAlert(t); else alert(t); }
-async function api(path,body){
-  const opt={headers:{'X-Init-Data':INIT,'Content-Type':'application/json'}};
-  if(body!==undefined){opt.method='POST';opt.body=JSON.stringify(body);}
-  try{const r=await fetch(path,opt);return await r.json();}catch(e){return{success:false,code:'err'};}
-}
-function codeMsg(code){return T('c_'+(code||'err'));}
-async function copyText(s){
-  try{await navigator.clipboard.writeText(s);}catch(e){const i=h('input',{value:s});document.body.append(i);i.select();document.execCommand('copy');i.remove();}
-  msg(T('copied'));
-}
-function card(...kids){return h('div',{class:'card'},...kids);}
-
-async function loadMe(){const d=await api('/api/me'); if(d.success){state.me=d;state.err=null;}else{state.err=d.code||'err';} render();}
-async function go(tab){
-  state.tab=tab; closeDrawer(); state.editing=false;
-  if(OFFER_KINDS.includes(tab)){
-    state.offers=null; state.offerErr=null; render();
-    const d=await api('/api/offers?kind='+tab);
-    if(d.success){state.offers=d.offers;adApply(d.ads||null);} else {state.offers=[];state.offerErr=d.code;}
-  }
-  render();
-}
-function openDrawer(){$('drawer').classList.add('on');$('overlay').classList.add('on');}
-function closeDrawer(){$('drawer').classList.remove('on');$('overlay').classList.remove('on');}
-$('menu-open').onclick=openDrawer; $('menu-close').onclick=closeDrawer; $('overlay').onclick=closeDrawer;
-
-function buildNav(){
-  const nav=$('nav'); nav.replaceChildren();
-  const drawerTabs = ['phone','app','site','ad','terms']; 
-  drawerTabs.forEach(tab=>{
-    const isActive = state.tab === tab;
-    nav.append(h('button',{class:'item'+(isActive?' active':''),onclick:()=>go(tab)},
-       h('span',{class:'nav-svg',innerHTML:ICONS[tab]}),
-       h('span',{},stripLead(T(NAVKEY[tab])))
-    ));
-  });
-  const langWrap = h('div',{style:'margin-top:20px;padding-top:15px;border-top:1px solid rgba(245,197,66,.15)'});
-  langWrap.append(h('div',{class:'muted',style:'display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700;color:var(--gold)'}, h('span',{innerHTML:ICONS.lang}), T('lang')));
-  const sel=h('select',{onchange:e=>{lang=e.target.value;localStorage.setItem('lang',lang);api('/api/lang',{lang});render();}},
-    Object.keys(LANG_NAMES).map(l=>h('option',{value:l,selected:l===lang},LANG_NAMES[l])));
-  langWrap.append(sel);
-  nav.append(langWrap);
-}
-
-const BOT=[['home'],['ref'],['wallet'],['withdraw']];
-const stripLead=s=>String(s).replace(/^[^\p{L}\p{N}]+/u,'').trim();
-const stripAll=s=>String(s).replace(/[^\p{L}\p{N}\s]+/gu,'').replace(/\s+/g,' ').trim();
-function countUp(el,to){
-  const t0=performance.now(), dur=1100;
-  (function step(t){const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3);
-    el.textContent=(to*e).toFixed(2); if(k<1) requestAnimationFrame(step);})(t0);
-}
-function buildBottom(){
-  const b=$('bottom'); b.replaceChildren();
-  BOT.forEach(([tab])=>b.append(h('button',{class:'nb'+(state.tab===tab?' on':''),onclick:()=>go(tab)},
-    h('span',{class:'ni',innerHTML:ICONS[tab]}),h('span',{},stripLead(T(NAVKEY[tab]))))));
-  b.append(h('button',{class:'nb'+(BOT.some(x=>x[0]===state.tab)?'':' on'),onclick:openDrawer},
-    h('span',{class:'ni',innerHTML:ICONS.menu}),h('span',{},stripAll(T('menu')))));
-}
-
-let adBusy=false;
-const CLOCK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-const fm=n=>String(+Number(n).toFixed(6));
-const hms=s=>[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(n=>String(n).padStart(2,'0')).join(':');
-const secsLeft=base=>Math.max(0,Math.ceil(base-(Date.now()-(state.adsAt||Date.now()))/1000));
-function adApply(a){state.ads=a; state.adsAt=Date.now();}
-async function refreshAds(){
-  const o=await api('/api/offers?kind=ad');
-  if(o.success){state.offers=o.offers; adApply(o.ads||null);}
-  if(state.tab==='ad') render();
-}
-async function watchAd(btn){
-  if(adBusy) return;
-  const show=window['show_'+AD_ZONE];
-  if(typeof show!=='function'){msg(T('c_ad_sdk'));return;}
-  adBusy=true; btn.disabled=true;
-  try{
-    const s=await api('/api/ad/start',{});
-    if(!s.success){msg(codeMsg(s.code)); await refreshAds(); return;}
-    try{
-      if(s.fmt==='pop'){ await show('pop'); } else { await show(); }
-    }catch(e){msg(T('c_ad_fail'));return;}
-    const d=await api('/api/ad/complete',{token:s.token});
-    if(d.success){adApply(d.ads);} else {msg(codeMsg(d.code)); await refreshAds();}
-  }finally{
-    adBusy=false; if(state.tab==='ad') render();
-  }
-}
-async function collectAd(btn){
-  if(adBusy) return;
-  adBusy=true; btn.disabled=true;
-  try{
-    const d=await api('/api/ad/collect',{});
-    if(d.success){adApply(d.ads); msg(T('c_ok_collect').replace('{r}',fm(d.reward))); await loadMe();}
-    else {msg(codeMsg(d.code)); await refreshAds();}
-  }finally{
-    adBusy=false; if(state.tab==='ad') render();
-  }
-}
-function adCards(c){
-  const a=state.ads; if(!a) return;
-  if(a.lock_left>0){
-    c.append(h('div',{class:'adlock'},
-      h('div',{class:'adlock-ic',innerHTML:CLOCK_SVG}),
-      h('b',{},T('adLockedT')),
-      h('p',{class:'muted'},T('adLockedD')),
-      h('div',{class:'adclock',id:'adLock'},hms(secsLeft(a.lock_left)))));
-    return;
-  }
-  const names=[T('adInterT'),T('adPopT')];
-  const pct=Math.min(100,Math.round(a.views/a.target*100));
-  c.append(h('div',{class:'adstage'},
-    h('div',{class:'adstep'},T('adStepOf').replace('{a}',a.stage+1).replace('{b}',a.stages.length)),
-    h('b',{},names[a.stage]||''),
-    h('div',{class:'prog',style:'margin-top:12px'},h('i',{style:'width:'+pct+'%'})),
-    h('div',{class:'prog-txt'},h('span',{},T('adProgress').replace('{v}',a.views).replace('{t}',a.target)),h('b',{},pct+'%')),
-    h('div',{class:'adearn'},T('adEarned').replace('{r}',fm(a.earned)))));
-  if(a.ready){
-    c.append(h('p',{class:'muted'},T('adDoneHint')));
-    const cb=h('button',{class:'btn pulse',id:'adBtn'},T('adCollect'));
-    cb.onclick=()=>collectAd(cb); c.append(cb);
-  }else{
-    const w=a.wait>0?secsLeft(a.wait):0;
-    const wb=h('button',{class:'btn green',id:'adBtn'},w>0?T('adWait').replace('{s}',w):T('adWatch'));
-    wb.disabled=w>0; wb.onclick=()=>watchAd(wb); c.append(wb);
-  }
-}
-setInterval(()=>{
-  const a=state.ads; if(state.tab!=='ad'||!a||adBusy) return;
-  if(a.lock_left>0){
-    const l=secsLeft(a.lock_left), el=$('adLock');
-    if(el) el.textContent=hms(l);
-    if(l<=0) refreshAds();
-  }else if(a.wait>0&&!a.ready){
-    const btn=$('adBtn'); if(!btn) return;
-    const w=secsLeft(a.wait);
-    if(w>0){btn.disabled=true; btn.textContent=T('adWait').replace('{s}',w);}
-    else{btn.disabled=false; btn.textContent=T('adWatch'); a.wait=0;}
-  }
-},1000);
-
-
-const VIEWS={
- home(v){
-  const m=state.me, pct=Math.min(100,Math.round(m.balance/m.min_withdraw*100));
-  const amt=h('span',{class:'amt-n'},m.balance.toFixed(2));
-  const initial=((m.name||'U').trim()[0]||'U').toUpperCase();
-  v.append(h('div',{class:'hero'},
-    h('div',{class:'hero-top'},h('div',{class:'chip'}),h('div',{class:'brand'},'TRX EARN')),
-    h('div',{class:'hero-label'},T('bal')),
-    h('div',{class:'amt'},h('span',{class:'cur'},'TRX'),amt),
-    h('div',{class:'prog'},h('i',{style:'width:'+pct+'%'})),
-    h('div',{class:'prog-txt'},h('span',{},T('minline').replace('{n}',m.min_withdraw)),h('b',{},pct+'%')),
-    h('div',{class:'who'},h('div',{class:'av'},initial),h('span',{},m.name||''))));
-  if(!state.counted){state.counted=true;countUp(amt,m.balance);}
-  v.append(h('div',{class:'tiles'},
-    h('div',{class:'tile'},h('small',{},T('pend')),h('b',{},'TRX '+m.pending.toFixed(2))),
-    h('div',{class:'tile'},h('small',{},T('refCnt')),h('b',{},m.active_referrals))));
-  const grid=h('div',{class:'grid2'});
-  ['phone','app','site','ad'].forEach(k=>grid.append(h('button',{class:'earn',onclick:()=>go(k)},
-    h('span',{class:'ic',innerHTML:ICONS[k]}),h('span',{class:'lb'},stripLead(T(NAVKEY[k]))))));
-  v.append(grid);
-  v.append(h('details',{class:'card',style:'margin-top:15px;padding:16px'},h('summary',{style:'font-size:14px;line-height:1.5;color:var(--gold);margin-bottom:10px'},T('faqT')),h('p',{class:'muted',style:'white-space:pre-line;font-size:12px;line-height:1.8;color:#e8dcb8;margin:0'},T('faqD'))));
- },
- ref(v){
-  const m=state.me;
-  v.append(card(h('h3',{},T('refT')),
-    h('p',{},T('refCnt')+': ',h('b',{style:'color:var(--gold)'},m.active_referrals)),
-    h('p',{class:'muted'},T('refD')),
-    h('input',{value:m.ref_link,readOnly:true,onclick:e=>e.target.select()}),
-    h('button',{class:'btn',onclick:()=>copyText(m.ref_link)},T('copy'))));
- },
- offers(v,kind){
-  const titleKey=NAVKEY[kind];
-  const c=card(h('h3',{},T(titleKey)));
-  if(kind!=='ad') c.append(h('p',{class:'muted'},T('pendNote')));
-  if(state.offers===null) c.append(h('p',{class:'muted'},T('loading')));
-  else if(state.offerErr) c.append(h('p',{style:'color:#fda4af'},codeMsg(state.offerErr)));
-  else if(!state.offers.length && !(kind==='ad'&&state.ads)) c.append(h('p',{class:'muted'},T('noOffers')));
-  else { if(kind==='ad') adCards(c); state.offers.forEach(o=>{
-    c.append(h('div',{class:'offer'},h('div',{class:'oic',innerHTML:ICONS[kind]}),h('div',{class:'otx'},h('b',{},o.title),h('span',{class:'pill'},'+'+o.reward+' TRX')),
-      h('button',{class:'btn green',onclick:()=>{ if(tg.openLink) tg.openLink(o.url); else window.open(o.url,'_blank'); }},T('go'))));
-  });}
-  v.append(c);
- },
- wallet(v){
-  const m=state.me, has=!!m.trx_address;
-  const inp=h('input',{id:'addr',placeholder:'T...',value:m.trx_address,readOnly:has&&!state.editing});
-  const btn=h('button',{class:'btn',onclick:async()=>{
-    if(has&&!state.editing){state.editing=true;render();return;}
-    const d=await api('/api/address',{address:inp.value.trim()});
-    if(d.success){state.editing=false;msg(T('c_ok_addr'));await loadMe();} else msg(codeMsg(d.code));
-  }},(has&&!state.editing)?T('change'):T('save'));
-  v.append(card(h('h3',{},T('wallet')),h('p',{class:'muted'},has&&!state.editing?T('wSaved'):T('wDesc')),inp,btn));
- },
- withdraw(v){
-  const m=state.me;
-  v.append(card(h('h3',{},T('withdraw')),
-    h('div',{class:'big'},'TRX '+m.balance.toFixed(2)),
-    h('p',{class:'muted'},T('wSaved')),
-    h('p',{style:'color:var(--goldsoft);font-weight:bold;word-break:break-all;direction:ltr'},m.trx_address||T('noAddr')),
-    h('p',{class:'muted'},T('wdInfo').replace('{n}',m.min_withdraw)),
-    h('button',{class:'btn red',onclick:async()=>{
-      const d=await api('/api/withdraw',{});
-      msg(d.success?T('c_ok_withdraw'):codeMsg(d.code)); await loadMe();
-    }},T('wdBtn'))));
- },
- terms(v){
-  const t=TERMS[lang]||TERMS.en;
-  const c=card(h('h3',{},t.title));
-  t.sections.forEach(s=>{c.append(h('h4',{},s[0]),h('div',{class:'pre'},s[1]));});
-  c.style.textAlign='start'; v.append(c);
- }
-};
-
-function render(){
-  document.documentElement.lang=lang; document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
-  $('title').textContent=T(NAVKEY[state.tab]); $('menu-title').textContent=T('menu'); buildNav(); buildBottom();
-  const v=$('view'); v.replaceChildren();
-  if(state.err){
-    const errorMsg = state.err === 'banned' && UI[lang].c_banned_reversed ? UI[lang].c_banned_reversed : codeMsg(state.err);
-    v.append(card(h('p',{},errorMsg))); 
-    return;
-  }
-  if(!state.me){v.append(h('p',{class:'muted',style:'text-align:center'},T('loading'))); return;}
-  $('welcome').textContent=T('welcome')+(state.me.name?': '+state.me.name:'');
-  if(OFFER_KINDS.includes(state.tab)) VIEWS.offers(v,state.tab); else VIEWS[state.tab](v);
-}
-if(!INIT){state.err='auth';}
-render(); if(INIT){ api('/api/lang',{lang}); loadMe(); }
-</script>
-</body>
-</html>
+import zlib, base64
+# الواجهة مضغوطة لتبقى ضمن حد اللصق (100 ألف حرف). لا تعدّلها يدوياً.
+_WEBAPP_Z = """
+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
 """
+WEBAPP_HTML = zlib.decompress(base64.b64decode("".join(_WEBAPP_Z.split()))).decode("utf-8")
 
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()   # رابط PostgreSQL الخارجي: يحفظ البيانات بعد كل نشر
@@ -1199,4 +917,171 @@ AD_UI = {
     "ru": {"adInterT": "Видеореклама с наградой", "adPopT": "Быстрая реклама с наградой", "adWatch": "Смотреть рекламу", "adWait": "Следующая реклама через {s} с", "adStepOf": "Этап {a} из {b}", "adProgress": "{v} / {t} просмотров", "adEarned": "Накопленный заработок: {r} TRX", "adDoneHint": "Этап завершён! Заберите баланс, чтобы продолжить.", "adCollect": "Забрать баланс", "adLockedT": "Все этапы пройдены", "adLockedD": "Снова смотреть рекламу можно через:", "c_ok_collect": "Добавлено на баланс: +{r} TRX 🎉", "c_ad_cooldown": "Подождите немного перед следующей рекламой.", "c_ad_early": "Реклама не была досмотрена, поэтому просмотр не засчитан.", "c_ad_invalid": "Сессия рекламы истекла. Попробуйте ещё раз.", "c_ad_fail": "Не удалось показать рекламу. Попробуйте позже.", "c_ad_sdk": "Реклама сейчас недоступна. Перезапустите приложение и попробуйте снова.", "c_ad_locked": "Реклама заблокирована до конца таймера.", "c_ad_collect": "Сначала заберите баланс, чтобы продолжить.", "c_ad_notready": "Этот этап ещё не завершён."},
     "pt": {"adInterT": "Anúncio em vídeo com recompensa", "adPopT": "Anúncio rápido com recompensa", "adWatch": "Assistir anúncio", "adWait": "Próximo anúncio em {s} s", "adStepOf": "Etapa {a} de {b}", "adProgress": "{v} / {t} visualizações", "adEarned": "Ganhos acumulados: {r} TRX", "adDoneHint": "Etapa concluída! Colete seu saldo para continuar.", "adCollect": "Coletar saldo", "adLockedT": "Todas as etapas concluídas", "adLockedD": "Você poderá assistir anúncios novamente em:", "c_ok_collect": "Adicionado ao seu saldo: +{r} TRX 🎉", "c_ad_cooldown": "Aguarde um pouco antes do próximo anúncio.", "c_ad_early": "O anúncio não foi concluído, então não foi contado.", "c_ad_invalid": "A sessão do anúncio expirou. Tente novamente.", "c_ad_fail": "Não foi possível exibir o anúncio agora. Tente mais tarde.", "c_ad_sdk": "Os anúncios não estão disponíveis agora. Recarregue o app e tente novamente.", "c_ad_locked": "Os anúncios estão bloqueados até o fim do cronômetro.", "c_ad_collect": "Colete seu saldo primeiro para continuar.", "c_ad_notready": "Esta etapa ainda não foi concluída."},
     "nl": {"adInterT": "Videoadvertentie met beloning", "adPopT": "Snelle advertentie met beloning", "adWatch": "Advertentie bekijken", "adWait": "Volgende advertentie over {s} s", "adStepOf": "Fase {a} van {b}", "adProgress": "{v} / {t} weergaven", "adEarned": "Opgebouwde winst: {r} TRX", "adDoneHint": "Fase voltooid! Haal je saldo op om door te gaan.", "adCollect": "Saldo ophalen", "adLockedT": "Alle fases voltooid", "adLockedD": "Je kunt weer advertenties bekijken over:", "c_ok_collect": "Toegevoegd aan je saldo: +{r} TRX 🎉", "c_ad_cooldown": "Wacht even voor de volgende advertentie.", "c_ad_early": "De advertentie is niet voltooid en telt dus niet mee.", "c_ad_invalid": "De advertentiesessie is verlopen. Probeer het opnieuw.", "c_ad_fail": "De advertentie kon nu niet worden getoond. Probeer het later opnieuw.", "c_ad_sdk": "Advertenties zijn nu niet beschikbaar. Laad de app opnieuw en probeer het nog eens.", "c_ad_locked": "Advertenties zijn vergrendeld tot de timer afloopt.", "c_ad_collect": "Haal eerst je saldo op om door te gaan.", "c_ad_notready": "Deze fase is nog niet voltooid."},
-    "pl": {"adInterT": "Reklama wideo z nagrodą", "adPopT":
+    "pl": {"adInterT": "Reklama wideo z nagrodą", "adPopT": "Szybka reklama z nagrodą", "adWatch": "Obejrzyj reklamę", "adWait": "Następna reklama za {s} s", "adStepOf": "Etap {a} z {b}", "adProgress": "{v} / {t} wyświetleń", "adEarned": "Zgromadzone zarobki: {r} TRX", "adDoneHint": "Etap ukończony! Odbierz saldo, aby kontynuować.", "adCollect": "Odbierz saldo", "adLockedT": "Wszystkie etapy ukończone", "adLockedD": "Reklamy będzie można obejrzeć ponownie za:", "c_ok_collect": "Dodano do salda: +{r} TRX 🎉", "c_ad_cooldown": "Poczekaj chwilę przed kolejną reklamą.", "c_ad_early": "Reklama nie została ukończona, więc nie została zaliczona.", "c_ad_invalid": "Sesja reklamy wygasła. Spróbuj ponownie.", "c_ad_fail": "Nie udało się teraz wyświetlić reklamy. Spróbuj później.", "c_ad_sdk": "Reklamy są obecnie niedostępne. Odśwież aplikację i spróbuj ponownie.", "c_ad_locked": "Reklamy są zablokowane do końca odliczania.", "c_ad_collect": "Najpierw odbierz saldo, aby kontynuować.", "c_ad_notready": "Ten etap nie został jeszcze ukończony."},
+}
+for _l, _d in AD_UI.items():
+    UI[_l].update(_d)
+
+LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français", "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
+
+MSG = {
+    "ar": {"banned_start": "🚫 تم حظر حسابك.", "reversed": "🚫 تم إيقاف حسابك لأنك ألغيت اشتراكاً أو عرضاً. لفتح الحساب، يجب أن تجلب 5 إحالات مكتملة.", "paid": "✅ تم دفع {amt} TRX إلى محفظتك.\n{note}", "rejected": "❌ تم رفض طلب السحب #{id} وأُعيد الرصيد لحسابك.\n{note}"},
+    "en": {"banned_start": "🚫 Your account has been banned.", "reversed": "🚫 Your account was suspended because you cancelled an offer. To unlock it, you must bring 5 completed referrals.", "paid": "✅ {amt} TRX has been sent to your wallet.\n{note}", "rejected": "❌ Withdrawal request #{id} was rejected and the balance was returned to your account.\n{note}"},
+    "es": {"banned_start": "🚫 Tu cuenta ha sido bloqueada.", "reversed": "🚫 Tu cuenta fue suspendida porque cancelaste una oferta. Para desbloquearla, debes traer 5 referidos completados.", "paid": "✅ Se enviaron {amt} TRX a tu billetera.\n{note}", "rejected": "❌ La solicitud de retiro #{id} fue rechazada y el saldo volvió a tu cuenta.\n{note}"},
+    "de": {"banned_start": "🚫 Dein Konto wurde gesperrt.", "reversed": "🚫 Dein Konto wurde gesperrt, weil du ein Angebot abgebrochen hast. Um es zu entsperren, musst du 5 abgeschlossene Empfehlungen bringen.", "paid": "✅ {amt} TRX wurden an deine Wallet gesendet.\n{note}", "rejected": "❌ Auszahlungsantrag #{id} wurde abgelehnt und das Guthaben wurde deinem Konto gutgeschrieben.\n{note}"},
+    "fr": {"banned_start": "🚫 Votre compte a été banni.", "reversed": "🚫 Votre compte a été suspendu car vous avez annulé une offre. Pour le débloquer, vous devez apporter 5 filleuls complétés.", "paid": "✅ {amt} TRX ont été envoyés à votre portefeuille.\n{note}", "rejected": "❌ La demande de retrait #{id} a été refusée et le solde a été restitué à votre compte.\n{note}"},
+    "ru": {"banned_start": "🚫 Ваш аккаунт заблокирован.", "reversed": "🚫 Ваш аккаунт заблокирован, потому что вы отменили предложение. Чтобы разблокировать его, вы должны привлечь 5 завершенных рефералов.", "paid": "✅ {amt} TRX отправлены на ваш кошелёк.\n{note}", "rejected": "❌ Заявка на вывод #{id} отклонена, баланс возвращён на ваш аккаунт.\n{note}"},
+    "pt": {"banned_start": "🚫 Sua conta foi banida.", "reversed": "🚫 Sua conta foi suspensa porque você cancelou uma oferta. Para desbloquear, você deve trazer 5 indicados concluídos.", "paid": "✅ {amt} TRX foram enviados para sua carteira.\n{note}", "rejected": "❌ O pedido de saque #{id} foi recusado e o saldo voltou para sua conta.\n{note}"},
+    "nl": {"banned_start": "🚫 Je account is geblokkeerd.", "reversed": "🚫 Je account is geblokkeerd omdat je een aanbieding hebt geannuleerd. Om het te deblokkeren, moet je 5 voltooide referrals aanbrengen.", "paid": "✅ {amt} TRX is naar je wallet gestuurd.\n{note}", "rejected": "❌ Opnameverzoek #{id} is afgewezen en het saldo is teruggestort op je account.\n{note}"},
+    "pl": {"banned_start": "🚫 Twoje konto zostało zablokowane.", "reversed": "🚫 Twoje konto zostało zawieszone, ponieważ anulowałeś ofertę. Aby je odblokować, musisz przyprowadzić 5 ukończonych poleconych.", "paid": "✅ {amt} TRX zostało wysłane do Twojego portfela.\n{note}", "rejected": "❌ Wniosek o wypłatę #{id} został odrzucony, a saldo wróciło na Twoje konto.\n{note}"}
+}
+
+def user_lang(conn, uid):
+    r = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
+    l = (r["lang"] if r else "") or "en"
+    return l if l in MSG else "en"
+
+def msg_for(lang, key, **kw):
+    return MSG.get(lang, MSG["en"])[key].format(**kw)
+
+@server.route("/api/lang", methods=["POST"])
+@auth
+def api_lang():
+    lang = str((request.get_json(silent=True) or {}).get("lang", ""))[:2]
+    if lang in MSG:
+        with tx() as c:
+            ensure_user(c, g.user["id"], g.user.get("username") or "")
+            c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, g.user["id"]))
+    return jsonify(success=True)
+
+# ======================================================================
+# صفحة التطبيق المصغر (HTML)
+# ======================================================================
+@server.route("/webapp")
+def webapp():
+    terms = {l: {"title": TERMS_TITLE[l], "sections": terms_sections(l)} for l in LANGS}
+    page = (WEBAPP_HTML
+            .replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False))
+            .replace("__AD_ZONE__", MONETAG_ZONE)
+            .replace("__AD_SDK__", '<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE)))
+    resp = Response(page, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+# ======================================================================
+# بوت تيليجرام
+# ======================================================================
+@server.route("/" + TOKEN, methods=["POST"])
+def webhook():
+    try:
+        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Error processing update: {e}", flush=True)
+    return "OK", 200
+
+@bot.message_handler(commands=["start"])
+def start(message):
+    try:
+        uid = message.from_user.id
+        username = message.from_user.username or message.from_user.first_name or ""
+        referrer = None
+        parts = (message.text or "").split()
+        if len(parts) > 1 and parts[1].isdigit():
+            referrer = int(parts[1])
+        
+        with tx() as c:
+            u = ensure_user(c, uid, username, referrer)
+            saved_lang = u["lang"]
+            if saved_lang in HEADS:
+                lang = saved_lang
+            else:
+                lang = (message.from_user.language_code or "en")[:2].lower()
+                if lang not in HEADS:
+                    lang = "en"
+                c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, uid))
+                
+        if u["banned"]:
+            if u["ban_reason"] == 'offer_reversed':
+                msg = f"🚫 حسابك موقوف بسبب إلغاء عرض سابق.\n\nلفتح الحساب مرة أخرى، يجب عليك إحضار 5 إحالات مكتملة (أكملن عرضاً ناجحاً).\n\n🔗 رابط الإحالة الخاص بك:\nhttps://t.me/{bot_username()}?start={uid}"
+                bot.reply_to(message, msg)
+            else:
+                bot.reply_to(message, msg_for(lang, "banned_start"))
+            return
+            
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton(
+            AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
+        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
+    except Exception as e:
+        print(f"Error in start handler: {e}", flush=True)
+
+def is_admin(m):
+    return ADMIN_ID and m.from_user.id == ADMIN_ID
+
+@bot.message_handler(commands=["withdrawals"])
+def cmd_withdrawals(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
+    if not rows:
+        bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅")
+        return
+    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
+
+@bot.message_handler(commands=["paid", "reject"])
+def cmd_process(m):
+    if not is_admin(m):
+        return
+    args = (m.text or "").split()
+    if len(args) < 2 or not args[1].isdigit():
+        bot.reply_to(m, "الاستخدام: /paid 12 [رقم العملية]  أو  /reject 12")
+        return
+    wid, paid = int(args[1]), args[0].startswith("/paid")
+    note = " ".join(args[2:])
+    with tx() as c:
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w:
+            bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
+            return
+        lang = user_lang(c, w["user_id"])
+        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
+        if not paid:
+            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض وإرجاع الرصيد'} للطلب #{wid} ✅")
+    try:
+        if paid:
+            bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
+        else:
+            bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+    except Exception:
+        pass
+
+@bot.message_handler(commands=["stats"])
+def cmd_stats(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
+        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
+        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
+    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
+
+init_db()
+
+if os.environ.get("RUN_RELEASE_LOOP", "1") == "1":
+    threading.Thread(target=_release_loop, daemon=True).start()
+
+if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    except Exception as e:
+        print("set_webhook error:", e, flush=True)
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
