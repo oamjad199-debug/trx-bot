@@ -35,6 +35,7 @@ server = Flask(__name__)
 KINDS = ("phone", "app", "site", "ad")
 
 
+# ⬇️ إصلاح: معالجة الخطأ في تحويل reward داخل الحلقة (كان يمكن أن يُسقط التطبيق عند الإقلاع)
 def load_offers():
     """OFFERS_JSON مثال:
     [{"id":"app1","kind":"app","title":"Game X","reward":2.5,"url":"https://network.com/click?aff=1&sub={user_id}"}]
@@ -43,10 +44,18 @@ def load_offers():
         raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
     except Exception:
         raw = []
+    if not isinstance(raw, list):
+        return {}
     offers = {}
     for o in raw:
-        if (isinstance(o, dict) and o.get("id") and o.get("kind") in KINDS
-                and str(o.get("url", "")).startswith("https://") and float(o.get("reward", 0)) > 0):
+        if not isinstance(o, dict):
+            continue
+        try:
+            reward = float(o.get("reward", 0))
+        except (ValueError, TypeError):
+            continue
+        if (o.get("id") and o.get("kind") in KINDS
+                and str(o.get("url", "")).startswith("https://") and reward > 0):
             offers[str(o["id"])] = o
     return offers
 
@@ -56,13 +65,14 @@ OFFERS = load_offers()
 # ======================================================================
 # قاعدة البيانات
 # ======================================================================
+# ⬇️ إصلاح: PRAGMA الآن داخل try لضمان إغلاق الاتصال حتى لو فشل تنفيذها
 @contextmanager
 def tx():
     """اتصال مع معاملة (BEGIN IMMEDIATE) تمنع التعارض والسباق بين الطلبات."""
     conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     try:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("BEGIN IMMEDIATE")
         yield conn
         conn.execute("COMMIT")
@@ -255,16 +265,23 @@ def is_vpn(ip):
 
 
 TRX_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
+
+# ⬇️ إصلاح: تخزين النتيجة البديلة مؤقتاً لمنع تكرار محاولة get_me عند الفشل
 _bot_username = None
+_bot_username_ts = 0.0
 
 
 def bot_username():
-    global _bot_username
-    if not _bot_username:
-        try:
-            _bot_username = bot.get_me().username
-        except Exception:
-            return "TRXEarnBot"
+    global _bot_username, _bot_username_ts
+    now = time.time()
+    if _bot_username and now - _bot_username_ts < 3600:
+        return _bot_username
+    try:
+        got = bot.get_me().username
+        _bot_username = got or _bot_username or "TRXEarnBot"
+    except Exception:
+        _bot_username = _bot_username or "TRXEarnBot"
+    _bot_username_ts = now
     return _bot_username
 
 
@@ -813,9 +830,8 @@ LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "
               "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
 
 # ======================================================================
-# صفحة التطبيق المصغر
-# ======================================================================
 # رسائل البوت للمستخدم (خارج التطبيق المصغر) بلغته
+# ======================================================================
 MSG = {
     "ar": {"banned_start": "🚫 تم حظر حسابك.",
            "reversed": "🚫 تم إلغاء حسابك لأنك ألغيت اشتراكاً أو تطبيقاً أو تسجيلاً مخالفاً للشروط.",
@@ -877,6 +893,9 @@ def api_lang():
     return jsonify(success=True)
 
 
+# ======================================================================
+# صفحة التطبيق المصغر (HTML)
+# ======================================================================
 WEBAPP_HTML = r"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1253,7 +1272,10 @@ def cmd_stats(m):
 # التشغيل (يعمل مع gunicorn أيضاً)
 # ======================================================================
 init_db()
-threading.Thread(target=_release_loop, daemon=True).start()
+
+# ⬇️ حماية من تشغيل الحلقة في أكثر من worker عند استخدام gunicorn متعدد العمليات
+if os.environ.get("RUN_RELEASE_LOOP", "1") == "1":
+    threading.Thread(target=_release_loop, daemon=True).start()
 
 if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
     try:
