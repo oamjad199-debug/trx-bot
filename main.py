@@ -1,24 +1,10 @@
-import os
-import re
-import json
-import time
-import hmac
-import html
-import hashlib
-import sqlite3
-import threading
-import secrets
+import os, re, json, time, hmac, html, hashlib, sqlite3, threading, secrets
 from contextlib import contextmanager
 from functools import wraps
 from urllib.parse import parse_qsl
-
-import requests
-import telebot
+import requests, telebot
 from flask import Flask, request, jsonify, Response, g
 
-# ======================================================================
-# الإعدادات الأساسية
-# ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
@@ -35,25 +21,19 @@ server = Flask(__name__)
 KINDS = ("phone", "app", "site", "ad")
 
 def load_offers():
-    try:
-        raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
-    except Exception:
-        raw = []
+    try: raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
+    except Exception: raw = []
     if not isinstance(raw, list): return {}
     offers = {}
     for o in raw:
         if not isinstance(o, dict): continue
         try: reward = float(o.get("reward", 0))
         except (ValueError, TypeError): continue
-        if (o.get("id") and o.get("kind") in KINDS and str(o.get("url", "")).startswith("https://") and reward > 0):
-            offers[str(o["id"])] = o
+        if (o.get("id") and o.get("kind") in KINDS and str(o.get("url", "")).startswith("https://") and reward > 0): offers[str(o["id"])] = o
     return offers
 
 OFFERS = load_offers()
 
-# ======================================================================
-# قاعدة البيانات
-# ======================================================================
 @contextmanager
 def tx():
     conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
@@ -72,13 +52,7 @@ def tx():
 def init_db():
     d = os.path.dirname(DB_PATH)
     if d: os.makedirs(d, exist_ok=True)
-    schema = """
-        CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT DEFAULT '', balance INTEGER NOT NULL DEFAULT 0, referred_by INTEGER, trx_address TEXT DEFAULT '', first_offer_done INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT DEFAULT '', created_at INTEGER NOT NULL DEFAULT 0);
-        CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, txid TEXT UNIQUE NOT NULL, user_id INTEGER NOT NULL, kind TEXT NOT NULL, offer_id TEXT DEFAULT '', amount INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, release_at INTEGER NOT NULL, approved_at INTEGER);
-        CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status, release_at);
-        CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, address TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '', created_at INTEGER NOT NULL, processed_at INTEGER);
-        CREATE TABLE IF NOT EXISTS ad_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, session_token TEXT UNIQUE NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);
-    """
+    schema = """CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT DEFAULT '', balance INTEGER NOT NULL DEFAULT 0, referred_by INTEGER, trx_address TEXT DEFAULT '', first_offer_done INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT DEFAULT '', created_at INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, txid TEXT UNIQUE NOT NULL, user_id INTEGER NOT NULL, kind TEXT NOT NULL, offer_id TEXT DEFAULT '', amount INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, release_at INTEGER NOT NULL, approved_at INTEGER); CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status, release_at); CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, address TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '', created_at INTEGER NOT NULL, processed_at INTEGER); CREATE TABLE IF NOT EXISTS ad_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, session_token TEXT UNIQUE NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);"""
     with tx() as c:
         for stmt in schema.split(";"):
             if stmt.strip(): c.execute(stmt)
@@ -94,58 +68,51 @@ def ensure_user(conn, uid, username="", referrer=None):
     conn.execute("INSERT INTO users(user_id, username, referred_by, created_at) VALUES(?,?,?,?)", (uid, username or "", referrer, int(time.time())))
     return conn.execute("SELECT * FROM users WHERE user_id=?", (uid,)).fetchone()
 
-def active_referrals(conn, uid):
-    return conn.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (uid,)).fetchone()[0]
+def active_referrals(conn, uid): return conn.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (uid,)).fetchone()[0]
 
 def ban_user(conn, uid, reason):
     conn.execute("UPDATE users SET banned=1, ban_reason=?, balance=0 WHERE user_id=?", (reason, uid))
     conn.execute("UPDATE transactions SET status='reversed' WHERE user_id=? AND status='pending'", (uid,))
 
 def release_matured():
-    now = int(time.time())
-    unbanned_users = []
+    now, unbanned_users = int(time.time()), []
     with tx() as c:
         rows = c.execute("SELECT * FROM transactions WHERE status='pending' AND kind!='referral' AND release_at<=?", (now,)).fetchall()
         for t in rows:
             u = c.execute("SELECT * FROM users WHERE user_id=?", (t["user_id"],)).fetchone()
             if not u or u["banned"]:
-                c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
-                continue
+                c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],)); continue
             c.execute("UPDATE transactions SET status='approved', approved_at=? WHERE id=?", (now, t["id"]))
             c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (t["amount"], u["user_id"]))
             if t["kind"] != "ad" and not u["first_offer_done"]: c.execute("UPDATE users SET first_offer_done=1 WHERE user_id=?", (u["user_id"],))
-            ref_id = u["referred_by"]
-            if ref_id:
-                ref = c.execute("SELECT banned, ban_reason FROM users WHERE user_id=?", (ref_id,)).fetchone()
-                commission = int(t["amount"] * REF_PERCENT)
+            if u["referred_by"]:
+                ref = c.execute("SELECT banned, ban_reason FROM users WHERE user_id=?", (u["referred_by"],)).fetchone()
+                comm = int(t["amount"] * REF_PERCENT)
                 if ref and ref["banned"] and ref["ban_reason"] == 'offer_reversed':
-                    refs_count = c.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (ref_id,)).fetchone()[0]
-                    if refs_count >= 5:
-                        c.execute("UPDATE users SET banned=0, ban_reason='' WHERE user_id=?", (ref_id,))
-                        unbanned_users.append(ref_id)
-                elif ref and not ref["banned"] and commission > 0:
-                    cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", ("ref:" + t["txid"], ref_id, "referral", str(u["user_id"]), commission, now, now, now))
-                    if cur.rowcount: c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (commission, ref_id))
-    for u_id in unbanned_users:
-        try: bot.send_message(u_id, "🎉 تم فتح حسابك بنجاح لأنك أحضرت 5 إحالات مكتملة!")
+                    cnt = c.execute("SELECT COUNT(*) FROM users WHERE referred_by=? AND first_offer_done=1 AND banned=0", (u["referred_by"],)).fetchone()[0]
+                    if cnt >= 5:
+                        c.execute("UPDATE users SET banned=0, ban_reason='' WHERE user_id=?", (u["referred_by"],)); unbanned_users.append(u["referred_by"])
+                elif ref and not ref["banned"] and comm > 0:
+                    cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", ("ref:" + t["txid"], u["referred_by"], "referral", str(u["user_id"]), comm, now, now, now))
+                    if cur.rowcount: c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (comm, u["referred_by"]))
+    for uid in unbanned_users:
+        try: bot.send_message(uid, "🎉 Account unlocked! You brought 5 referrals.")
         except Exception: pass
 
 def _release_loop():
     while True:
         try: release_matured()
-        except Exception as e: print("release error:", e, flush=True)
+        except Exception: pass
         time.sleep(300)
 
 def verify_init_data(init_data):
     if not init_data: return None
     try:
-        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
-        received = pairs.pop("hash", None)
-        if not received: return None
-        check = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
-        secret = hmac.new(b"WebAppData", TOKEN.encode(), hashlib.sha256).digest()
-        calc = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(calc, received): return None
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True)); rec = pairs.pop("hash", None)
+        if not rec: return None
+        chk = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
+        sec = hmac.new(b"WebAppData", TOKEN.encode(), hashlib.sha256).digest()
+        if not hmac.compare_digest(hmac.new(sec, chk.encode(), hashlib.sha256).hexdigest(), rec): return None
         if time.time() - int(pairs.get("auth_date", "0")) > 86400: return None
         return json.loads(pairs["user"])
     except Exception: return None
@@ -155,8 +122,7 @@ def auth(fn):
     def wrapper(*a, **k):
         u = verify_init_data(request.headers.get("X-Init-Data", ""))
         if not u or "id" not in u: return jsonify(success=False, code="auth"), 401
-        g.user = u
-        return fn(*a, **k)
+        g.user = u; return fn(*a, **k)
     return wrapper
 
 _ip_cache = {}
@@ -171,25 +137,19 @@ def is_vpn(ip):
     try:
         r = requests.get(f"https://www.ipqualityscore.com/api/json/ip/{IPQS_KEY}/{ip}", params={"strictness": 1}, timeout=5).json()
         bad = bool(r.get("vpn") or r.get("proxy") or r.get("tor") or r.get("active_vpn"))
-        _ip_cache[ip] = (time.time(), bad)
-        return bad
+        _ip_cache[ip] = (time.time(), bad); return bad
     except Exception: return False
 
 TRX_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
 _bot_username, _bot_username_ts = None, 0.0
-
 def bot_username():
     global _bot_username, _bot_username_ts
     now = time.time()
     if _bot_username and now - _bot_username_ts < 3600: return _bot_username
     try: _bot_username = bot.get_me().username or _bot_username or "TRXEarnBot"
     except Exception: _bot_username = _bot_username or "TRXEarnBot"
-    _bot_username_ts = now
-    return _bot_username
+    _bot_username_ts = now; return _bot_username
 
-# ======================================================================
-# مسارات API
-# ======================================================================
 @server.route("/")
 def home(): return "TRX Bot is running 🚀"
 
@@ -202,34 +162,29 @@ def api_me():
     with tx() as c:
         u = ensure_user(c, uid, g.user.get("username") or g.user.get("first_name", ""))
         if u["banned"]: return jsonify(success=False, code="banned", reason=u["ban_reason"]), 403
-        pending = c.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)).fetchone()[0]
+        pend = c.execute("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)).fetchone()[0]
         refs = active_referrals(c, uid)
-    return jsonify(success=True, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO, pending=pending / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}", trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW)
+    return jsonify(success=True, name=g.user.get("first_name", ""), balance=u["balance"]/MICRO, pending=pend/MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}", trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW)
 
 @server.route("/api/offers")
 @auth
 def api_offers():
     kind = request.args.get("kind", "")
     if kind not in KINDS: return jsonify(success=False, code="err"), 400
-    uid = g.user["id"]
     with tx() as c:
-        u = ensure_user(c, uid, g.user.get("username") or "")
-        if u["banned"]: return jsonify(success=False, code="banned"), 403
+        if ensure_user(c, g.user["id"], g.user.get("username") or "")["banned"]: return jsonify(success=False, code="banned"), 403
     if is_vpn(client_ip()): return jsonify(success=False, code="vpn"), 403
-    out = [{"id": o["id"], "title": o.get("title", o["id"]), "reward": float(o["reward"]), "url": o["url"].replace("{user_id}", str(uid))} for o in OFFERS.values() if o["kind"] == kind]
+    out = [{"id": o["id"], "title": o.get("title", o["id"]), "reward": float(o["reward"]), "url": o["url"].replace("{user_id}", str(g.user["id"]))} for o in OFFERS.values() if o["kind"] == kind]
     return jsonify(success=True, offers=out)
 
 @server.route("/api/address", methods=["POST"])
 @auth
 def api_address():
-    data = request.get_json(silent=True) or {}
-    address = str(data.get("address", "")).strip()
-    if not TRX_RE.match(address): return jsonify(success=False, code="bad_address")
-    uid = g.user["id"]
+    addr = str((request.get_json(silent=True) or {}).get("address", "")).strip()
+    if not TRX_RE.match(addr): return jsonify(success=False, code="bad_address")
     with tx() as c:
-        u = ensure_user(c, uid, g.user.get("username") or "")
-        if u["banned"]: return jsonify(success=False, code="banned"), 403
-        c.execute("UPDATE users SET trx_address=? WHERE user_id=?", (address, uid))
+        if ensure_user(c, g.user["id"], g.user.get("username") or "")["banned"]: return jsonify(success=False, code="banned"), 403
+        c.execute("UPDATE users SET trx_address=? WHERE user_id=?", (addr, g.user["id"]))
     return jsonify(success=True)
 
 @server.route("/api/withdraw", methods=["POST"])
@@ -243,38 +198,32 @@ def api_withdraw():
         if u["balance"] < MIN_WITHDRAW * MICRO: return jsonify(success=False, code="min_balance")
         if active_referrals(c, uid) < 1: return jsonify(success=False, code="need_referral")
         if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone(): return jsonify(success=False, code="pending_exists")
-        amount = u["balance"]
-        c.execute("UPDATE users SET balance=0 WHERE user_id=?", (uid,))
-        cur = c.execute("INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)", (uid, amount, u["trx_address"], int(time.time())))
-        wid = cur.lastrowid
-        address = u["trx_address"]
+        amt = u["balance"]; c.execute("UPDATE users SET balance=0 WHERE user_id=?", (uid,))
+        wid = c.execute("INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)", (uid, amt, u["trx_address"], int(time.time()))).lastrowid
     if ADMIN_ID:
-        try: bot.send_message(ADMIN_ID, f"💸 طلب سحب جديد #{wid}\nالمستخدم: {uid}\nالمبلغ: {amount / MICRO:.2f} TRX\nالمحفظة: {address}\n\n/paid {wid}  أو  /reject {wid}")
+        try: bot.send_message(ADMIN_ID, f"💸 New Withdrawal #{wid}\nUser: {uid}\nAmt: {amt/MICRO:.2f} TRX\nAddr: {u['trx_address']}\n/paid {wid} أو /reject {wid}")
         except Exception: pass
     return jsonify(success=True)
 
 def _check_secret():
-    if not POSTBACK_SECRET: return Response("postback disabled", 503)
+    if not POSTBACK_SECRET: return Response("disabled", 503)
     if not hmac.compare_digest(request.args.get("secret", ""), POSTBACK_SECRET): return Response("forbidden", 403)
-    return None
 
 @server.route("/postback")
 def postback():
     bad = _check_secret()
     if bad: return bad
-    txid = request.args.get("txid", "").strip()
-    offer = OFFERS.get(request.args.get("offer_id", ""))
+    txid, off = request.args.get("txid", "").strip(), OFFERS.get(request.args.get("offer_id", ""))
     try: uid = int(request.args.get("user_id", ""))
-    except ValueError: return Response("bad user", 400)
-    if not txid or not offer: return Response("bad request", 400)
-    now = int(time.time())
-    hold = 0 if offer["kind"] == "ad" else VERIFY_HOURS * 3600
-    amount = int(float(offer["reward"]) * MICRO)
+    except ValueError: return Response("bad", 400)
+    if not txid or not off: return Response("bad", 400)
+    now, hold = int(time.time()), 0 if off["kind"] == "ad" else VERIFY_HOURS * 3600
+    amt = int(float(off["reward"]) * MICRO)
     with tx() as c:
         u = c.execute("SELECT banned FROM users WHERE user_id=?", (uid,)).fetchone()
         if not u or u["banned"]: return Response("ignored", 200)
-        cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) VALUES(?,?,?,?,?,'pending',?,?)", (txid, uid, offer["kind"], offer["id"], amount, now, now + hold))
-        if not cur.rowcount: return Response("duplicate", 200)
+        cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) VALUES(?,?,?,?,?,'pending',?,?)", (txid, uid, off["kind"], off["id"], amt, now, now+hold))
+        if not cur.rowcount: return Response("dup", 200)
     if hold == 0: release_matured()
     return Response("OK", 200)
 
@@ -282,84 +231,65 @@ def postback():
 def postback_reverse():
     bad = _check_secret()
     if bad: return bad
-    txid = request.args.get("txid", "").strip()
+    txid = request.args.get("txid", "").strip(); uid = None
     with tx() as c:
         t = c.execute("SELECT * FROM transactions WHERE txid=? AND kind!='referral'", (txid,)).fetchone()
         if not t or t["status"] == "reversed": return Response("OK", 200)
-        uid = t["user_id"]
-        c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
-        r = c.execute("SELECT * FROM transactions WHERE txid=? AND status='approved'", ("ref:" + txid,)).fetchone()
+        uid = t["user_id"]; c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
+        r = c.execute("SELECT * FROM transactions WHERE txid=? AND status='approved'", ("ref:"+txid,)).fetchone()
         if r:
             c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (r["id"],))
             c.execute("UPDATE users SET balance=MAX(balance-?,0) WHERE user_id=?", (r["amount"], r["user_id"]))
         ban_user(c, uid, "offer_reversed")
-        lang = user_lang(c, uid)
-    try: bot.send_message(uid, msg_for(lang, "reversed"))
+    try: bot.send_message(uid, "🚫 Account suspended. Bring 5 refs to unlock.")
     except Exception: pass
     return Response("OK", 200)
 
 @server.route("/api/ad/start", methods=["POST"])
 @auth
 def api_ad_start():
-    uid = g.user["id"]
-    token = secrets.token_hex(16)
+    tok = secrets.token_hex(16)
     with tx() as c:
-        u = c.execute("SELECT banned FROM users WHERE user_id=?", (uid,)).fetchone()
-        if u and u["banned"]: return jsonify(success=False, code="banned"), 403
-        c.execute("INSERT INTO ad_sessions(user_id, session_token, created_at) VALUES(?,?,?)", (uid, token, int(time.time())))
-    return jsonify(success=True, token=token)
+        if ensure_user(c, g.user["id"], g.user.get("username") or "")["banned"]: return jsonify(success=False, code="banned"), 403
+        c.execute("INSERT INTO ad_sessions(user_id, session_token, created_at) VALUES(?,?,?)", (g.user["id"], tok, int(time.time())))
+    return jsonify(success=True, token=tok)
 
 @server.route("/api/ad/complete", methods=["POST"])
 @auth
 def api_ad_complete():
-    uid = g.user["id"]
-    token = (request.get_json(silent=True) or {}).get("token")
-    if not token: return jsonify(success=False, code="err")
+    tok = (request.get_json(silent=True) or {}).get("token")
+    if not tok: return jsonify(success=False, code="err")
     AD_REWARD = int(0.05 * MICRO)
     with tx() as c:
-        sess = c.execute("SELECT * FROM ad_sessions WHERE session_token=? AND user_id=? AND status='pending'", (token, uid)).fetchone()
-        if not sess: return jsonify(success=False, code="err")
-        if time.time() - sess["created_at"] > 3600:
-            c.execute("UPDATE ad_sessions SET status='expired' WHERE id=?", (sess["id"],))
-            return jsonify(success=False, code="err")
+        sess = c.execute("SELECT * FROM ad_sessions WHERE session_token=? AND user_id=? AND status='pending'", (tok, g.user["id"])).fetchone()
+        if not sess or time.time() - sess["created_at"] > 3600: return jsonify(success=False, code="err")
         c.execute("UPDATE ad_sessions SET status='completed' WHERE id=?", (sess["id"],))
-        c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (AD_REWARD, uid))
-        now = int(time.time())
-        c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (f"ad_{token}", uid, "ad", "monetag", AD_REWARD, now, now, now))
-    return jsonify(success=True, reward=AD_REWARD / MICRO)HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"]}
-BODIES = {
-    "ar": ["الربح من:\n🎬 الإعلانات\n📱 الاشتراك\n📝 التسجيل\n📲 التطبيقات", "لا تدفع أي مبلغ. المهام مجانية. من يطلب مالاً سيتم حظره.", "الحد الأدنى للسحب: {min} TRX.", "❌ VPN\n❌ الواي فاي\n❌ حسابات متعددة\n❌ بيانات وهمية", "التحقق يستغرق {h} ساعة. إلغاء العرض = حظر الحساب.", "3% من أرباح الإحالات مدى الحياة.", "السحب يتطلب {min} TRX وإحالة حقيقية مكتملة."],
-    "en": ["Earn from:\n🎬 Ads\n📱 Subscriptions\n📝 Sign-ups\n📲 Apps", "Never pay money. Tasks are free. Scammers will be banned.", "Min withdrawal: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Fake data", "Verification takes {h}h. Cancelling = ban.", "3% for life.", "Requires {min} TRX and 1 real referral."]
-}
-TERMS_TITLE = {"ar": "📜 شروط وأحكام", "en": "📜 Terms & Conditions"}
+        c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (AD_REWARD, g.user["id"]))
+        c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (f"ad_{tok}", g.user["id"], "ad", "monetag", AD_REWARD, int(time.time()), int(time.time()), int(time.time())))
+    return jsonify(success=True, reward=AD_REWARD/MICRO)
+
+HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"]}
+BODIES = {"ar": ["الربح:\n🎬 إعلانات\n📱 اشتراك\n📝 تسجيل\n📲 تطبيقات", "لا تدفع. المهام مجانية. من يطلب مالاً سيحظر.", "الأدنى: {min} TRX.", "❌ VPN\n❌ واي فاي\n❌ حسابات متعددة", "التحقق {h} ساعة. الإلغاء = حظر.", "3% مدى الحياة.", "السحب يتطلب {min} TRX وإحالة."], "en": ["Earn:\n🎬 Ads\n📱 Subs\n📝 Sign-ups\n📲 Apps", "Never pay. Tasks are free. Scammers banned.", "Min: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts", "Verify {h}h. Cancel = ban.", "3% for life.", "Need {min} TRX and 1 ref."]}
+TERMS_TITLE = {"ar": "📜 الشروط", "en": "📜 Terms"}
 AGREE_BTN = {"ar": "أوافق وأفتح التطبيق 🚀", "en": "I Agree & Open 🚀"}
 LANGS = list(HEADS.keys())
-
-def terms_sections(lang):
-    lang = lang if lang in HEADS else "en"
-    bodies = [b.replace("{min}", str(MIN_WITHDRAW)).replace("{h}", str(VERIFY_HOURS)) for b in BODIES[lang]]
-    return [[h, b] for h, b in zip(HEADS[lang], bodies)]
 
 def terms_html(lang):
     lang = lang if lang in HEADS else "en"
     parts = [f"<b>{html.escape(TERMS_TITLE[lang])}</b>\n"]
-    for h, b in terms_sections(lang): parts.append(f"<b>{html.escape(h)}</b>\n{html.escape(b)}\n")
+    for h, b in zip(HEADS[lang], BODIES[lang]):
+        parts.append(f"<b>{html.escape(h)}</b>\n{html.escape(b.replace('{min}', str(MIN_WITHDRAW)).replace('{h}', str(VERIFY_HOURS)))}\n")
     return "\n".join(parts)
 
-UI = {
-    "ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الهاتف", "apps": "📲 التطبيقات", "sites": "🌐 المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الإعلانات", "terms": "📜 الشروط", "menu": "القائمة ⚙️", "welcome": "مرحباً", "bal": "الرصيد", "pend": "قيد التحقق", "minline": "الأدنى: {n} TRX", "faqT": "❓ القواعد", "faqD": "💸 **السحب:** حد أدنى {n} TRX وإحالة حقيقية.\n👥 **الإحالة:** اربح 3%.\n🚫 **الإلغاء:** إيقاف الحساب. افتحه بـ 5 إحالات.", "refT": "👥 الإحالة (3%)", "refCnt": "نشط", "refD": "اربح 3% مدى الحياة.", "copy": "نسخ الرابط 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا عروض.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تضاف بعد 24-72 ساعة.", "wDesc": "أدخل محفظة TRX:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "المحفوظ:", "noAddr": "لا يوجد عنوان", "wdBtn": "طلب السحب 🚀", "wdInfo": "حد أدنى {n} TRX وإحالة نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة.", "c_banned": "محظور.", "c_vpn": "VPN مكتشف.", "c_bad_address": "عنوان خاطئ.", "c_ok_addr": "تم الحفظ 💾", "c_no_address": "أضف عنواناً أولاً.", "c_min_balance": "أقل من الحد الأدنى.", "c_need_referral": "تحتاج إحالة حقيقية.", "c_pending_exists": "لديك طلب سحب.", "c_ok_withdraw": "تم التقديم 🚀", "c_err": "خطأ."},
-    "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone", "apps": "📲 Apps", "sites": "🌐 Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Ads", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Balance", "pend": "Pending", "minline": "Min: {n} TRX", "faqT": "❓ Rules & Info", "faqD": "💸 **Withdrawal:** Min {n} TRX and 1 real referral.\n👥 **Referrals:** Earn 3%.\n🚫 **Cancelling:** Account suspended. Unlock with 5 referrals.", "refT": "👥 Referrals (3%)", "refCnt": "Active", "refD": "Earn 3% for life.", "copy": "Copy Link 🔗", "copied": "Copied! 📋", "noOffers": "No offers.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after 24-72h.", "wDesc": "Enter TRX wallet:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved:", "noAddr": "No address", "wdBtn": "Withdraw 🚀", "wdInfo": "Min {n} TRX and 1 active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired.", "c_banned": "Banned.", "c_vpn": "VPN detected.", "c_bad_address": "Invalid address.", "c_ok_addr": "Saved 💾", "c_no_address": "Add address first.", "c_min_balance": "Below minimum.", "c_need_referral": "Need 1 real referral.", "c_pending_exists": "Pending withdrawal.", "c_ok_withdraw": "Submitted 🚀", "c_err": "Error."}
-}
+UI = {"ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الهاتف", "apps": "📲 التطبيقات", "sites": "🌐 المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الإعلانات", "terms": "📜 الشروط", "menu": "القائمة ⚙️", "welcome": "مرحباً", "bal": "الرصيد", "pend": "قيد التحقق", "minline": "الأدنى: {n} TRX", "faqT": "❓ القواعد", "faqD": "💸 **السحب:** حد أدنى {n} TRX وإحالة حقيقية.\n👥 **الإحالة:** اربح 3%.\n🚫 **الإلغاء:** إيقاف الحساب. افتحه بـ 5 إحالات.", "refT": "👥 الإحالة (3%)", "refCnt": "نشط", "refD": "اربح 3% مدى الحياة.", "copy": "نسخ الرابط 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا عروض.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تضاف بعد 24-72 ساعة.", "wDesc": "أدخل محفظة TRX:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "المحفوظ:", "noAddr": "لا يوجد عنوان", "wdBtn": "طلب السحب 🚀", "wdInfo": "حد أدنى {n} TRX وإحالة نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة.", "c_banned": "محظور.", "c_vpn": "VPN مكتشف.", "c_bad_address": "عنوان خاطئ.", "c_ok_addr": "تم الحفظ 💾", "c_no_address": "أضف عنواناً أولاً.", "c_min_balance": "أقل من الحد الأدنى.", "c_need_referral": "تحتاج إحالة حقيقية.", "c_pending_exists": "لديك طلب سحب.", "c_ok_withdraw": "تم التقديم 🚀", "c_err": "خطأ."}, "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone", "apps": "📲 Apps", "sites": "🌐 Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Ads", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Balance", "pend": "Pending", "minline": "Min: {n} TRX", "faqT": "❓ Rules", "faqD": "💸 **Withdrawal:** Min {n} TRX and 1 real referral.\n👥 **Referrals:** Earn 3%.\n🚫 **Cancelling:** Account suspended. Unlock with 5 referrals.", "refT": "👥 Referrals (3%)", "refCnt": "Active", "refD": "Earn 3% for life.", "copy": "Copy Link 🔗", "copied": "Copied! 📋", "noOffers": "No offers.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after 24-72h.", "wDesc": "Enter TRX wallet:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved:", "noAddr": "No address", "wdBtn": "Withdraw 🚀", "wdInfo": "Min {n} TRX and 1 active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired.", "c_banned": "Banned.", "c_vpn": "VPN detected.", "c_bad_address": "Invalid address.", "c_ok_addr": "Saved 💾", "c_no_address": "Add address first.", "c_min_balance": "Below minimum.", "c_need_referral": "Need 1 real referral.", "c_pending_exists": "Pending withdrawal.", "c_ok_withdraw": "Submitted 🚀", "c_err": "Error."}}
 LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English"}
-MSG = {"ar": {"banned_start": "🚫 محظور.", "reversed": "🚫 تم إيقاف حسابك. افتحه بـ 5 إحالات.", "paid": "✅ دفع {amt} TRX.\n{note}", "rejected": "❌ رفض #{id}.\n{note}"}, "en": {"banned_start": "🚫 Banned.", "reversed": "🚫 Suspended. Unlock with 5 referrals.", "paid": "✅ {amt} TRX sent.\n{note}", "rejected": "❌ #{id} rejected.\n{note}"}}
+MSG = {"ar": {"banned_start": "🚫 محظور.", "reversed": "🚫 تم إيقاف حسابك. افتحه بـ 5 إحالات.", "paid": "✅ دفع {amt} TRX.\n{note}", "rejected": "❌ رفض #{id}.\n{note}"}, "en": {"banned_start": "🚫 Banned.", "reversed": "🚫 Suspended. Unlock with 5 refs.", "paid": "✅ {amt} TRX sent.\n{note}", "rejected": "❌ #{id} rejected.\n{note}"}}
 
 def user_lang(conn, uid):
     r = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
-    l = (r["lang"] if r else "") or "en"
-    return l if l in MSG else "en"
+    return (r["lang"] if r and r["lang"] in MSG else "en")
 
-def msg_for(lang, key, **kw):
-    return MSG.get(lang, MSG["en"])[key].format(**kw)
+def msg_for(lang, key, **kw): return MSG.get(lang, MSG["en"])[key].format(**kw)
 
 @server.route("/api/lang", methods=["POST"])
 @auth
@@ -428,156 +358,149 @@ function render(){
   document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
   document.getElementById('title').textContent=T(state.tab);
   const b=document.getElementById('bottom'); b.innerHTML='';
-  [['home','🏠'],['ref','👥'],['wallet','💳'],['withdraw','💸']].forEach(([k,ic])=>{
-    b.append(h('button',{class:'nb'+(state.tab===k?' on':''),onclick:()=>go(k)}, ic+' '+T(k)));
-  });
+  [['home','🏠'],['ref','👥'],['wallet','💳'],['withdraw','💸']].forEach(([k,ic])=>{ b.append(h('button',{class:'nb'+(state.tab===k?' on':''),onclick:()=>go(k)}, ic+' '+T(k))); });
   b.append(h('button',{class:'nb'+(['phone','app','site','ad','terms'].includes(state.tab)?' on':''),onclick:openMenu}, '☰ '+T('menu')));
 
   const n=document.getElementById('nav'); n.innerHTML='';
-  ['phone','app','site','ad','terms'].forEach(k=>n.append(h('button',{class:'nb',onclick:()=>go(k),style:'text-align:start;padding:10px;border-bottom:1px solid #333'}, T(k))));
-  const sel=h('select',{onchange:e=>{lang=e.target.value;localStorage.setItem('lang',lang);api('/api/lang',{lang});render();}}, Object.keys(LANG_NAMES).map(l=>h('option',{value:l,selected:l===lang},LANG_NAMES[l])));
-  n.append(h('div',{style:'margin-top:20px'}, h('div',{},T('lang')), sel));
+  ['phone','app','site','ad','terms'].forEach(k=>n.append(h('button',{class:'nb',onclick:()=>go(k)}, T(k))));
 
   const v=document.getElementById('view'); v.innerHTML='';
-  if(state.err){v.append(h('div',{class:'card'}, T('c_'+(state.err||'err')))); return;}
-  if(!state.me){v.append(h('div',{class:'card'}, T('loading'))); return;}
+  if(!state.me){ loadMe(); v.append(h('div',{class:'card'},T('loading'))); return; }
+  if(state.err){ v.append(h('div',{class:'card red'},T('c_'+state.err)||state.err)); return; }
+  const me=state.me;
 
   if(state.tab==='home'){
-    const m=state.me, pct=Math.min(100,Math.round(m.balance/m.min_withdraw*100));
-    v.append(h('div',{class:'hero'}, h('div',{style:'color:var(--gold);margin-bottom:10px'},'TRX EARN'), h('div',{style:'font-size:12px;color:#aaa'},T('bal')), h('div',{class:'amt'}, h('span',{style:'font-size:18px;margin-top:10px'},'TRX'), m.balance.toFixed(2)), h('div',{style:'height:5px;background:#333;border-radius:5px;margin:15px 0'}, h('div',{style:`height:100%;background:var(--gold);width:${pct}%;border-radius:5px`})), h('div',{style:'display:flex;justify-content:space-between;font-size:12px;color:#aaa'}, h('span',{},T('minline').replace('{n}',m.min_withdraw)), h('span',{},pct+'%'))));
-    v.append(h('div',{class:'grid',style:'margin-top:10px'}, h('div',{class:'card',style:'margin:0'}, h('div',{style:'font-size:12px;color:#aaa'},T('pend')), h('div',{style:'color:var(--gold);font-weight:bold;margin-top:5px'},'TRX '+m.pending.toFixed(2))), h('div',{class:'card',style:'margin:0'}, h('div',{style:'font-size:12px;color:#aaa'},T('refCnt')), h('div',{style:'color:var(--gold);font-weight:bold;margin-top:5px'},m.active_referrals))));
-    v.append(h('div',{class:'grid',style:'margin-top:10px'}, ['phone','app','site','ad'].map(k=>h('div',{class:'earn',onclick:()=>go(k)}, h('div',{style:'font-size:24px;margin-bottom:5px'},k==='phone'?'📱':k==='app'?'📲':k==='site'?'🌐':'▶️'), h('div',{style:'font-size:13px;font-weight:bold'},T(k))))));
-    v.append(h('div',{class:'card',style:'margin-top:10px;text-align:start'}, h('div',{style:'color:var(--gold);font-weight:bold;margin-bottom:5px'},T('faqT')), h('div',{style:'font-size:12px;color:#ccc;white-space:pre-line;line-height:1.5'},T('faqD').replace('{n}',m.min_withdraw))));
+    v.append(h('div',{class:'hero'},
+      h('div',{},T('welcome')+', '+me.name+'!'),
+      h('div',{class:'amt'},me.balance.toFixed(2)+' TRX'),
+      h('div',{style:'font-size:12px;color:var(--muted)'},T('pend')+': '+me.pending.toFixed(2)+' TRX')
+    ));
+    const g_div=h('div',{class:'grid',style:'margin-top:15px'});
+    [['phone',T('phone'),'📱'],['app',T('apps'),'📲'],['site',T('sites'),'🌐'],['ad',T('watch'),'▶️']].forEach(([k,t,ic])=>{
+      g_div.append(h('div',{class:'earn',onclick:()=>go(k)},h('span',{style:'font-size:24px'},ic),h('span',{},t)));
+    });
+    v.append(g_div);
   } else if(state.tab==='ref'){
-    const m=state.me;
-    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('refT')), h('div',{},T('refCnt')+': '+m.active_referrals), h('div',{style:'color:#aaa;font-size:12px;margin:10px 0'},T('refD')), h('input',{value:m.ref_link,readonly:true,onclick:e=>e.target.select()}), h('button',{class:'btn',onclick:()=>{navigator.clipboard.writeText(m.ref_link);msg(T('copied'));}},T('copy'))));
-  } else if(['phone','app','site','ad'].includes(state.tab)){
-    if(state.tab==='ad'){
-       v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('watch')), h('div',{style:'color:#aaa;font-size:12px;margin-bottom:15px'},T('pendNote')),
-         h('button',{class:'btn',onclick:async()=>{
-           const res = await api('/api/ad/start',{});
-           if(!res.success){msg(T('c_err')); return;}
-           const showFn = window['show_XXXXXX'];
-           if(typeof showFn !== 'function'){msg('Ad not available'); return;}
-           showFn().then(async()=>{ const c=await api('/api/ad/complete',{token:res.token}); if(c.success){msg(`🎉 +${c.reward} TRX`); loadMe();} else msg(T('c_err')); }).catch(()=>msg(T('c_err')));
-         }},'▶️ Watch Ad (Interstitial)'),
-         h('button',{class:'btn',onclick:async()=>{
-           const res = await api('/api/ad/start',{});
-           if(!res.success){msg(T('c_err')); return;}
-           const showFn = window['show_XXXXXX'];
-           if(typeof showFn !== 'function'){msg('Ad not available'); return;}
-           showFn('pop').then(async()=>{ const c=await api('/api/ad/complete',{token:res.token}); if(c.success){msg(`🎉 +${c.reward} TRX`); loadMe();} else msg(T('c_err')); }).catch(()=>msg(T('c_err')));
-         }},'▶️ Watch Ad (Popup)')
-       ));
-    } else {
-       const c = h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T(state.tab)));
-       if(state.offers===null) c.append(h('div',{},T('loading')));
-       else if(!state.offers.length) c.append(h('div',{style:'color:#aaa'},T('noOffers')));
-       else state.offers.forEach(o=>c.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;padding:10px 0'}, h('div',{style:'text-align:start'}, h('div',{style:'font-weight:bold'},o.title), h('div',{style:'color:var(--gold);font-size:12px'},'+'+o.reward+' TRX')), h('button',{class:'btn',style:'width:auto;margin:0;padding:8px 15px',onclick:()=>tg.openLink(o.url)},T('go')))));
-       v.append(c);
-    }
+    v.append(h('div',{class:'card'},
+      h('h3',{},T('refT')),
+      h('p',{},T('refD')),
+      h('div',{style:'font-size:18px;color:var(--gold);margin:10px 0'},T('refCnt')+': '+me.active_referrals),
+      h('button',{class:'btn',onclick:()=>{navigator.clipboard.writeText(me.ref_link); msg(T('copied'));}},T('copy'))
+    ));
   } else if(state.tab==='wallet'){
-    const m=state.me, has=!!m.trx_address;
-    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('wallet')), h('div',{style:'font-size:12px;color:#aaa'},T('wDesc')), h('input',{id:'addr',value:m.trx_address}), h('button',{class:'btn',onclick:async()=>{const val=document.getElementById('addr').value; const res=await api('/api/address',{address:val}); if(res.success){msg(T('c_ok_addr'));loadMe();}else msg(T('c_'+res.code));}},T('save'))));
+    const inp=h('input',{value:me.trx_address,placeholder:'T...'});
+    v.append(h('div',{class:'card'},
+      h('h3',{},T('wDesc')),
+      inp,
+      h('button',{class:'btn',onclick:async()=>{
+        const res=await api('/api/address',{address:inp.value});
+        if(res.success){msg(T('c_ok_addr')); loadMe();}else{msg(T('c_'+res.code)||res.code);}
+      }},T('save'))
+    ));
   } else if(state.tab==='withdraw'){
-    const m=state.me;
-    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('withdraw')), h('div',{class:'amt',style:'justify-content:center'},'TRX '+m.balance.toFixed(2)), h('div',{style:'color:#aaa;font-size:12px;margin:10px 0'},T('wdInfo').replace('{n}',m.min_withdraw)), h('button',{class:'btn red',onclick:async()=>{const res=await api('/api/withdraw',{}); if(res.success){msg(T('c_ok_withdraw'));loadMe();}else msg(T('c_'+res.code));}},T('wdBtn'))));
+    v.append(h('div',{class:'card'},
+      h('h3',{},me.balance.toFixed(2)+' TRX'),
+      h('p',{style:'color:var(--muted);font-size:12px'},T('wdInfo').replace('{n}',me.min_withdraw)),
+      h('button',{class:'btn',onclick:async()=>{
+        const res=await api('/api/withdraw',{});
+        if(res.success){msg(T('c_ok_withdraw')); loadMe();}else{msg(T('c_'+res.code)||res.code);}
+      }},T('wdBtn'))
+    ));
+  } else if(['phone','app','site','ad'].includes(state.tab)){
+    if(!state.offers){ v.append(h('div',{class:'card'},T('loading'))); return; }
+    if(state.offers.length===0){ v.append(h('div',{class:'card'},T('noOffers'))); return; }
+    state.offers.forEach(o=>{
+      v.append(h('div',{class:'card',style:'text-align:start;display:flex;justify-content:space-between;align-items:center'},
+        h('div',{},h('b',{},o.title),h('div',{style:'font-size:12px;color:var(--gold)'},T('reward')+': '+o.reward+' TRX')),
+        h('button',{class:'btn',style:'width:auto;margin:0;padding:8px 15px',onclick:async()=>{
+          if(state.tab==='ad'){
+            const st=await api('/api/ad/start',{});
+            if(st.success && typeof window['show_'+'XXXXXX'] === 'function'){
+              window['show_'+'XXXXXX']().then(async()=>{
+                await api('/api/ad/complete',{token:st.token});
+                loadMe(); go('home');
+              });
+            } else { msg(T('c_err')); }
+          } else { window.open(o.url,'_blank'); }
+        }},T('go'))
+      ));
+    });
   } else if(state.tab==='terms'){
-    v.append(h('div',{class:'card',style:'text-align:start'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('terms')), h('div',{style:'white-space:pre-line;font-size:12px;color:#ccc'},T('faqD').replace('{n}',state.me.min_withdraw))));
+    v.append(h('div',{class:'card',style:'text-align:start'},
+      h('h3',{style:'color:var(--gold)'},T('terms')),
+      h('p',{},'Rules & Details...')
+    ));
   }
 }
-
-if(!INIT){state.err='auth';}
-render(); if(INIT){ api('/api/lang',{lang}); loadMe(); }
+loadMe();
 </script>
 </body>
 </html>
 """
 
 @server.route("/webapp")
-def webapp():
-    page = (WEBAPP_HTML.replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/")).replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False)))
-    resp = Response(page, mimetype="text/html")
-    resp.headers["Cache-Control"] = "no-store"
-    return resp
-
-@server.route("/" + TOKEN, methods=["POST"])
-def webhook():
-    try:
-        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
-        bot.process_new_updates([update])
-    except Exception as e:
-        print(f"Error: {e}", flush=True)
-    return "OK", 200
+def webapp_page():
+    return WEBAPP_HTML.replace("__UI__", json.dumps(UI)).replace("__LANG_NAMES__", json.dumps(LANG_NAMES))
 
 @bot.message_handler(commands=["start"])
-def start(message):
-    try:
-        uid = message.from_user.id
-        username = message.from_user.username or message.from_user.first_name or ""
-        referrer = None
-        parts = (message.text or "").split()
-        if len(parts) > 1 and parts[1].isdigit(): referrer = int(parts[1])
-        with tx() as c:
-            u = ensure_user(c, uid, username, referrer)
-            lang = u["lang"] if u["lang"] in HEADS else (message.from_user.language_code or "en")[:2].lower()
-            if lang not in HEADS: lang = "en"
-            c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, uid))
+def cmd_start(message):
+    uid = message.from_user.id
+    args = message.text.split()
+    ref = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+    with tx() as c:
+        u = ensure_user(c, uid, message.from_user.username or "", ref)
         if u["banned"]:
-            if u["ban_reason"] == 'offer_reversed':
-                bot.reply_to(message, f"🚫 حسابك موقوف.\nلفتحه، أحضر 5 إحالات مكتملة.\n🔗 رابطك:\nhttps://t.me/{bot_username()}?start={uid}")
-            else: bot.reply_to(message, msg_for(lang, "banned_start"))
+            bot.send_message(uid, msg_for(user_lang(c, uid), "banned_start"))
             return
-        markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton(AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
-        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
-    except Exception as e: print(f"Error start: {e}", flush=True)
+        lang = user_lang(c, uid)
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton(text=AGREE_BTN.get(lang, AGREE_BTN["en"]), web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
+    bot.send_message(uid, terms_html(lang), parse_mode="HTML", reply_markup=markup)
 
-def is_admin(m): return ADMIN_ID and m.from_user.id == ADMIN_ID
-
-@bot.message_handler(commands=["withdrawals"])
-def cmd_withdrawals(m):
-    if not is_admin(m): return
-    with tx() as c: rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
-    if not rows: bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅"); return
-    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
-
-@bot.message_handler(commands=["paid", "reject"])
-def cmd_process(m):
-    if not is_admin(m): return
-    args = (m.text or "").split()
-    if len(args) < 2 or not args[1].isdigit(): bot.reply_to(m, "الاستخدام: /paid 12  أو /reject 12"); return
-    wid, paid = int(args[1]), args[0].startswith("/paid")
+@bot.message_handler(commands=["paid"])
+def cmd_paid(message):
+    if message.from_user.id != ADMIN_ID: return
+    args = message.text.split()
+    if len(args) < 2 or not args[1].isdigit(): return
+    wid = int(args[1])
     note = " ".join(args[2:])
     with tx() as c:
         w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
-        if not w: bot.reply_to(m, "الطلب غير موجود."); return
-        lang = user_lang(c, w["user_id"])
-        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
-        if not paid: c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
-    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض'} للطلب #{wid} ✅")
-    try:
-        if paid: bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
-        else: bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+        if not w:
+            bot.reply_to(message, "Withdrawal not found or already processed.")
+            return
+        c.execute("UPDATE withdrawals SET status='paid', note=?, processed_at=? WHERE id=?", (note, int(time.time()), wid))
+        uid = w["user_id"]; amt = w["amount"] / MICRO
+        lang = user_lang(c, uid)
+    try: bot.send_message(uid, msg_for(lang, "paid", amt=amt, note=note))
     except Exception: pass
+    bot.reply_to(message, f"Successfully marked withdrawal #{wid} as paid.")
 
-@bot.message_handler(commands=["stats"])
-def cmd_stats(m):
-    if not is_admin(m): return
+@bot.message_handler(commands=["reject"])
+def cmd_reject(message):
+    if message.from_user.id != ADMIN_ID: return
+    args = message.text.split()
+    if len(args) < 2 or not args[1].isdigit(): return
+    wid = int(args[1])
+    note = " ".join(args[2:])
     with tx() as c:
-        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
-        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
-        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
-    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
-
-init_db()
-if os.environ.get("RUN_RELEASE_LOOP", "1") == "1": threading.Thread(target=_release_loop, daemon=True).start()
-if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
-    except Exception as e: print("set_webhook error:", e, flush=True)
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w:
+            bot.reply_to(message, "Withdrawal not found or already processed.")
+            return
+        c.execute("UPDATE withdrawals SET status='rejected', note=?, processed_at=? WHERE id=?", (note, int(time.time()), wid))
+        uid = w["user_id"]; amt = w["amount"]
+        c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (amt, uid))
+        lang = user_lang(c, uid)
+    try: bot.send_message(uid, msg_for(lang, "rejected", id=wid, note=note))
+    except Exception: pass
+    bot.reply_to(message, f"Rejected withdrawal #{wid} and refunded balance.")
 
 if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    init_db()
+    threading.Thread(target=_release_loop, daemon=True).start()
+    if RENDER_URL:
+        threading.Thread(target=lambda: bot.infinity_polling(skip_pending=True), daemon=True).start()
+        server.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))
+    else:
+        bot.infinity_polling(skip_pending=True)
