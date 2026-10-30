@@ -1,10 +1,24 @@
-import os, re, json, time, hmac, html, hashlib, sqlite3, threading, secrets
+import os
+import re
+import json
+import time
+import hmac
+import html
+import hashlib
+import sqlite3
+import threading
+import secrets
 from contextlib import contextmanager
 from functools import wraps
 from urllib.parse import parse_qsl
-import requests, telebot
+
+import requests
+import telebot
 from flask import Flask, request, jsonify, Response, g
 
+# ======================================================================
+# الإعدادات الأساسية
+# ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
@@ -37,6 +51,9 @@ def load_offers():
 
 OFFERS = load_offers()
 
+# ======================================================================
+# قاعدة البيانات
+# ======================================================================
 @contextmanager
 def tx():
     conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
@@ -170,6 +187,9 @@ def bot_username():
     _bot_username_ts = now
     return _bot_username
 
+# ======================================================================
+# مسارات API
+# ======================================================================
 @server.route("/")
 def home(): return "TRX Bot is running 🚀"
 
@@ -306,9 +326,7 @@ def api_ad_complete():
         c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (AD_REWARD, uid))
         now = int(time.time())
         c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (f"ad_{token}", uid, "ad", "monetag", AD_REWARD, now, now, now))
-    return jsonify(success=True, reward=AD_REWARD / MICRO)
-
-HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"]}
+    return jsonify(success=True, reward=AD_REWARD / MICRO)HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"]}
 BODIES = {
     "ar": ["الربح من:\n🎬 الإعلانات\n📱 الاشتراك\n📝 التسجيل\n📲 التطبيقات", "لا تدفع أي مبلغ. المهام مجانية. من يطلب مالاً سيتم حظره.", "الحد الأدنى للسحب: {min} TRX.", "❌ VPN\n❌ الواي فاي\n❌ حسابات متعددة\n❌ بيانات وهمية", "التحقق يستغرق {h} ساعة. إلغاء العرض = حظر الحساب.", "3% من أرباح الإحالات مدى الحياة.", "السحب يتطلب {min} TRX وإحالة حقيقية مكتملة."],
     "en": ["Earn from:\n🎬 Ads\n📱 Subscriptions\n📝 Sign-ups\n📲 Apps", "Never pay money. Tasks are free. Scammers will be banned.", "Min withdrawal: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Fake data", "Verification takes {h}h. Cancelling = ban.", "3% for life.", "Requires {min} TRX and 1 real referral."]
@@ -316,6 +334,7 @@ BODIES = {
 TERMS_TITLE = {"ar": "📜 شروط وأحكام", "en": "📜 Terms & Conditions"}
 AGREE_BTN = {"ar": "أوافق وأفتح التطبيق 🚀", "en": "I Agree & Open 🚀"}
 LANGS = list(HEADS.keys())
+
 def terms_sections(lang):
     lang = lang if lang in HEADS else "en"
     bodies = [b.replace("{min}", str(MIN_WITHDRAW)).replace("{h}", str(VERIFY_HOURS)) for b in BODIES[lang]]
@@ -359,7 +378,6 @@ WEBAPP_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<!-- ضع كود Monetag هنا -->
 <script src="https://yourdomain.com/vignette.min.js" data-zone="XXXXXX" data-sdk="show_XXXXXX"></script>
 <style>
  :root{--bg:#060608;--gold:#f5c542;--text:#f6f1e4;--muted:#9a9384;--line:rgba(245,197,66,.22)}
@@ -410,4 +428,156 @@ function render(){
   document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
   document.getElementById('title').textContent=T(state.tab);
   const b=document.getElementById('bottom'); b.innerHTML='';
-  [['home','🏠'],['ref','👥'],['wallet','💳'],['withdraw','
+  [['home','🏠'],['ref','👥'],['wallet','💳'],['withdraw','💸']].forEach(([k,ic])=>{
+    b.append(h('button',{class:'nb'+(state.tab===k?' on':''),onclick:()=>go(k)}, ic+' '+T(k)));
+  });
+  b.append(h('button',{class:'nb'+(['phone','app','site','ad','terms'].includes(state.tab)?' on':''),onclick:openMenu}, '☰ '+T('menu')));
+
+  const n=document.getElementById('nav'); n.innerHTML='';
+  ['phone','app','site','ad','terms'].forEach(k=>n.append(h('button',{class:'nb',onclick:()=>go(k),style:'text-align:start;padding:10px;border-bottom:1px solid #333'}, T(k))));
+  const sel=h('select',{onchange:e=>{lang=e.target.value;localStorage.setItem('lang',lang);api('/api/lang',{lang});render();}}, Object.keys(LANG_NAMES).map(l=>h('option',{value:l,selected:l===lang},LANG_NAMES[l])));
+  n.append(h('div',{style:'margin-top:20px'}, h('div',{},T('lang')), sel));
+
+  const v=document.getElementById('view'); v.innerHTML='';
+  if(state.err){v.append(h('div',{class:'card'}, T('c_'+(state.err||'err')))); return;}
+  if(!state.me){v.append(h('div',{class:'card'}, T('loading'))); return;}
+
+  if(state.tab==='home'){
+    const m=state.me, pct=Math.min(100,Math.round(m.balance/m.min_withdraw*100));
+    v.append(h('div',{class:'hero'}, h('div',{style:'color:var(--gold);margin-bottom:10px'},'TRX EARN'), h('div',{style:'font-size:12px;color:#aaa'},T('bal')), h('div',{class:'amt'}, h('span',{style:'font-size:18px;margin-top:10px'},'TRX'), m.balance.toFixed(2)), h('div',{style:'height:5px;background:#333;border-radius:5px;margin:15px 0'}, h('div',{style:`height:100%;background:var(--gold);width:${pct}%;border-radius:5px`})), h('div',{style:'display:flex;justify-content:space-between;font-size:12px;color:#aaa'}, h('span',{},T('minline').replace('{n}',m.min_withdraw)), h('span',{},pct+'%'))));
+    v.append(h('div',{class:'grid',style:'margin-top:10px'}, h('div',{class:'card',style:'margin:0'}, h('div',{style:'font-size:12px;color:#aaa'},T('pend')), h('div',{style:'color:var(--gold);font-weight:bold;margin-top:5px'},'TRX '+m.pending.toFixed(2))), h('div',{class:'card',style:'margin:0'}, h('div',{style:'font-size:12px;color:#aaa'},T('refCnt')), h('div',{style:'color:var(--gold);font-weight:bold;margin-top:5px'},m.active_referrals))));
+    v.append(h('div',{class:'grid',style:'margin-top:10px'}, ['phone','app','site','ad'].map(k=>h('div',{class:'earn',onclick:()=>go(k)}, h('div',{style:'font-size:24px;margin-bottom:5px'},k==='phone'?'📱':k==='app'?'📲':k==='site'?'🌐':'▶️'), h('div',{style:'font-size:13px;font-weight:bold'},T(k))))));
+    v.append(h('div',{class:'card',style:'margin-top:10px;text-align:start'}, h('div',{style:'color:var(--gold);font-weight:bold;margin-bottom:5px'},T('faqT')), h('div',{style:'font-size:12px;color:#ccc;white-space:pre-line;line-height:1.5'},T('faqD').replace('{n}',m.min_withdraw))));
+  } else if(state.tab==='ref'){
+    const m=state.me;
+    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('refT')), h('div',{},T('refCnt')+': '+m.active_referrals), h('div',{style:'color:#aaa;font-size:12px;margin:10px 0'},T('refD')), h('input',{value:m.ref_link,readonly:true,onclick:e=>e.target.select()}), h('button',{class:'btn',onclick:()=>{navigator.clipboard.writeText(m.ref_link);msg(T('copied'));}},T('copy'))));
+  } else if(['phone','app','site','ad'].includes(state.tab)){
+    if(state.tab==='ad'){
+       v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('watch')), h('div',{style:'color:#aaa;font-size:12px;margin-bottom:15px'},T('pendNote')),
+         h('button',{class:'btn',onclick:async()=>{
+           const res = await api('/api/ad/start',{});
+           if(!res.success){msg(T('c_err')); return;}
+           const showFn = window['show_XXXXXX'];
+           if(typeof showFn !== 'function'){msg('Ad not available'); return;}
+           showFn().then(async()=>{ const c=await api('/api/ad/complete',{token:res.token}); if(c.success){msg(`🎉 +${c.reward} TRX`); loadMe();} else msg(T('c_err')); }).catch(()=>msg(T('c_err')));
+         }},'▶️ Watch Ad (Interstitial)'),
+         h('button',{class:'btn',onclick:async()=>{
+           const res = await api('/api/ad/start',{});
+           if(!res.success){msg(T('c_err')); return;}
+           const showFn = window['show_XXXXXX'];
+           if(typeof showFn !== 'function'){msg('Ad not available'); return;}
+           showFn('pop').then(async()=>{ const c=await api('/api/ad/complete',{token:res.token}); if(c.success){msg(`🎉 +${c.reward} TRX`); loadMe();} else msg(T('c_err')); }).catch(()=>msg(T('c_err')));
+         }},'▶️ Watch Ad (Popup)')
+       ));
+    } else {
+       const c = h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T(state.tab)));
+       if(state.offers===null) c.append(h('div',{},T('loading')));
+       else if(!state.offers.length) c.append(h('div',{style:'color:#aaa'},T('noOffers')));
+       else state.offers.forEach(o=>c.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;padding:10px 0'}, h('div',{style:'text-align:start'}, h('div',{style:'font-weight:bold'},o.title), h('div',{style:'color:var(--gold);font-size:12px'},'+'+o.reward+' TRX')), h('button',{class:'btn',style:'width:auto;margin:0;padding:8px 15px',onclick:()=>tg.openLink(o.url)},T('go')))));
+       v.append(c);
+    }
+  } else if(state.tab==='wallet'){
+    const m=state.me, has=!!m.trx_address;
+    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('wallet')), h('div',{style:'font-size:12px;color:#aaa'},T('wDesc')), h('input',{id:'addr',value:m.trx_address}), h('button',{class:'btn',onclick:async()=>{const val=document.getElementById('addr').value; const res=await api('/api/address',{address:val}); if(res.success){msg(T('c_ok_addr'));loadMe();}else msg(T('c_'+res.code));}},T('save'))));
+  } else if(state.tab==='withdraw'){
+    const m=state.me;
+    v.append(h('div',{class:'card'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('withdraw')), h('div',{class:'amt',style:'justify-content:center'},'TRX '+m.balance.toFixed(2)), h('div',{style:'color:#aaa;font-size:12px;margin:10px 0'},T('wdInfo').replace('{n}',m.min_withdraw)), h('button',{class:'btn red',onclick:async()=>{const res=await api('/api/withdraw',{}); if(res.success){msg(T('c_ok_withdraw'));loadMe();}else msg(T('c_'+res.code));}},T('wdBtn'))));
+  } else if(state.tab==='terms'){
+    v.append(h('div',{class:'card',style:'text-align:start'}, h('h3',{style:'color:var(--gold);margin:0 0 10px'},T('terms')), h('div',{style:'white-space:pre-line;font-size:12px;color:#ccc'},T('faqD').replace('{n}',state.me.min_withdraw))));
+  }
+}
+
+if(!INIT){state.err='auth';}
+render(); if(INIT){ api('/api/lang',{lang}); loadMe(); }
+</script>
+</body>
+</html>
+"""
+
+@server.route("/webapp")
+def webapp():
+    page = (WEBAPP_HTML.replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/")).replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False)))
+    resp = Response(page, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+@server.route("/" + TOKEN, methods=["POST"])
+def webhook():
+    try:
+        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Error: {e}", flush=True)
+    return "OK", 200
+
+@bot.message_handler(commands=["start"])
+def start(message):
+    try:
+        uid = message.from_user.id
+        username = message.from_user.username or message.from_user.first_name or ""
+        referrer = None
+        parts = (message.text or "").split()
+        if len(parts) > 1 and parts[1].isdigit(): referrer = int(parts[1])
+        with tx() as c:
+            u = ensure_user(c, uid, username, referrer)
+            lang = u["lang"] if u["lang"] in HEADS else (message.from_user.language_code or "en")[:2].lower()
+            if lang not in HEADS: lang = "en"
+            c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, uid))
+        if u["banned"]:
+            if u["ban_reason"] == 'offer_reversed':
+                bot.reply_to(message, f"🚫 حسابك موقوف.\nلفتحه، أحضر 5 إحالات مكتملة.\n🔗 رابطك:\nhttps://t.me/{bot_username()}?start={uid}")
+            else: bot.reply_to(message, msg_for(lang, "banned_start"))
+            return
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton(AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
+        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
+    except Exception as e: print(f"Error start: {e}", flush=True)
+
+def is_admin(m): return ADMIN_ID and m.from_user.id == ADMIN_ID
+
+@bot.message_handler(commands=["withdrawals"])
+def cmd_withdrawals(m):
+    if not is_admin(m): return
+    with tx() as c: rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
+    if not rows: bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅"); return
+    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
+
+@bot.message_handler(commands=["paid", "reject"])
+def cmd_process(m):
+    if not is_admin(m): return
+    args = (m.text or "").split()
+    if len(args) < 2 or not args[1].isdigit(): bot.reply_to(m, "الاستخدام: /paid 12  أو /reject 12"); return
+    wid, paid = int(args[1]), args[0].startswith("/paid")
+    note = " ".join(args[2:])
+    with tx() as c:
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w: bot.reply_to(m, "الطلب غير موجود."); return
+        lang = user_lang(c, w["user_id"])
+        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
+        if not paid: c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض'} للطلب #{wid} ✅")
+    try:
+        if paid: bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
+        else: bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+    except Exception: pass
+
+@bot.message_handler(commands=["stats"])
+def cmd_stats(m):
+    if not is_admin(m): return
+    with tx() as c:
+        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
+        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
+        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
+    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
+
+init_db()
+if os.environ.get("RUN_RELEASE_LOOP", "1") == "1": threading.Thread(target=_release_loop, daemon=True).start()
+if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    except Exception as e: print("set_webhook error:", e, flush=True)
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
