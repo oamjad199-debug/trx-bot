@@ -16,7 +16,7 @@ import telebot
 from flask import Flask, request, jsonify, Response, g
 
 # ======================================================================
-# الإعدادات (كلها من متغيرات البيئة)
+# الإعدادات
 # ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
@@ -147,9 +147,6 @@ def ban_user(conn, uid, reason):
     conn.execute("UPDATE users SET banned=1, ban_reason=?, balance=0 WHERE user_id=?", (reason, uid))
     conn.execute("UPDATE transactions SET status='reversed' WHERE user_id=? AND status='pending'", (uid,))
 
-# ======================================================================
-# تحرير الأرباح + عمولة الإحالة
-# ======================================================================
 def release_matured():
     now = int(time.time())
     with tx() as c:
@@ -187,7 +184,7 @@ def _release_loop():
         time.sleep(300)
 
 # ======================================================================
-# التحقق من الهوية والـ VPN
+# التحقق من الهوية
 # ======================================================================
 def verify_init_data(init_data):
     if not init_data:
@@ -219,7 +216,6 @@ def auth(fn):
     return wrapper
 
 _ip_cache = {}
-
 def client_ip():
     xff = request.headers.get("X-Forwarded-For", "")
     return (xff.split(",")[0].strip() if xff else request.remote_addr) or ""
@@ -259,7 +255,7 @@ def bot_username():
     return _bot_username
 
 # ======================================================================
-# واجهات الـ API
+# API
 # ======================================================================
 @server.route("/")
 def home():
@@ -271,7 +267,7 @@ def api_me():
     try:
         release_matured()
     except Exception as e:
-        print("release error:", e, flush=True)
+        pass
     uid = g.user["id"]
     with tx() as c:
         u = ensure_user(c, uid, g.user.get("username") or g.user.get("first_name", ""))
@@ -363,12 +359,9 @@ def api_withdraw():
                 f"/paid {wid}  أو  /reject {wid}",
             )
         except Exception as e:
-            print("admin notify error:", e, flush=True)
+            pass
     return jsonify(success=True)
 
-# ======================================================================
-# Postback
-# ======================================================================
 def _check_secret():
     if not POSTBACK_SECRET:
         return Response("postback disabled", 503)
@@ -466,69 +459,13 @@ BODIES = {
         "Earn 3% of your referrals' earnings for life. A referral counts only after the invited user completes at least one successful offer (subscription/registration/install).",
         "You can withdraw only after bringing a real user who completes their first successful offer, and after reaching the minimum. Every request is reviewed before payment, and accounts that break the rules may be banned and their earnings cancelled.",
     ],
-    "es": [
-        "Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps",
-        "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.",
-        "El retiro mínimo es de {min} TRX.",
-        "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas",
-        "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.",
-        "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.",
-        "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar.",
-    ],
-    "de": [
-        "Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen",
-        "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.",
-        "Die Mindestauszahlung beträgt {min} TRX.",
-        "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug",
-        "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.",
-        "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.",
-        "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft.",
-    ],
-    "fr": [
-        "Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps",
-        "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.",
-        "Le retrait minimum est de {min} TRX.",
-        "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche",
-        "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.",
-        "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.",
-        "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement.",
-    ],
-    "ru": [
-        "Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений",
-        "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.",
-        "Минимальная сумма вывода — {min} TRX.",
-        "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман",
-        "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.",
-        "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.",
-        "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется.",
-    ],
-    "pt": [
-        "Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps",
-        "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.",
-        "O saque mínimo é de {min} TRX.",
-        "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças",
-        "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.",
-        "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.",
-        "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento.",
-    ],
-    "nl": [
-        "Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties",
-        "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.",
-        "Minimum opname is {min} TRX.",
-        "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen",
-        "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.",
-        "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.",
-        "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld.",
-    ],
-    "pl": [
-        "Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji",
-        "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.",
-        "Minimalna wypłata to {min} TRX.",
-        "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa",
-        "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.",
-        "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.",
-        "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytkownik ukończy pierwszą udaną ofertę i osiągniesz minimum. Każdy wniosek jest sprawdzany.",
-    ],
+    "es": ["Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps", "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.", "El retiro mínimo es de {min} TRX.", "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas", "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.", "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.", "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar."],
+    "de": ["Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen", "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.", "Die Mindestauszahlung beträgt {min} TRX.", "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug", "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.", "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.", "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft."],
+    "fr": ["Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps", "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.", "Le retrait minimum est de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche", "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.", "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.", "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement."],
+    "ru": ["Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений", "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.", "Минимальная сумма вывода — {min} TRX.", "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман", "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.", "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.", "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется."],
+    "pt": ["Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps", "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.", "O saque mínimo é de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças", "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.", "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.", "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento."],
+    "nl": ["Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties", "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.", "Minimum opname is {min} TRX.", "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen", "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.", "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.", "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld."],
+    "pl": ["Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji", "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.", "Minimalna wypłata to {min} TRX.", "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa", "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.", "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.", "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytkownik ukończy pierwszą udaną ofertę i osiągniesz minimum. Każdy wniosek jest sprawdzany."],
 }
 
 TERMS_TITLE = {
@@ -609,224 +546,15 @@ UI = {
         "c_need_referral": "يجب أن تُحضر مستخدماً حقيقياً أكمل أول عرض ناجح له.",
         "c_pending_exists": "لديك طلب سحب قيد المراجعة.",
         "c_ok_withdraw": "تم تقديم طلب السحب 🚀", "c_err": "حدث خطأ. حاول مرة أخرى.",
-    },
-    "es": {
-        "home": "🏠 Inicio", "ref": "👥 Referidos", "phone": "📱 Suscripción telefónica", "apps": "📲 Instalar apps",
-        "sites": "🌐 Registrarse en sitios", "wallet": "💳 Billetera", "withdraw": "💸 Retirar", "watch": "▶️ Ver y ganar",
-        "terms": "📜 Términos", "menu": "Menú ⚙️", "welcome": "Bienvenido", "bal": "Saldo actual de TRX",
-        "pend": "Pendiente de verificación", "minline": "Retiro mínimo: {n} TRX",
-        "faqT": "❓ ¿Cuándo me pagan?",
-        "faqD": "Las recompensas por instalaciones, registros y suscripciones telefónicas se acreditan tras la verificación (24–72 horas). Los retiros los revisa el administrador y requieren un referido real que haya completado su primera oferta exitosa.",
-        "refT": "👥 Sistema de referidos (3%)", "refCnt": "Referidos activos",
-        "refD": "Comparte tu enlace y gana el 3% de las ganancias de tus referidos de por vida. Un referido cuenta solo cuando completa una oferta exitosa.",
-        "copy": "Copiar enlace de referido 🔗", "copied": "¡Copiado! 📋", "noOffers": "No hay ofertas disponibles ahora.",
-        "go": "Empezar ✅", "reward": "Recompensa", "pendNote": "Se acredita tras la verificación (24–72 h). Cancelar = bloqueo de la cuenta.",
-        "wDesc": "Introduce tu dirección de billetera TRX (TRC20):", "save": "Guardar 💾", "change": "Cambiar 🔄",
-        "wSaved": "Dirección guardada:", "noAddr": "Aún no has añadido una dirección", "wdBtn": "Solicitar retiro 🚀",
-        "wdInfo": "Se retira todo tu saldo. Requiere un mínimo de {n} TRX y un referido real activo.",
-        "lang": "🌐 Idioma", "loading": "Cargando…",
-        "c_auth": "La sesión expiró. Cierra y vuelve a abrir la app desde el bot.",
-        "c_banned": "Tu cuenta fue bloqueada por incumplir los términos.",
-        "c_vpn": "Se detectó VPN/proxy. Desactívalo y usa datos móviles.",
-        "c_bad_address": "Dirección TRX no válida.", "c_ok_addr": "Dirección guardada 💾",
-        "c_no_address": "Primero añade tu dirección de billetera TRX.",
-        "c_min_balance": "Tu saldo es inferior al retiro mínimo.",
-        "c_need_referral": "Necesitas un referido real que haya completado su primera oferta exitosa.",
-        "c_pending_exists": "Ya tienes un retiro pendiente.",
-        "c_ok_withdraw": "Solicitud de retiro enviada 🚀", "c_err": "Algo salió mal. Inténtalo de nuevo.",
-    },
-    "de": {
-        "home": "🏠 Startseite", "ref": "👥 Empfehlungen", "phone": "📱 Telefon-Abo", "apps": "📲 Apps installieren",
-        "sites": "🌐 Auf Websites registrieren", "wallet": "💳 Wallet", "withdraw": "💸 Auszahlen", "watch": "▶️ Ansehen & verdienen",
-        "terms": "📜 AGB", "menu": "Menü ⚙️", "welcome": "Willkommen", "bal": "Aktuelles TRX-Guthaben",
-        "pend": "Wird geprüft", "minline": "Mindestauszahlung: {n} TRX",
-        "faqT": "❓ Wann werde ich bezahlt?",
-        "faqD": "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden nach der Prüfung gutgeschrieben (24–72 Stunden). Auszahlungen werden vom Admin geprüft und erfordern eine echte Empfehlung, die ihr erstes erfolgreiches Angebot abgeschlossen hat.",
-        "refT": "👥 Empfehlungssystem (3%)", "refCnt": "Aktive Empfehlungen",
-        "refD": "Teile deinen Link und erhalte lebenslang 3% der Einnahmen deiner Empfehlungen. Eine Empfehlung zählt erst nach einem erfolgreichen Angebot.",
-        "copy": "Empfehlungslink kopieren 🔗", "copied": "Kopiert! 📋", "noOffers": "Derzeit keine Angebote verfügbar.",
-        "go": "Start ✅", "reward": "Belohnung", "pendNote": "Gutschrift nach Prüfung (24–72 Std.). Abbruch = Kontosperre.",
-        "wDesc": "Gib deine TRX-Wallet-Adresse (TRC20) ein:", "save": "Speichern 💾", "change": "Ändern 🔄",
-        "wSaved": "Gespeicherte Adresse:", "noAddr": "Noch keine Adresse hinzugefügt", "wdBtn": "Auszahlung anfordern 🚀",
-        "wdInfo": "Dein gesamtes Guthaben wird ausgezahlt. Erfordert mindestens {n} TRX und eine echte aktive Empfehlung.",
-        "lang": "🌐 Sprache", "loading": "Wird geladen…",
-        "c_auth": "Sitzung abgelaufen. Schließe die App und öffne sie erneut über den Bot.",
-        "c_banned": "Dein Konto wurde wegen Verstoßes gegen die Bedingungen gesperrt.",
-        "c_vpn": "VPN/Proxy erkannt. Schalte es aus und nutze mobile Daten.",
-        "c_bad_address": "Ungültige TRX-Adresse.", "c_ok_addr": "Adresse gespeichert 💾",
-        "c_no_address": "Füge zuerst deine TRX-Wallet-Adresse hinzu.",
-        "c_min_balance": "Dein Guthaben liegt unter der Mindestauszahlung.",
-        "c_need_referral": "Du brauchst eine echte Empfehlung, die ihr erstes erfolgreiches Angebot abgeschlossen hat.",
-        "c_pending_exists": "Du hast bereits eine offene Auszahlung.",
-        "c_ok_withdraw": "Auszahlungsantrag gesendet 🚀", "c_err": "Etwas ist schiefgelaufen. Versuche es erneut.",
-    },
-    "fr": {
-        "home": "🏠 Accueil", "ref": "👥 Parrainage", "phone": "📱 Abonnement téléphone", "apps": "📲 Installer des apps",
-        "sites": "🌐 S'inscrire sur des sites", "wallet": "💳 Portefeuille", "withdraw": "💸 Retirer", "watch": "▶️ Regarder et gagner",
-        "terms": "📜 Conditions", "menu": "Menu ⚙️", "welcome": "Bienvenue", "bal": "Solde TRX actuel",
-        "pend": "En cours de vérification", "minline": "Retrait minimum : {n} TRX",
-        "faqT": "❓ Quand suis-je payé ?",
-        "faqD": "Les récompenses d'installation, d'inscription et d'abonnement téléphonique sont créditées après vérification (24–72 heures). Les retraits sont examinés par l'administrateur et nécessitent un vrai filleul ayant terminé sa première offre réussie.",
-        "refT": "👥 Système de parrainage (3%)", "refCnt": "Filleuls actifs",
-        "refD": "Partagez votre lien et gagnez 3% des gains de vos filleuls à vie. Un filleul compte seulement après une offre réussie.",
-        "copy": "Copier le lien de parrainage 🔗", "copied": "Copié ! 📋", "noOffers": "Aucune offre disponible pour le moment.",
-        "go": "Commencer ✅", "reward": "Récompense", "pendNote": "Crédité après vérification (24–72 h). Annuler = compte banni.",
-        "wDesc": "Entrez votre adresse de portefeuille TRX (TRC20) :", "save": "Enregistrer 💾", "change": "Modifier 🔄",
-        "wSaved": "Adresse enregistrée :", "noAddr": "Aucune adresse ajoutée", "wdBtn": "Demander le retrait 🚀",
-        "wdInfo": "Tout votre solde est retiré. Il faut au minimum {n} TRX et un vrai filleul actif.",
-        "lang": "🌐 Langue", "loading": "Chargement…",
-        "c_auth": "Session expirée. Fermez l'app et rouvrez-la depuis le bot.",
-        "c_banned": "Votre compte a été banni pour non-respect des conditions.",
-        "c_vpn": "VPN/proxy détecté. Désactivez-le et utilisez les données mobiles.",
-        "c_bad_address": "Adresse TRX invalide.", "c_ok_addr": "Adresse enregistrée 💾",
-        "c_no_address": "Ajoutez d'abord votre adresse de portefeuille TRX.",
-        "c_min_balance": "Votre solde est inférieur au retrait minimum.",
-        "c_need_referral": "Il vous faut un vrai filleul ayant terminé sa première offre réussie.",
-        "c_pending_exists": "Vous avez déjà un retrait en attente.",
-        "c_ok_withdraw": "Demande de retrait envoyée 🚀", "c_err": "Une erreur s'est produite. Réessayez.",
-    },
-    "ru": {
-        "home": "🏠 Главная", "ref": "👥 Рефералы", "phone": "📱 Подписка по телефону", "apps": "📲 Установка приложений",
-        "sites": "🌐 Регистрация на сайтах", "wallet": "💳 Кошелёк", "withdraw": "💸 Вывод", "watch": "▶️ Смотреть и зарабатывать",
-        "terms": "📜 Условия", "menu": "Меню ⚙️", "welcome": "Добро пожаловать", "bal": "Текущий баланс TRX",
-        "pend": "На проверке", "minline": "Минимальный вывод: {n} TRX",
-        "faqT": "❓ Когда я получу выплату?",
-        "faqD": "Награды за установки, регистрации и подписки по телефону начисляются после проверки (24–72 часа). Выводы проверяет администратор, и для них нужен один реальный реферал, выполнивший своё первое успешное задание.",
-        "refT": "👥 Реферальная система (3%)", "refCnt": "Активные рефералы",
-        "refD": "Поделитесь ссылкой и получайте 3% от заработка рефералов пожизненно. Реферал засчитывается только после одного успешного задания.",
-        "copy": "Копировать реферальную ссылку 🔗", "copied": "Скопировано! 📋", "noOffers": "Сейчас нет доступных предложений.",
-        "go": "Начать ✅", "reward": "Награда", "pendNote": "Начисляется после проверки (24–72 ч). Отмена = блокировка аккаунта.",
-        "wDesc": "Введите адрес вашего кошелька TRX (TRC20):", "save": "Сохранить 💾", "change": "Изменить 🔄",
-        "wSaved": "Сохранённый адрес:", "noAddr": "Адрес ещё не добавлен", "wdBtn": "Запросить вывод 🚀",
-        "wdInfo": "Выводится весь баланс. Нужно минимум {n} TRX и один реальный активный реферал.",
-        "lang": "🌐 Язык", "loading": "Загрузка…",
-        "c_auth": "Сессия истекла. Закройте приложение и откройте его снова через бота.",
-        "c_banned": "Ваш аккаунт заблокирован за нарушение условий.",
-        "c_vpn": "Обнаружен VPN/прокси. Отключите его и используйте мобильный интернет.",
-        "c_bad_address": "Неверный адрес TRX.", "c_ok_addr": "Адрес сохранён 💾",
-        "c_no_address": "Сначала добавьте адрес кошелька TRX.",
-        "c_min_balance": "Ваш баланс ниже минимального для вывода.",
-        "c_need_referral": "Нужен один реальный реферал, выполнивший первое успешное задание.",
-        "c_pending_exists": "У вас уже есть заявка на вывод в обработке.",
-        "c_ok_withdraw": "Заявка на вывод отправлена 🚀", "c_err": "Что-то пошло не так. Попробуйте ещё раз.",
-    },
-    "pt": {
-        "home": "🏠 Início", "ref": "👥 Indicações", "phone": "📱 Assinatura por telefone", "apps": "📲 Instalar apps",
-        "sites": "🌐 Registrar em sites", "wallet": "💳 Carteira", "withdraw": "💸 Sacar", "watch": "▶️ Assistir e ganhar",
-        "terms": "📜 Termos", "menu": "Menu ⚙️", "welcome": "Bem-vindo", "bal": "Saldo atual de TRX",
-        "pend": "Aguardando verificação", "minline": "Saque mínimo: {n} TRX",
-        "faqT": "❓ Quando eu recebo?",
-        "faqD": "As recompensas por instalações, registros e assinaturas por telefone são creditadas após a verificação (24–72 horas). Os saques são revisados pelo administrador e exigem um indicado real que tenha concluído a primeira oferta bem-sucedida.",
-        "refT": "👥 Sistema de indicações (3%)", "refCnt": "Indicações ativas",
-        "refD": "Compartilhe seu link e ganhe 3% dos ganhos dos seus indicados para sempre. Uma indicação só conta depois de uma oferta bem-sucedida.",
-        "copy": "Copiar link de indicação 🔗", "copied": "Copiado! 📋", "noOffers": "Nenhuma oferta disponível no momento.",
-        "go": "Começar ✅", "reward": "Recompensa", "pendNote": "Creditado após a verificação (24–72 h). Cancelar = conta banida.",
-        "wDesc": "Digite o endereço da sua carteira TRX (TRC20):", "save": "Salvar 💾", "change": "Alterar 🔄",
-        "wSaved": "Endereço salvo:", "noAddr": "Nenhum endereço adicionado ainda", "wdBtn": "Solicitar saque 🚀",
-        "wdInfo": "Todo o seu saldo é sacado. Exige no mínimo {n} TRX e um indicado real ativo.",
-        "lang": "🌐 Idioma", "loading": "Carregando…",
-        "c_auth": "Sessão expirada. Feche o app e abra-o novamente pelo bot.",
-        "c_banned": "Sua conta foi banida por violar os termos.",
-        "c_vpn": "VPN/proxy detectado. Desative e use dados móveis.",
-        "c_bad_address": "Endereço TRX inválido.", "c_ok_addr": "Endereço salvo 💾",
-        "c_no_address": "Adicione primeiro o endereço da sua carteira TRX.",
-        "c_min_balance": "Seu saldo está abaixo do saque mínimo.",
-        "c_need_referral": "Você precisa de um indicado real que tenha concluído a primeira oferta bem-sucedida.",
-        "c_pending_exists": "Você já tem um saque pendente.",
-        "c_ok_withdraw": "Pedido de saque enviado 🚀", "c_err": "Algo deu errado. Tente novamente.",
-    },
-    "nl": {
-        "home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Telefoonabonnement", "apps": "📲 Apps installeren",
-        "sites": "🌐 Registreren op sites", "wallet": "💳 Wallet", "withdraw": "💸 Opnemen", "watch": "▶️ Kijken en verdienen",
-        "terms": "📜 Voorwaarden", "menu": "Menu ⚙️", "welcome": "Welkom", "bal": "Huidig TRX-saldo",
-        "pend": "In afwachting van verificatie", "minline": "Minimum opname: {n} TRX",
-        "faqT": "❓ Wanneer word ik betaald?",
-        "faqD": "Beloningen voor installaties, registraties en telefoonabonnementen worden na verificatie bijgeschreven (24–72 uur). Opnames worden door de beheerder beoordeeld en vereisen één echte referral die zijn eerste geslaagde aanbieding heeft voltooid.",
-        "refT": "👥 Referralsysteem (3%)", "refCnt": "Actieve referrals",
-        "refD": "Deel je link en verdien levenslang 3% van de winst van je referrals. Een referral telt pas na één geslaagde aanbieding.",
-        "copy": "Referrallink kopiëren 🔗", "copied": "Gekopieerd! 📋", "noOffers": "Er zijn nu geen aanbiedingen beschikbaar.",
-        "go": "Start ✅", "reward": "Beloning", "pendNote": "Bijgeschreven na verificatie (24–72 uur). Annuleren = account geblokkeerd.",
-        "wDesc": "Voer je TRX-walletadres (TRC20) in:", "save": "Opslaan 💾", "change": "Wijzigen 🔄",
-        "wSaved": "Opgeslagen adres:", "noAddr": "Nog geen adres toegevoegd", "wdBtn": "Opname aanvragen 🚀",
-        "wdInfo": "Je hele saldo wordt opgenomen. Vereist minimaal {n} TRX en één echte actieve referral.",
-        "lang": "🌐 Taal", "loading": "Laden…",
-        "c_auth": "Sessie verlopen. Sluit de app en open hem opnieuw via de bot.",
-        "c_banned": "Je account is geblokkeerd wegens schending van de voorwaarden.",
-        "c_vpn": "VPN/proxy gedetecteerd. Schakel het uit en gebruik mobiele data.",
-        "c_bad_address": "Ongeldig TRX-adres.", "c_ok_addr": "Adres opgeslagen 💾",
-        "c_no_address": "Voeg eerst je TRX-walletadres toe.",
-        "c_min_balance": "Je saldo is lager dan de minimale opname.",
-        "c_need_referral": "Je hebt één echte referral nodig die zijn eerste geslaagde aanbieding heeft voltooid.",
-        "c_pending_exists": "Je hebt al een openstaande opname.",
-        "c_ok_withdraw": "Opnameverzoek verzonden 🚀", "c_err": "Er ging iets mis. Probeer het opnieuw.",
-    },
-    "pl": {
-        "home": "🏠 Start", "ref": "👥 Polecenia", "phone": "📱 Subskrypcja telefoniczna", "apps": "📲 Instaluj aplikacje",
-        "sites": "🌐 Rejestracja na stronach", "wallet": "💳 Portfel", "withdraw": "💸 Wypłata", "watch": "▶️ Oglądaj i zarabiaj",
-        "terms": "📜 Regulamin", "menu": "Menu ⚙️", "welcome": "Witaj", "bal": "Aktualne saldo TRX",
-        "pend": "Oczekuje na weryfikację", "minline": "Minimalna wypłata: {n} TRX",
-        "faqT": "❓ Kiedy dostanę wypłatę?",
-        "faqD": "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane po weryfikacji (24–72 godziny). Wypłaty sprawdza administrator i wymagają one jednego prawdziwego poleconego, który ukończył swoją pierwszą udaną ofertę.",
-        "refT": "👥 System poleceń (3%)", "refCnt": "Aktywne polecenia",
-        "refD": "Udostępnij swój link i zarabiaj dożywotnio 3% zarobków poleconych. Polecenie liczy się dopiero po jednej udanej ofercie.",
-        "copy": "Kopiuj link polecający 🔗", "copied": "Skopiowano! 📋", "noOffers": "Brak dostępnych ofert.",
-        "go": "Start ✅", "reward": "Nagroda", "pendNote": "Dodawane po weryfikacji (24–72 godz.). Anulowanie = blokada konta.",
-        "wDesc": "Wpisz adres swojego portfela TRX (TRC20):", "save": "Zapisz 💾", "change": "Zmień 🔄",
-        "wSaved": "Zapisany adres:", "noAddr": "Nie dodano jeszcze adresu", "wdBtn": "Złóż wniosek o wypłatę 🚀",
-        "wdInfo": "Wypłacane jest całe saldo. Wymagane minimum {n} TRX i jeden prawdziwy aktywny polecony.",
-        "lang": "🌐 Język", "loading": "Ładowanie…",
-        "c_auth": "Sesja wygasła. Zamknij aplikację i otwórz ją ponownie przez bota.",
-        "c_banned": "Twoje konto zostało zablokowane za naruszenie regulaminu.",
-        "c_vpn": "Wykryto VPN/proxy. Wyłącz je i użyj danych mobilnych.",
-        "c_bad_address": "Nieprawidłowy adres TRX.", "c_ok_addr": "Adres zapisany 💾",
-        "c_no_address": "Najpierw dodaj adres portfela TRX.",
-        "c_min_balance": "Twoje saldo jest niższe niż minimalna wypłata.",
-        "c_need_referral": "Potrzebujesz jednego prawdziwego poleconego, który ukończył pierwszą udaną ofertę.",
-        "c_pending_exists": "Masz już oczekującą wypłatę.",
-        "c_ok_withdraw": "Wniosek o wypłatę wysłany 🚀", "c_err": "Coś poszło nie tak. Spróbuj ponownie.",
-    },
+    }
 }
 
 LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français",
               "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
 
 MSG = {
-    "ar": {"banned_start": "🚫 تم حظر حسابك.",
-           "reversed": "🚫 تم إلغاء حسابك لأنك ألغيت اشتراكاً أو تطبيقاً أو تسجيلاً مخالفاً للشروط.",
-           "paid": "✅ تم دفع {amt} TRX إلى محفظتك.\n{note}",
-           "rejected": "❌ تم رفض طلب السحب #{id} وأُعيد الرصيد لحسابك.\n{note}"},
-    "en": {"banned_start": "🚫 Your account has been banned.",
-           "reversed": "🚫 Your account was cancelled because you cancelled a subscription, app or registration, which violates the terms.",
-           "paid": "✅ {amt} TRX has been sent to your wallet.\n{note}",
-           "rejected": "❌ Withdrawal request #{id} was rejected and the balance was returned to your account.\n{note}"},
-    "es": {"banned_start": "🚫 Tu cuenta ha sido bloqueada.",
-           "reversed": "🚫 Tu cuenta fue cancelada porque cancelaste una suscripción, app o registro, lo cual incumple los términos.",
-           "paid": "✅ Se enviaron {amt} TRX a tu billetera.\n{note}",
-           "rejected": "❌ La solicitud de retiro #{id} fue rechazada y el saldo volvió a tu cuenta.\n{note}"},
-    "de": {"banned_start": "🚫 Dein Konto wurde gesperrt.",
-           "reversed": "🚫 Dein Konto wurde gelöscht, weil du ein Abo, eine App oder eine Registrierung gekündigt hast, was gegen die Bedingungen verstößt.",
-           "paid": "✅ {amt} TRX wurden an deine Wallet gesendet.\n{note}",
-           "rejected": "❌ Auszahlungsantrag #{id} wurde abgelehnt und das Guthaben wurde deinem Konto gutgeschrieben.\n{note}"},
-    "fr": {"banned_start": "🚫 Votre compte a été banni.",
-           "reversed": "🚫 Votre compte a été supprimé car vous avez annulé un abonnement, une app ou une inscription, ce qui enfreint les conditions.",
-           "paid": "✅ {amt} TRX ont été envoyés à votre portefeuille.\n{note}",
-           "rejected": "❌ La demande de retrait #{id} a été refusée et le solde a été restitué à votre compte.\n{note}"},
-    "ru": {"banned_start": "🚫 Ваш аккаунт заблокирован.",
-           "reversed": "🚫 Ваш аккаунт аннулирован, потому что вы отменили подписку, приложение или регистрацию, что нарушает условия.",
-           "paid": "✅ {amt} TRX отправлены на ваш кошелёк.\n{note}",
-           "rejected": "❌ Заявка на вывод #{id} отклонена, баланс возвращён на ваш аккаунт.\n{note}"},
-    "pt": {"banned_start": "🚫 Sua conta foi banida.",
-           "reversed": "🚫 Sua conta foi cancelada porque você cancelou uma assinatura, app ou registro, o que viola os termos.",
-           "paid": "✅ {amt} TRX foram enviados para sua carteira.\n{note}",
-           "rejected": "❌ O pedido de saque #{id} foi recusado e o saldo voltou para sua conta.\n{note}"},
-    "nl": {"banned_start": "🚫 Je account is geblokkeerd.",
-           "reversed": "🚫 Je account is geannuleerd omdat je een abonnement, app of registratie hebt geannuleerd, wat tegen de voorwaarden is.",
-           "paid": "✅ {amt} TRX is naar je wallet gestuurd.\n{note}",
-           "rejected": "❌ Opnameverzoek #{id} is afgewezen en het saldo is teruggestort op je account.\n{note}"},
-    "pl": {"banned_start": "🚫 Twoje konto zostało zablokowane.",
-           "reversed": "🚫 Twoje konto zostało anulowane, ponieważ anulowałeś subskrypcję, aplikację lub rejestrację, co narusza regulamin.",
-           "paid": "✅ {amt} TRX zostało wysłane do Twojego portfela.\n{note}",
-           "rejected": "❌ Wniosek o wypłatę #{id} został odrzucony, a saldo wróciło na Twoje konto.\n{note}"},
+    "ar": {"banned_start": "🚫 تم حظر حسابك.", "reversed": "🚫 تم إلغاء حسابك لأنك ألغيت اشتراكاً أو تطبيقاً أو تسجيلاً مخالفاً للشروط.", "paid": "✅ تم دفع {amt} TRX إلى محفظتك.\n{note}", "rejected": "❌ تم رفض طلب السحب #{id} وأُعيد الرصيد لحسابك.\n{note}"},
+    "en": {"banned_start": "🚫 Your account has been banned.", "reversed": "🚫 Your account was cancelled because you cancelled a subscription, app or registration, which violates the terms.", "paid": "✅ {amt} TRX has been sent to your wallet.\n{note}", "rejected": "❌ Withdrawal request #{id} was rejected and the balance was returned to your account.\n{note}"}
 }
 
 def user_lang(conn, uid):
@@ -846,7 +574,6 @@ def api_lang():
             ensure_user(c, g.user["id"], g.user.get("username") or "")
             c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, g.user["id"]))
     return jsonify(success=True)
-
 
 # ======================================================================
 # صفحة التطبيق المصغر (HTML) - تم تحديث الأيقونات وإزالة التكرار
@@ -1042,7 +769,6 @@ $('menu-open').onclick=openDrawer; $('menu-close').onclick=closeDrawer; $('overl
 
 function buildNav(){
   const nav=$('nav'); nav.replaceChildren();
-  // القائمة الجانبية تحتوي فقط على أقسام الربح والشروط لمنع التكرار
   const drawerTabs = ['phone','app','site','ad','terms']; 
   drawerTabs.forEach(tab=>{
     const isActive = state.tab === tab;
@@ -1051,7 +777,231 @@ function buildNav(){
        h('span',{},stripLead(T(NAVKEY[tab])))
     ));
   });
-  
-  // قسم اللغة
   const langWrap = h('div',{style:'margin-top:20px;padding-top:15px;border-top:1px solid rgba(245,197,66,.15)'});
-  langWrap.append(h('div',{class:'muted',style:'display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700;color:var
+  langWrap.append(h('div',{class:'muted',style:'display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700;color:var(--gold)'}, h('span',{innerHTML:ICONS.lang}), T('lang')));
+  const sel=h('select',{onchange:e=>{lang=e.target.value;localStorage.setItem('lang',lang);api('/api/lang',{lang});render();}},
+    Object.keys(LANG_NAMES).map(l=>h('option',{value:l,selected:l===lang},LANG_NAMES[l])));
+  langWrap.append(sel);
+  nav.append(langWrap);
+}
+
+const BOT=[['home'],['ref'],['wallet'],['withdraw']];
+const stripLead=s=>String(s).replace(/^[^\p{L}\p{N}]+/u,'').trim();
+const stripAll=s=>String(s).replace(/[^\p{L}\p{N}\s]+/gu,'').replace(/\s+/g,' ').trim();
+function countUp(el,to){
+  const t0=performance.now(), dur=1100;
+  (function step(t){const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3);
+    el.textContent=(to*e).toFixed(2); if(k<1) requestAnimationFrame(step);})(t0);
+}
+function buildBottom(){
+  const b=$('bottom'); b.replaceChildren();
+  BOT.forEach(([tab])=>b.append(h('button',{class:'nb'+(state.tab===tab?' on':''),onclick:()=>go(tab)},
+    h('span',{class:'ni',innerHTML:ICONS[tab]}),h('span',{},stripLead(T(NAVKEY[tab]))))));
+  b.append(h('button',{class:'nb'+(BOT.some(x=>x[0]===state.tab)?'':' on'),onclick:openDrawer},
+    h('span',{class:'ni',innerHTML:ICONS.menu}),h('span',{},stripAll(T('menu')))));
+}
+
+const VIEWS={
+ home(v){
+  const m=state.me, pct=Math.min(100,Math.round(m.balance/m.min_withdraw*100));
+  const amt=h('span',{class:'amt-n'},m.balance.toFixed(2));
+  const initial=((m.name||'U').trim()[0]||'U').toUpperCase();
+  v.append(h('div',{class:'hero'},
+    h('div',{class:'hero-top'},h('div',{class:'chip'}),h('div',{class:'brand'},'TRX EARN')),
+    h('div',{class:'hero-label'},T('bal')),
+    h('div',{class:'amt'},h('span',{class:'cur'},'TRX'),amt),
+    h('div',{class:'prog'},h('i',{style:'width:'+pct+'%'})),
+    h('div',{class:'prog-txt'},h('span',{},T('minline').replace('{n}',m.min_withdraw)),h('b',{},pct+'%')),
+    h('div',{class:'who'},h('div',{class:'av'},initial),h('span',{},m.name||''))));
+  if(!state.counted){state.counted=true;countUp(amt,m.balance);}
+  v.append(h('div',{class:'tiles'},
+    h('div',{class:'tile'},h('small',{},T('pend')),h('b',{},'TRX '+m.pending.toFixed(2))),
+    h('div',{class:'tile'},h('small',{},T('refCnt')),h('b',{},m.active_referrals))));
+  const grid=h('div',{class:'grid2'});
+  ['phone','app','site','ad'].forEach(k=>grid.append(h('button',{class:'earn',onclick:()=>go(k)},
+    h('span',{class:'ic',innerHTML:ICONS[k]}),h('span',{class:'lb'},stripLead(T(NAVKEY[k]))))));
+  v.append(grid);
+  v.append(h('details',{class:'card'},h('summary',{},T('faqT')),h('p',{class:'muted'},T('faqD'))));
+ },
+ ref(v){
+  const m=state.me;
+  v.append(card(h('h3',{},T('refT')),
+    h('p',{},T('refCnt')+': ',h('b',{style:'color:var(--gold)'},m.active_referrals)),
+    h('p',{class:'muted'},T('refD')),
+    h('input',{value:m.ref_link,readOnly:true,onclick:e=>e.target.select()}),
+    h('button',{class:'btn',onclick:()=>copyText(m.ref_link)},T('copy'))));
+ },
+ offers(v,kind){
+  const titleKey=NAVKEY[kind];
+  const c=card(h('h3',{},T(titleKey)));
+  if(kind!=='ad') c.append(h('p',{class:'muted'},T('pendNote')));
+  if(state.offers===null) c.append(h('p',{class:'muted'},T('loading')));
+  else if(state.offerErr) c.append(h('p',{style:'color:#fda4af'},codeMsg(state.offerErr)));
+  else if(!state.offers.length) c.append(h('p',{class:'muted'},T('noOffers')));
+  else state.offers.forEach(o=>{
+    c.append(h('div',{class:'offer'},h('div',{class:'oic',innerHTML:ICONS[kind]}),h('div',{class:'otx'},h('b',{},o.title),h('span',{class:'pill'},'+'+o.reward+' TRX')),
+      h('button',{class:'btn green',onclick:()=>{ if(tg.openLink) tg.openLink(o.url); else window.open(o.url,'_blank'); }},T('go'))));
+  });
+  v.append(c);
+ },
+ wallet(v){
+  const m=state.me, has=!!m.trx_address;
+  const inp=h('input',{id:'addr',placeholder:'T...',value:m.trx_address,readOnly:has&&!state.editing});
+  const btn=h('button',{class:'btn',onclick:async()=>{
+    if(has&&!state.editing){state.editing=true;render();return;}
+    const d=await api('/api/address',{address:inp.value.trim()});
+    if(d.success){state.editing=false;msg(T('c_ok_addr'));await loadMe();} else msg(codeMsg(d.code));
+  }},(has&&!state.editing)?T('change'):T('save'));
+  v.append(card(h('h3',{},T('wallet')),h('p',{class:'muted'},has&&!state.editing?T('wSaved'):T('wDesc')),inp,btn));
+ },
+ withdraw(v){
+  const m=state.me;
+  v.append(card(h('h3',{},T('withdraw')),
+    h('div',{class:'big'},'TRX '+m.balance.toFixed(2)),
+    h('p',{class:'muted'},T('wSaved')),
+    h('p',{style:'color:var(--goldsoft);font-weight:bold;word-break:break-all;direction:ltr'},m.trx_address||T('noAddr')),
+    h('p',{class:'muted'},T('wdInfo').replace('{n}',m.min_withdraw)),
+    h('button',{class:'btn red',onclick:async()=>{
+      const d=await api('/api/withdraw',{});
+      msg(d.success?T('c_ok_withdraw'):codeMsg(d.code)); await loadMe();
+    }},T('wdBtn'))));
+ },
+ terms(v){
+  const t=TERMS[lang]||TERMS.en;
+  const c=card(h('h3',{},t.title));
+  t.sections.forEach(s=>{c.append(h('h4',{},s[0]),h('div',{class:'pre'},s[1]));});
+  c.style.textAlign='start'; v.append(c);
+ }
+};
+
+function render(){
+  document.documentElement.lang=lang; document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
+  $('title').textContent=T(NAVKEY[state.tab]); $('menu-title').textContent=T('menu'); buildNav(); buildBottom();
+  const v=$('view'); v.replaceChildren();
+  if(state.err){v.append(card(h('p',{},codeMsg(state.err)))); return;}
+  if(!state.me){v.append(h('p',{class:'muted',style:'text-align:center'},T('loading'))); return;}
+  $('welcome').textContent=T('welcome')+(state.me.name?': '+state.me.name:'');
+  if(OFFER_KINDS.includes(state.tab)) VIEWS.offers(v,state.tab); else VIEWS[state.tab](v);
+}
+if(!INIT){state.err='auth';}
+render(); if(INIT){ api('/api/lang',{lang}); loadMe(); }
+</script>
+</body>
+</html>
+"""
+
+@server.route("/webapp")
+def webapp():
+    terms = {l: {"title": TERMS_TITLE[l], "sections": terms_sections(l)} for l in LANGS}
+    page = (WEBAPP_HTML
+            .replace("__UI__", json.dumps(UI, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
+            .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False)))
+    resp = Response(page, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+# ======================================================================
+# بوت تيليجرام
+# ======================================================================
+@server.route("/" + TOKEN, methods=["POST"])
+def webhook():
+    try:
+        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Error processing update: {e}", flush=True)
+    return "OK", 200
+
+@bot.message_handler(commands=["start"])
+def start(message):
+    try:
+        uid = message.from_user.id
+        username = message.from_user.username or message.from_user.first_name or ""
+        lang = (message.from_user.language_code or "en")[:2].lower()
+        if lang not in HEADS:
+            lang = "en"
+        referrer = None
+        parts = (message.text or "").split()
+        if len(parts) > 1 and parts[1].isdigit():
+            referrer = int(parts[1])
+        with tx() as c:
+            u = ensure_user(c, uid, username, referrer)
+            c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, uid))
+        if u["banned"]:
+            bot.reply_to(message, msg_for(lang, "banned_start"))
+            return
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton(
+            AGREE_BTN[lang], web_app=telebot.types.WebAppInfo(url=f"{RENDER_URL}/webapp")))
+        bot.reply_to(message, terms_html(lang), parse_mode="HTML", reply_markup=markup)
+    except Exception as e:
+        print(f"Error in start handler: {e}", flush=True)
+
+def is_admin(m):
+    return ADMIN_ID and m.from_user.id == ADMIN_ID
+
+@bot.message_handler(commands=["withdrawals"])
+def cmd_withdrawals(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
+    if not rows:
+        bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅")
+        return
+    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
+
+@bot.message_handler(commands=["paid", "reject"])
+def cmd_process(m):
+    if not is_admin(m):
+        return
+    args = (m.text or "").split()
+    if len(args) < 2 or not args[1].isdigit():
+        bot.reply_to(m, "الاستخدام: /paid 12 [رقم العملية]  أو  /reject 12")
+        return
+    wid, paid = int(args[1]), args[0].startswith("/paid")
+    note = " ".join(args[2:])
+    with tx() as c:
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w:
+            bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
+            return
+        lang = user_lang(c, w["user_id"])
+        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
+        if not paid:
+            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض وإرجاع الرصيد'} للطلب #{wid} ✅")
+    try:
+        if paid:
+            bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
+        else:
+            bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+    except Exception:
+        pass
+
+@bot.message_handler(commands=["stats"])
+def cmd_stats(m):
+    if not is_admin(m):
+        return
+    with tx() as c:
+        users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        banned = c.execute("SELECT COUNT(*) FROM users WHERE banned=1").fetchone()[0]
+        pending = c.execute("SELECT COUNT(*) FROM transactions WHERE status='pending'").fetchone()[0]
+        wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
+    bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
+
+init_db()
+
+if os.environ.get("RUN_RELEASE_LOOP", "1") == "1":
+    threading.Thread(target=_release_loop, daemon=True).start()
+
+if RENDER_URL and os.environ.get("AUTO_WEBHOOK", "1") == "1":
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{RENDER_URL}/{TOKEN}")
+    except Exception as e:
+        print("set_webhook error:", e, flush=True)
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
