@@ -308,24 +308,14 @@ def api_ad_complete():
         c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at,approved_at) VALUES(?,?,?,?,?,'approved',?,?,?)", (f"ad_{token}", uid, "ad", "monetag", AD_REWARD, now, now, now))
     return jsonify(success=True, reward=AD_REWARD / MICRO)
 
-HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"], "es": ["🌍 Sobre", "⚠️ Aviso", "💰 Retiro", "🚫 Prohibido", "⏳ Verificar", "👥 Referidos", "💸 Retiros"], "de": ["🌍 Info", "⚠️ Warnung", "💰 Minimum", "🚫 Verboten", "⏳ Prüfen", "👥 Empfehlungen", "💸 Auszahlen"], "fr": ["🌍 À propos", "⚠️ Avis", "💰 Minimum", "🚫 Interdit", "⏳ Vérifier", "👥 Parrainage", "💸 Retraits"], "ru": ["🌍 О боте", "⚠️ Важно", "💰 Минимум", "🚫 Запрещено", "⏳ Проверка", "👥 Рефералы", "💸 Вывод"], "pt": ["🌍 Sobre", "⚠️ Aviso", "💰 Saque", "🚫 Proibido", "⏳ Verificar", "👥 Indicações", "💸 Saques"], "nl": ["🌍 Over", "⚠️ Waarschuwing", "💰 Minimum", "🚫 Verboden", "⏳ Verificatie", "👥 Referrals", "💸 Opnames"], "pl": ["🌍 Info", "⚠️ Ostrzeżenie", "💰 Minimum", "🚫 Zakazy", "⏳ Weryfikacja", "👥 Polecenia", "💸 Wypłaty"]}
-
+HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه", "💰 حد السحب", "🚫 المحظورات", "⏳ التحقق", "👥 الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Warning", "💰 Min withdraw", "🚫 Prohibited", "⏳ Verify", "👥 Referrals", "💸 Withdraw"]}
 BODIES = {
-    "ar": ["الربح من:\n🎬 الإعلانات\n📱 الاشتراك\n📝 التسجيل\n📲 التطبيقات", "لا تدفع أي مبلغ. المهام مجانية. من يطلب مالاً سيتم حظره.", "الحد الأدنى للسحب: {min} TRX.", "❌ VPN\n❌ الواي فاي\n❌ حسابات متعددة\n❌ بيانات وهمية", "التحقق يستغرق {h} ساعة. إلغاء العرض = حظر الحساب.", "3% من أرباح الإحالات مدى الحياة. تُحسب بعد إكمال المدعو عرضاً.", "السحب يتطلب {min} TRX وإحالة حقيقية مكتملة."],
-    "en": ["Earn from:\n🎬 Ads\n📱 Subscriptions\n📝 Sign-ups\n📲 Apps", "Never pay money. Tasks are free. Scammers will be banned.", "Min withdrawal: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Fake data", "Verification takes {h}h. Cancelling = ban.", "3% for life. Counts after 1 offer.", "Requires {min} TRX and 1 real referral."],
-    "es": ["Gana con:\n🎬 Anuncios\n📱 Suscripciones\n📝 Registros\n📲 Apps", "No pagues dinero. Tareas gratis. Estafadores bloqueados.", "Retiro mínimo: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-cuentas\n❌ Datos falsos", "Verificación {h}h. Cancelar = bloqueo.", "3% de por vida. Cuenta tras 1 oferta.", "Requiere {min} TRX y 1 referido real."],
-    "de": ["Verdienen mit:\n🎬 Werbung\n📱 Abos\n📝 Registrierung\n📲 Apps", "Zahle niemals Geld. Aufgaben sind kostenlos. Betrüger werden gesperrt.", "Min Auszahlung: {min} TRX.", "❌ VPN\n❌ WLAN\n❌ Multi-Accounts\n❌ Fake-Daten", "Prüfung {h} Std. Kündigung = Sperre.", "3% lebenslang. Zählt nach 1 Angebot.", "Erfordert {min} TRX und 1 echte Empfehlung."],
-    "fr": ["Gagnez avec:\n🎬 Pubs\n📱 Abos\n📝 Inscriptions\n📲 Apps", "Ne payez jamais. Tout est gratuit. Les escrocs sont bannis.", "Retrait min : {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-comptes\n❌ Fausses données", "Vérification {h}h. Annuler = bannissement.", "3% à vie. Compte après 1 offre.", "Nécessite {min} TRX et 1 vrai filleul."],
-    "ru": ["Заработок на:\n🎬 Рекламе\n📱 Подписках\n📝 Регистрациях\n📲 Приложениях", "Никогда не платите. Все задания бесплатны. Мошенники блокируются.", "Мин вывод: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Мультиаккаунты\n❌ Фейки", "Проверка {h} ч. Отмена = блокировка.", "3% пожизненно. Считается после 1 задания.", "Требуется {min} TRX и 1 реальный реферал."],
-    "pt": ["Ganhe com:\n🎬 Anúncios\n📱 Assinaturas\n📝 Registros\n📲 Apps", "Nunca pague. Tudo é grátis. Golpistas são banidos.", "Saque mínimo: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Múltiplas contas\n❌ Dados falsos", "Verificação {h}h. Cancelar = banimento.", "3% vitalício. Conta após 1 oferta.", "Requer {min} TRX e 1 indicado real."],
-    "nl": ["Verdien met:\n🎬 Ads\n📱 Abonnementen\n📝 Registraties\n📲 Apps", "Betaal nooit. Alles is gratis. Oplichters worden geblokkeerd.", "Min opname: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Nepdata", "Verificatie {h} uur. Annuleren = blokkade.", "3% levenslang. Telt na 1 aanbieding.", "Vereist {min} TRX en 1 echte referral."],
-    "pl": ["Zarabiaj na:\n🎬 Reklamach\n📱 Subskrypcjach\n📝 Rejestracjach\n📲 Aplikacjach", "Nigdy nie płać. Zadania są darmowe. Oszuści są blokowani.", "Min wypłata: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Wiele kont\n❌ Fałszywe dane", "Weryfikacja {h} godz. Anulowanie = blokada.", "3% dożywotnio. Liczy się po 1 ofercie.", "Wymaga {min} TRX i 1 prawdziwego poleconego."]
+    "ar": ["الربح من:\n🎬 الإعلانات\n📱 الاشتراك\n📝 التسجيل\n📲 التطبيقات", "لا تدفع أي مبلغ. المهام مجانية. من يطلب مالاً سيتم حظره.", "الحد الأدنى للسحب: {min} TRX.", "❌ VPN\n❌ الواي فاي\n❌ حسابات متعددة\n❌ بيانات وهمية", "التحقق يستغرق {h} ساعة. إلغاء العرض = حظر الحساب.", "3% من أرباح الإحالات مدى الحياة.", "السحب يتطلب {min} TRX وإحالة حقيقية مكتملة."],
+    "en": ["Earn from:\n🎬 Ads\n📱 Subscriptions\n📝 Sign-ups\n📲 Apps", "Never pay money. Tasks are free. Scammers will be banned.", "Min withdrawal: {min} TRX.", "❌ VPN\n❌ Wi-Fi\n❌ Multi-accounts\n❌ Fake data", "Verification takes {h}h. Cancelling = ban.", "3% for life.", "Requires {min} TRX and 1 real referral."]
 }
-
-TERMS_TITLE = {"ar": "📜 شروط وأحكام TRX Earn", "en": "📜 TRX Earn Terms", "es": "📜 Términos de TRX Earn", "de": "📜 AGB von TRX Earn", "fr": "📜 Conditions de TRX Earn", "ru": "📜 Условия TRX Earn", "pt": "📜 Termos do TRX Earn", "nl": "📜 Voorwaarden TRX Earn", "pl": "📜 Regulamin TRX Earn"}
-AGREE_BTN = {"ar": "أوافق وأفتح التطبيق 🚀", "en": "I Agree & Open 🚀", "es": "Aceptar y abrir 🚀", "de": "Zustimmen & öffnen 🚀", "fr": "Accepter et ouvrir 🚀", "ru": "Согласен, открыть 🚀", "pt": "Concordar e abrir 🚀", "nl": "Akkoord & openen 🚀", "pl": "Zgadzam się i otwórz 🚀"}
+TERMS_TITLE = {"ar": "📜 شروط وأحكام", "en": "📜 Terms & Conditions"}
+AGREE_BTN = {"ar": "أوافق وأفتح التطبيق 🚀", "en": "I Agree & Open 🚀"}
 LANGS = list(HEADS.keys())
-
 def terms_sections(lang):
     lang = lang if lang in HEADS else "en"
     bodies = [b.replace("{min}", str(MIN_WITHDRAW)).replace("{h}", str(VERIFY_HOURS)) for b in BODIES[lang]]
@@ -338,10 +328,86 @@ def terms_html(lang):
     return "\n".join(parts)
 
 UI = {
-    "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone", "apps": "📲 Apps", "sites": "🌐 Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Ads", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Balance", "pend": "Pending", "minline": "Min: {n} TRX", "faqT": "❓ Rules & Info", "faqD": "💸 **Withdrawal:** Min {n} TRX and 1 real referral.\n👥 **Referrals:** Earn 3%.\n🚫 **Cancelling:** Account suspended. Unlock with 5 referrals.", "refT": "👥 Referrals (3%)", "refCnt": "Active", "refD": "Earn 3% for life.", "copy": "Copy Link 🔗", "copied": "Copied! 📋", "noOffers": "No offers.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after 24-72h.", "wDesc": "Enter TRX wallet:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved:", "noAddr": "No address", "wdBtn": "Withdraw 🚀", "wdInfo": "Min {n} TRX and 1 active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired.", "c_banned": "Banned.", "c_vpn": "VPN detected.", "c_bad_address": "Invalid address.", "c_ok_addr": "Saved 💾", "c_no_address": "Add address first.", "c_min_balance": "Below minimum.", "c_need_referral": "Need 1 real referral.", "c_pending_exists": "Pending withdrawal.", "c_ok_withdraw": "Submitted 🚀", "c_err": "Error."},
-    "ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الهاتف", "apps": "📲 التطبيقات", "sites": "🌐 المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الإعلانات", "terms": "📜 الشروط", "menu": "القائمة ⚙️", "welcome": "مرحباً", "bal": "الرصيد", "pend": "قيد التحقق", "minline": "الأدنى: {n} TRX", "faqT": "❓ القواعد", "faqD": "💸 **السحب:** حد أدنى {n} TRX وإحالة حقيقية.\n👥 **الإحالة:** اربح 3%.\n🚫 **الإلغاء:** إيقاف الحساب. افتحه بـ 5 إحالات.", "refT": "👥 الإحالة (3%)", "refCnt": "نشط", "refD": "اربح 3% مدى الحياة.", "copy": "نسخ الرابط 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا عروض.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تضاف بعد 24-72 ساعة.", "wDesc": "أدخل محفظة TRX:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "المحفوظ:", "noAddr": "لا يوجد عنوان", "wdBtn": "طلب السحب 🚀", "wdInfo": "حد أدنى {n} TRX وإحالة نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة.", "c_banned": "محظور.", "c_vpn": "VPN مكتشف.", "c_bad_address": "عنوان خاطئ.", "c_ok_addr": "تم الحفظ 💾", "c_no_address": "أضف عنواناً أولاً.", "c_min_balance": "أقل من الحد الأدنى.", "c_need_referral": "تحتاج إحالة حقيقية.", "c_pending_exists": "لديك طلب سحب.", "c_ok_withdraw": "تم التقديم 🚀", "c_err": "خطأ."}
+    "ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الهاتف", "apps": "📲 التطبيقات", "sites": "🌐 المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الإعلانات", "terms": "📜 الشروط", "menu": "القائمة ⚙️", "welcome": "مرحباً", "bal": "الرصيد", "pend": "قيد التحقق", "minline": "الأدنى: {n} TRX", "faqT": "❓ القواعد", "faqD": "💸 **السحب:** حد أدنى {n} TRX وإحالة حقيقية.\n👥 **الإحالة:** اربح 3%.\n🚫 **الإلغاء:** إيقاف الحساب. افتحه بـ 5 إحالات.", "refT": "👥 الإحالة (3%)", "refCnt": "نشط", "refD": "اربح 3% مدى الحياة.", "copy": "نسخ الرابط 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا عروض.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تضاف بعد 24-72 ساعة.", "wDesc": "أدخل محفظة TRX:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "المحفوظ:", "noAddr": "لا يوجد عنوان", "wdBtn": "طلب السحب 🚀", "wdInfo": "حد أدنى {n} TRX وإحالة نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة.", "c_banned": "محظور.", "c_vpn": "VPN مكتشف.", "c_bad_address": "عنوان خاطئ.", "c_ok_addr": "تم الحفظ 💾", "c_no_address": "أضف عنواناً أولاً.", "c_min_balance": "أقل من الحد الأدنى.", "c_need_referral": "تحتاج إحالة حقيقية.", "c_pending_exists": "لديك طلب سحب.", "c_ok_withdraw": "تم التقديم 🚀", "c_err": "خطأ."},
+    "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone", "apps": "📲 Apps", "sites": "🌐 Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Ads", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Balance", "pend": "Pending", "minline": "Min: {n} TRX", "faqT": "❓ Rules & Info", "faqD": "💸 **Withdrawal:** Min {n} TRX and 1 real referral.\n👥 **Referrals:** Earn 3%.\n🚫 **Cancelling:** Account suspended. Unlock with 5 referrals.", "refT": "👥 Referrals (3%)", "refCnt": "Active", "refD": "Earn 3% for life.", "copy": "Copy Link 🔗", "copied": "Copied! 📋", "noOffers": "No offers.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after 24-72h.", "wDesc": "Enter TRX wallet:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved:", "noAddr": "No address", "wdBtn": "Withdraw 🚀", "wdInfo": "Min {n} TRX and 1 active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired.", "c_banned": "Banned.", "c_vpn": "VPN detected.", "c_bad_address": "Invalid address.", "c_ok_addr": "Saved 💾", "c_no_address": "Add address first.", "c_min_balance": "Below minimum.", "c_need_referral": "Need 1 real referral.", "c_pending_exists": "Pending withdrawal.", "c_ok_withdraw": "Submitted 🚀", "c_err": "Error."}
 }
-UI["es"], UI["de"], UI["fr"], UI["ru"], UI["pt"], UI["nl"], UI["pl"] = [UI["en"]] * 7
-LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français", "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
+LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English"}
 MSG = {"ar": {"banned_start": "🚫 محظور.", "reversed": "🚫 تم إيقاف حسابك. افتحه بـ 5 إحالات.", "paid": "✅ دفع {amt} TRX.\n{note}", "rejected": "❌ رفض #{id}.\n{note}"}, "en": {"banned_start": "🚫 Banned.", "reversed": "🚫 Suspended. Unlock with 5 referrals.", "paid": "✅ {amt} TRX sent.\n{note}", "rejected": "❌ #{id} rejected.\n{note}"}}
-MSG["es"], MSG["de"], MSG["fr"], MSG["ru"], MSG["pt"], MSG["nl"], MSG
+
+def user_lang(conn, uid):
+    r = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
+    l = (r["lang"] if r else "") or "en"
+    return l if l in MSG else "en"
+
+def msg_for(lang, key, **kw):
+    return MSG.get(lang, MSG["en"])[key].format(**kw)
+
+@server.route("/api/lang", methods=["POST"])
+@auth
+def api_lang():
+    lang = str((request.get_json(silent=True) or {}).get("lang", ""))[:2]
+    if lang in MSG:
+        with tx() as c:
+            ensure_user(c, g.user["id"], g.user.get("username") or "")
+            c.execute("UPDATE users SET lang=? WHERE user_id=?", (lang, g.user["id"]))
+    return jsonify(success=True)
+
+WEBAPP_HTML = r"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- ضع كود Monetag هنا -->
+<script src="https://yourdomain.com/vignette.min.js" data-zone="XXXXXX" data-sdk="show_XXXXXX"></script>
+<style>
+ :root{--bg:#060608;--gold:#f5c542;--text:#f6f1e4;--muted:#9a9384;--line:rgba(245,197,66,.22)}
+ *{box-sizing:border-box} body{font-family:'Cairo',sans-serif;color:var(--text);padding:15px 15px 108px;background:var(--bg);margin:0}
+ .header{display:flex;justify-content:space-between;padding:15px;background:rgba(6,6,8,.74);position:sticky;top:0;border-bottom:1px solid var(--line)}
+ .header h2{flex:1;text-align:center;margin:0;color:var(--gold);font-size:16px}
+ .card{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:10px;text-align:center}
+ .hero{background:linear-gradient(135deg,#221a08,#0b0905);padding:20px;border-radius:20px;text-align:start;border:1px solid var(--gold)}
+ .amt{font-size:36px;font-weight:800;color:var(--gold);display:flex;gap:8px;direction:ltr}
+ .btn{width:100%;padding:12px;border:none;border-radius:12px;background:var(--gold);color:#000;font-weight:800;margin-top:10px;cursor:pointer}
+ .btn.red{background:#e11d48;color:#fff}
+ .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+ .earn{display:flex;flex-direction:column;align-items:center;padding:15px;border:1px solid var(--line);border-radius:15px;cursor:pointer;color:var(--gold)}
+ #bottom{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;padding:15px;background:rgba(16,13,7,.9);border-top:1px solid var(--line)}
+ .nb{background:none;border:none;color:var(--muted);font-weight:bold;cursor:pointer}
+ .nb.on{color:var(--gold)}
+ input,select{width:100%;padding:10px;border-radius:10px;background:#000;color:var(--gold);border:1px solid var(--line);margin-top:5px;text-align:center}
+</style>
+</head>
+<body>
+<div class="header"><button class="nb" onclick="openMenu()">☰</button><h2 id="title"></h2><span style="color:var(--gold)">♦</span></div>
+<div id="view" style="margin-top:15px"></div>
+<div id="bottom"></div>
+<div id="menu" style="display:none;position:fixed;top:0;right:0;bottom:0;width:250px;background:#111;padding:20px;z-index:99;border-left:1px solid var(--gold)">
+  <button class="nb" onclick="closeMenu()" style="float:left">✖</button>
+  <h3 style="color:var(--gold)">Menu</h3>
+  <div id="nav" style="display:flex;flex-direction:column;gap:10px;margin-top:20px"></div>
+</div>
+<script>
+const UI=__UI__, LANG_NAMES=__LANG_NAMES__;
+const tg=window.Telegram.WebApp; tg.ready(); tg.expand();
+const INIT=tg.initData||"";
+let lang=localStorage.getItem('lang')||((tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.language_code)||'ar').slice(0,2);
+if(!UI[lang]) lang='ar';
+let state={me:null,tab:'home',offers:null,err:null};
+const T=k=>(UI[lang]&&UI[lang][k])||UI.en[k]||k;
+
+function h(tag,attrs,...kids){const e=document.createElement(tag); for(const k in (attrs||{})){if(k==='innerHTML')e.innerHTML=attrs[k]; else if(k==='onclick')e.onclick=attrs[k]; else e.setAttribute(k,attrs[k]);} kids.flat().forEach(c=>{if(c!=null) e.append(c.nodeType?c:document.createTextNode(c));}); return e;}
+async function api(path,body){const opt={headers:{'X-Init-Data':INIT,'Content-Type':'application/json'}}; if(body){opt.method='POST';opt.body=JSON.stringify(body);} try{const r=await fetch(path,opt);return await r.json();}catch(e){return{success:false,code:'err'};}}
+function msg(t){tg.showAlert(t);}
+
+async function loadMe(){const d=await api('/api/me'); if(d.success){state.me=d;state.err=null;}else{state.err=d.code;} render();}
+async function go(tab){state.tab=tab; closeMenu(); if(['phone','app','site','ad'].includes(tab)){state.offers=null; render(); const d=await api('/api/offers?kind='+tab); state.offers=d.success?d.offers:[];} render();}
+function openMenu(){document.getElementById('menu').style.display='block';}
+function closeMenu(){document.getElementById('menu').style.display='none';}
+
+function render(){
+  document.documentElement.dir=(lang==='ar')?'rtl':'ltr';
+  document.getElementById('title').textContent=T(state.tab);
+  const b=document.getElementById('bottom'); b.innerHTML='';
+  [['home','🏠'],['ref','👥'],['wallet','💳'],['withdraw','
