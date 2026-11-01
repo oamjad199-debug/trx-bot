@@ -1126,6 +1126,15 @@ def cmd_stats(m):
         wd = c.execute("SELECT COUNT(*) FROM withdrawals WHERE status='pending'").fetchone()[0]
     bot.reply_to(m, f"👤 المستخدمون: {users}\n🚫 المحظورون: {banned}\n⏳ عمليات قيد التحقق: {pending}\n💸 سحوبات معلقة: {wd}")
 
+@bot.message_handler(commands=["resetads"])
+def cmd_resetads(m):
+    """للأدمن: يصفّر المرحلة الثانية (عدّاد 24 ساعة وتقدّمها) لكل المستخدمين، مفيد عند تغيير الإعلان."""
+    if not is_admin(m):
+        return
+    with tx() as c:
+        c.execute("UPDATE ad_stage SET views=0, earned=0, locked_until=0, opened=0 WHERE stage=1")
+    bot.reply_to(m, "تم تصفير المرحلة الثانية للإعلانات لجميع المستخدمين ✅")
+
 init_db()
 
 if os.environ.get("RUN_RELEASE_LOOP", "1") == "1":
