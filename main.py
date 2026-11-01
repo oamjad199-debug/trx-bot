@@ -161,6 +161,8 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
 MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "0"))
+REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"   # شرط الإحالة للسحب: ضع 1 لتفعيله
+ADS_ENABLED = os.environ.get("ADS_ENABLED", "0") == "1"             # الإعلانات متوقفة مؤقتاً: ضع 1 لتفعيلها
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
 IPQS_KEY = os.environ.get("IPQS_KEY", "")
 MICRO = 1_000_000
@@ -527,7 +529,7 @@ def api_offers():
         return jsonify(success=False, code="vpn"), 403
     out = [{"id": o["id"], "title": o.get("title", o["id"]), "reward": float(o["reward"]), "url": o["url"].replace("{user_id}", str(uid))} for o in OFFERS.values() if o["kind"] == kind]
     resp = dict(success=True, offers=out)
-    if kind == "ad":
+    if kind == "ad" and ADS_ENABLED:
         with tx() as c:
             resp["ads"] = ad_state(c, uid, int(time.time()))
     return jsonify(resp)
@@ -556,7 +558,7 @@ def api_withdraw():
         if u["banned"]: return jsonify(success=False, code="banned"), 403
         if not u["trx_address"]: return jsonify(success=False, code="no_address")
         if u["balance"] <= 0 or u["balance"] < MIN_WITHDRAW * MICRO: return jsonify(success=False, code="min_balance")
-        if active_referrals(c, uid) < 1: return jsonify(success=False, code="need_referral")
+        if REQUIRE_REFERRAL and active_referrals(c, uid) < 1: return jsonify(success=False, code="need_referral")
         if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone():
             return jsonify(success=False, code="pending_exists")
         amount = u["balance"]
@@ -623,6 +625,8 @@ def _ad_check(st, wait):
 @server.route("/api/ad/start", methods=["POST"])
 @auth
 def api_ad_start():
+    if not ADS_ENABLED:
+        return jsonify(success=False, code="ad_invalid")
     uid = g.user["id"]
     if is_vpn(client_ip()):
         return jsonify(success=False, code="vpn"), 403
@@ -650,6 +654,8 @@ def api_ad_start():
 @server.route("/api/ad/complete", methods=["POST"])
 @auth
 def api_ad_complete():
+    if not ADS_ENABLED:
+        return jsonify(success=False, code="ad_invalid")
     token = str((request.get_json(silent=True) or {}).get("token", ""))
     uid = g.user["id"]
     now = int(time.time())
@@ -680,6 +686,8 @@ def api_ad_complete():
 @server.route("/api/ad/collect", methods=["POST"])
 @auth
 def api_ad_collect():
+    if not ADS_ENABLED:
+        return jsonify(success=False, code="ad_invalid")
     uid = g.user["id"]
     now = int(time.time())
     try:
@@ -835,15 +843,15 @@ AD_UI2 = {
 for _l, _d in AD_UI2.items():
     UI[_l].update(_d)
 AD_UI3 = {
-    'en': {"wdInfo": 'Your whole balance is withdrawn, whatever the amount. Requires one real active referral.', "c_min_balance": 'You have no balance to withdraw.'},
-    'ar': {"wdInfo": 'يتم سحب كامل رصيدك مهما كان مقداره. الشرط: إحالة حقيقية نشطة.', "c_min_balance": 'ليس لديك رصيد للسحب.'},
-    'es': {"wdInfo": 'Se retira todo tu saldo, sea cual sea el importe. Requiere un referido real activo.', "c_min_balance": 'No tienes saldo para retirar.'},
-    'de': {"wdInfo": 'Dein gesamtes Guthaben wird ausgezahlt, egal wie hoch. Erfordert eine echte aktive Empfehlung.', "c_min_balance": 'Du hast kein Guthaben zum Auszahlen.'},
-    'fr': {"wdInfo": 'Tout votre solde est retiré, quel que soit le montant. Il faut un vrai filleul actif.', "c_min_balance": "Vous n'avez aucun solde à retirer."},
-    'ru': {"wdInfo": 'Выводится весь баланс, независимо от суммы. Нужен один реальный активный реферал.', "c_min_balance": 'У вас нет средств для вывода.'},
-    'pt': {"wdInfo": 'Todo o seu saldo é sacado, qualquer que seja o valor. Exige um indicado real ativo.', "c_min_balance": 'Você não tem saldo para sacar.'},
-    'nl': {"wdInfo": 'Je hele saldo wordt opgenomen, ongeacht het bedrag. Vereist één echte actieve referral.', "c_min_balance": 'Je hebt geen saldo om op te nemen.'},
-    'pl': {"wdInfo": 'Wypłacane jest całe saldo, niezależnie od kwoty. Wymagany jeden prawdziwy aktywny polecony.', "c_min_balance": 'Nie masz salda do wypłaty.'},
+    'en': {"wdInfo": 'Your whole balance is withdrawn, whatever the amount.', "c_min_balance": 'You have no balance to withdraw.'},
+    'ar': {"wdInfo": 'يتم سحب كامل رصيدك مهما كان مقداره.', "c_min_balance": 'ليس لديك رصيد للسحب.'},
+    'es': {"wdInfo": 'Se retira todo tu saldo, sea cual sea el importe.', "c_min_balance": 'No tienes saldo para retirar.'},
+    'de': {"wdInfo": 'Dein gesamtes Guthaben wird ausgezahlt, egal wie hoch.', "c_min_balance": 'Du hast kein Guthaben zum Auszahlen.'},
+    'fr': {"wdInfo": 'Tout votre solde est retiré, quel que soit le montant.', "c_min_balance": "Vous n'avez aucun solde à retirer."},
+    'ru': {"wdInfo": 'Выводится весь баланс, независимо от суммы.', "c_min_balance": 'У вас нет средств для вывода.'},
+    'pt': {"wdInfo": 'Todo o seu saldo é sacado, qualquer que seja o valor.', "c_min_balance": 'Você não tem saldo para sacar.'},
+    'nl': {"wdInfo": 'Je hele saldo wordt opgenomen, ongeacht het bedrag.', "c_min_balance": 'Je hebt geen saldo om op te nemen.'},
+    'pl': {"wdInfo": 'Wypłacane jest całe saldo, niezależnie od kwoty.', "c_min_balance": 'Nie masz salda do wypłaty.'},
 }
 for _l, _d in AD_UI3.items():
     UI[_l].update(_d)
@@ -891,8 +899,8 @@ def webapp():
             .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
             .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False))
             .replace("__AD_ZONE__", MONETAG_ZONE).replace("__OC_SPOT__", OC_SPOT)
-            .replace("__AD_SDK__", '<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE)
-                     + '<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)))
+            .replace("__AD_SDK__", ('<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE)
+                     + '<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)) if ADS_ENABLED else ""))
     resp = Response(page, mimetype="text/html")
     resp.headers["Cache-Control"] = "no-store"
     return resp
