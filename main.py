@@ -1,5 +1,7 @@
 import os
 import re
+import zlib
+import base64
 import json
 import time
 import hmac
@@ -21,137 +23,136 @@ from flask import Flask, request, jsonify, Response, g
 # ======================================================================
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
-import zlib, base64
 # الواجهة مضغوطة لتبقى ضمن حد اللصق (100 ألف حرف). لا تعدّلها يدوياً.
 _WEBAPP_Z = """
-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
-zcjXUeC1GuJFM4fi77b/X8oZMZk=
+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
 """
 WEBAPP_HTML = zlib.decompress(base64.b64decode("".join(_WEBAPP_Z.split()))).decode("utf-8")
 
@@ -160,6 +161,8 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()   # رابط PostgreSQ
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
+WITHDRAW_HOURS = int(os.environ.get("WITHDRAW_HOURS", "48"))   # مهلة تنفيذ السحب يدوياً
+ADMIN_TZ = int(os.environ.get("ADMIN_TZ_HOURS", "3"))          # فرق التوقيت لعرض الموعد (الأردن +3)
 MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "0"))
 REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"   # شرط الإحالة للسحب: ضع 1 لتفعيله
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "0") == "1"             # الإعلانات متوقفة مؤقتاً: ضع 1 لتفعيلها
@@ -508,8 +511,9 @@ def api_me():
             "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND status='pending'", (uid,)
         ).fetchone()[0]
         refs = active_referrals(c, uid)
+        pwd = c.execute("SELECT COALESCE(SUM(amount),0) FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone()[0]
     return jsonify(
-        success=True, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO,
+        success=True, pending_wd=pwd / MICRO, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO,
         pending=pending / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}",
         trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW,
     )
@@ -565,17 +569,23 @@ def api_withdraw():
         c.execute("UPDATE users SET balance=0 WHERE user_id=?", (uid,))
         cur = c.execute("INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)", (uid, amount, u["trx_address"], int(time.time())))
         wid = cur.lastrowid
+        now_ts = int(time.time())
         address = u["trx_address"]
         uname = u["username"] or ""
-    if ADMIN_ID:
+    if not ADMIN_ID:
+        print("WARNING: ADMIN_ID غير مضبوط، لن يصلك إشعار السحب. استخدم /withdrawals", flush=True)
+    else:
+        fname = str(g.user.get("first_name") or "").strip() or "-"
+        body = ("💸 طلب سحب جديد #%d\n\n👤 الاسم: %s\n🔗 اليوزر: %s\n🆔 الآيدي: %d\n💰 المبلغ: %.4f TRX\n📮 عنوان TRX:\n%s\n\n%s\n\n/paid %d  أو  /reject %d"
+                % (wid, "%s", "%s", uid, amount / MICRO, "%s", wd_deadline(now_ts), wid, wid))
         try:
-            fname = str(g.user.get("first_name") or "").strip() or "-"
-            bot.send_message(ADMIN_ID,
-                "💸 طلب سحب جديد #%d\n\n👤 الاسم: %s\n🔗 اليوزر: %s\n🆔 الآيدي: %d\n💰 المبلغ: %.4f TRX\n📮 عنوان TRX:\n<code>%s</code>\n\n/paid %d  أو  /reject %d"
-                % (wid, html.escape(fname), ("@" + html.escape(uname)) if uname else "-", uid, amount / MICRO, html.escape(address), wid, wid),
-                parse_mode="HTML")
-        except Exception:
-            pass
+            bot.send_message(ADMIN_ID, body % (html.escape(fname), ("@" + html.escape(uname)) if uname else "-", "<code>" + html.escape(address) + "</code>"), parse_mode="HTML")
+        except Exception as e:
+            print("admin notify (html) failed:", e, flush=True)
+            try:
+                bot.send_message(ADMIN_ID, body % (fname, ("@" + uname) if uname else "-", address))
+            except Exception as e2:
+                print("admin notify failed:", e2, flush=True)
     return jsonify(success=True)
 
 # ======================================================================
@@ -804,17 +814,123 @@ def terms_html(lang):
         parts.append(f"<b>{html.escape(h)}</b>\n{html.escape(b)}\n")
     return "\n".join(parts)
 
-UI = {
-    "en": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Phone Subscription", "apps": "📲 Install Apps", "sites": "🌐 Register on Sites", "wallet": "💳 Wallet", "withdraw": "💸 Withdraw", "watch": "▶️ Watch & Earn", "terms": "📜 Terms", "menu": "Menu ⚙️", "welcome": "Welcome", "bal": "Current TRX balance", "pend": "Pending verification", "minline": "Minimum withdrawal: {n} TRX", "faqT": "❓ Important Rules & Instructions", "faqD": "💸 **Withdrawal:** You can withdraw after reaching the minimum and bringing 1 real completed referral.\n👥 **Referrals:** Earn 3% for life from your referrals' earnings.\n🚫 **Cancelling Offers:** If you cancel a subscription or delete an app, your account will be suspended. To unlock it, you must bring 5 completed referrals OR complete a new successful offer.", "refT": "👥 Referral system (3%)", "refCnt": "Active referrals", "refD": "Share your link and earn 3% of your referrals' earnings for life. A referral counts only after they complete one successful offer.", "copy": "Copy referral link 🔗", "copied": "Copied! 📋", "noOffers": "No offers available right now.", "go": "Start ✅", "reward": "Reward", "pendNote": "Credited after verification (24–72h). Cancelling = account ban.", "wDesc": "Enter your TRX (TRC20) wallet address:", "save": "Save 💾", "change": "Change 🔄", "wSaved": "Saved address:", "noAddr": "No address added yet", "wdBtn": "Request withdrawal 🚀", "wdInfo": "Your whole balance is withdrawn. Needs min {n} TRX and one real active referral.", "lang": "🌐 Language", "loading": "Loading…", "c_auth": "Session expired. Please close and reopen the app from the bot.", "c_banned": "Your account has been banned for breaking the terms.", "c_vpn": "VPN/Proxy detected. Turn it off and use mobile data.", "c_bad_address": "Invalid TRX address.", "c_ok_addr": "Address saved 💾", "c_no_address": "Please add your TRX wallet address first.", "c_min_balance": "Your balance is below the minimum withdrawal.", "c_need_referral": "You need one real referral who completed their first successful offer.", "c_pending_exists": "You already have a pending withdrawal.", "c_ok_withdraw": "Withdrawal request submitted 🚀", "c_err": "Something went wrong. Try again."},
-    "ar": {"home": "🏠 الرئيسية", "ref": "👥 الإحالة", "phone": "📱 الربح من الاشتراك برقم هاتف", "apps": "📲 الربح من تثبيت تطبيقات", "sites": "🌐 الربح من التسجيل في المواقع", "wallet": "💳 المحفظة", "withdraw": "💸 السحب", "watch": "▶️ الربح من المشاهدة", "terms": "📜 الشروط والأحكام", "menu": "القائمة ⚙️", "welcome": "مرحباً بك", "bal": "رصيد TRX الحالي", "pend": "قيد التحقق", "minline": "الحد الأدنى للسحب: {n} TRX", "faqT": "❓ قواعد وتعليمات هامة", "faqD": "💸 **السحب:** يمكنك السحب بعد وصولك للحد الأدنى وإحضار إحالة حقيقية واحدة مكتملة.\n👥 **الإحالات:** تحصل على 3% مدى الحياة من أرباح إحالاتك.\n🚫 **إلغاء العروض:** في حال قمت بإلغاء اشتراك أو حذف تطبيق، سيتم إيقاف حسابك. لفتح الحساب مرة أخرى، يجب عليك إحضار 5 إحالات مكتملة (أكملن عرضاً ناجحاً) أو إكمال عرض ناجح جديد.", "refT": "👥 نظام الإحالة (3%)", "refCnt": "عدد إحالاتك النشطة", "refD": "شارك رابطك وخذ 3% من أرباح من تدعوه مدى الحياة. لا تُحتسب الإحالة إلا بعد إكمال المدعو عرضاً ناجحاً.", "copy": "نسخ رابط الإحالة 🔗", "copied": "تم النسخ! 📋", "noOffers": "لا توجد عروض متاحة حالياً.", "go": "ابدأ ✅", "reward": "المكافأة", "pendNote": "تُضاف بعد التحقق (24–72 ساعة). الإلغاء = حظر الحساب.", "wDesc": "أدخل عنوان محفظة TRX (TRC20) الخاصة بك:", "save": "حفظ 💾", "change": "تغيير 🔄", "wSaved": "العنوان المحفوظ:", "noAddr": "لم تضف عنواناً بعد", "wdBtn": "طلب السحب 🚀", "wdInfo": "يتم سحب كامل رصيدك. الشرط: {n} TRX كحد أدنى + إحالة حقيقية نشطة.", "lang": "🌐 اللغة", "loading": "جارٍ التحميل…", "c_auth": "انتهت الجلسة. أغلق التطبيق وافتحه من البوت من جديد.", "c_banned": "تم حظر حسابك لمخالفة الشروط.", "c_vpn": "تم اكتشاف VPN/بروكسي. أطفئه واستخدم بيانات الجوال.", "c_bad_address": "عنوان TRX غير صحيح.", "c_ok_addr": "تم حفظ العنوان 💾", "c_no_address": "أضف عنوان محفظة TRX أولاً.", "c_min_balance": "رصيدك أقل من الحد الأدنى للسحب.", "c_need_referral": "يجب أن تُحضر مستخدماً حقيقياً أكمل أول عرض ناجح له.", "c_pending_exists": "لديك طلب سحب قيد المراجعة.", "c_ok_withdraw": "تم تقديم طلب السحب 🚀", "c_err": "حدث خطأ. حاول مرة أخرى."},
-    "es": {"home": "🏠 Inicio", "ref": "👥 Referidos", "phone": "📱 Suscripción telefónica", "apps": "📲 Instalar apps", "sites": "🌐 Registrarse en sitios", "wallet": "💳 Billetera", "withdraw": "💸 Retirar", "watch": "▶️ Ver y ganar", "terms": "📜 Términos", "menu": "Menú ⚙️", "welcome": "Bienvenido", "bal": "Saldo actual de TRX", "pend": "Pendiente de verificación", "minline": "Retiro mínimo: {n} TRX", "faqT": "❓ Reglas e instrucciones importantes", "faqD": "💸 **Retiro:** Puedes retirar al alcanzar el mínimo y traer 1 referido real completado.\n👥 **Referidos:** Gana 3% de por vida de las ganancias de tus referidos.\n🚫 **Cancelar ofertas:** Si cancelas una suscripción o eliminas una app, tu cuenta será suspendida. Para desbloquearla, debes traer 5 referidos completados O completar una nueva oferta exitosa.", "refT": "👥 Sistema de referidos (3%)", "refCnt": "Referidos activos", "refD": "Comparte tu enlace y gana el 3% de las ganancias de tus referidos de por vida. Un referido cuenta solo cuando completa una oferta exitosa.", "copy": "Copiar enlace de referido 🔗", "copied": "¡Copiado! 📋", "noOffers": "No hay ofertas disponibles ahora.", "go": "Empezar ✅", "reward": "Recompensa", "pendNote": "Se acredita tras la verificación (24–72 h). Cancelar = bloqueo de la cuenta.", "wDesc": "Introduce tu dirección de billetera TRX (TRC20):", "save": "Guardar 💾", "change": "Cambiar 🔄", "wSaved": "Dirección guardada:", "noAddr": "Aún no has añadido una dirección", "wdBtn": "Solicitar retiro 🚀", "wdInfo": "Se retira todo tu saldo. Requiere un mínimo de {n} TRX y un referido real activo.", "lang": "🌐 Idioma", "loading": "Cargando…", "c_auth": "La sesión expiró. Cierra y vuelve a abrir la app desde el bot.", "c_banned": "Tu cuenta fue bloqueada por incumplir los términos.", "c_vpn": "Se detectó VPN/proxy. Desactívalo y usa datos móviles.", "c_bad_address": "Dirección TRX no válida.", "c_ok_addr": "Dirección guardada 💾", "c_no_address": "Primero añade tu dirección de billetera TRX.", "c_min_balance": "Tu saldo es inferior al retiro mínimo.", "c_need_referral": "Necesitas un referido real que haya completado su primera oferta exitosa.", "c_pending_exists": "Ya tienes un retiro pendiente.", "c_ok_withdraw": "Solicitud de retiro enviada 🚀", "c_err": "Algo salió mal. Inténtalo de nuevo."},
-    "de": {"home": "🏠 Startseite", "ref": "👥 Empfehlungen", "phone": "📱 Telefon-Abo", "apps": "📲 Apps installieren", "sites": "🌐 Auf Websites registrieren", "wallet": "💳 Wallet", "withdraw": "💸 Auszahlen", "watch": "▶️ Ansehen & verdienen", "terms": "📜 AGB", "menu": "Menü ⚙️", "welcome": "Willkommen", "bal": "Aktuelles TRX-Guthaben", "pend": "Wird geprüft", "minline": "Mindestauszahlung: {n} TRX", "faqT": "❓ Wichtige Regeln & Anweisungen", "faqD": "💸 **Auszahlung:** Du kannst auszahlen, wenn du das Minimum erreichst und 1 echte abgeschlossene Empfehlung bringst.\n👥 **Empfehlungen:** Verdiene lebenslang 3% an den Einnahmen deiner Empfehlungen.\n🚫 **Angebote abbrechen:** Wenn du ein Abo kündigst oder eine App löschst, wird dein Konto gesperrt. Um es zu entsperren, musst du 5 abgeschlossene Empfehlungen bringen ODER ein neues erfolgreiches Angebot abschließen.", "refT": "👥 Empfehlungssystem (3%)", "refCnt": "Aktive Empfehlungen", "refD": "Teile deinen Link und erhalte lebenslang 3% der Einnahmen deiner Empfehlungen. Eine Empfehlung zählt erst nach einem erfolgreichen Angebot.", "copy": "Empfehlungslink kopieren 🔗", "copied": "Kopiert! 📋", "noOffers": "Derzeit keine Angebote verfügbar.", "go": "Start ✅", "reward": "Belohnung", "pendNote": "Gutschrift nach Prüfung (24–72 Std.). Abbruch = Kontosperre.", "wDesc": "Gib deine TRX-Wallet-Adresse (TRC20) ein:", "save": "Speichern 💾", "change": "Ändern 🔄", "wSaved": "Gespeicherte Adresse:", "noAddr": "Noch keine Adresse hinzugefügt", "wdBtn": "Auszahlung anfordern 🚀", "wdInfo": "Dein gesamtes Guthaben wird ausgezahlt. Erfordert mindestens {n} TRX und eine echte aktive Empfehlung.", "lang": "🌐 Sprache", "loading": "Wird geladen…", "c_auth": "Sitzung abgelaufen. Schließe die App und öffne sie erneut über den Bot.", "c_banned": "Dein Konto wurde wegen Verstoßes gegen die Bedingungen gesperrt.", "c_vpn": "VPN/Proxy erkannt. Schalte es aus und nutze mobile Daten.", "c_bad_address": "Ungültige TRX-Adresse.", "c_ok_addr": "Adresse gespeichert 💾", "c_no_address": "Füge zuerst deine TRX-Wallet-Adresse hinzu.", "c_min_balance": "Dein Guthaben liegt unter der Mindestauszahlung.", "c_need_referral": "Du brauchst eine echte Empfehlung, die ihr erstes erfolgreiches Angebot abgeschlossen hat.", "c_pending_exists": "Du hast bereits eine offene Auszahlung.", "c_ok_withdraw": "Auszahlungsantrag gesendet 🚀", "c_err": "Etwas ist schiefgelaufen. Versuche es erneut."},
-    "fr": {"home": "🏠 Accueil", "ref": "👥 Parrainage", "phone": "📱 Abonnement téléphone", "apps": "📲 Installer des apps", "sites": "🌐 S'inscrire sur des sites", "wallet": "💳 Portefeuille", "withdraw": "💸 Retirer", "watch": "▶️ Regarder et gagner", "terms": "📜 Conditions", "menu": "Menu ⚙️", "welcome": "Bienvenue", "bal": "Solde TRX actuel", "pend": "En cours de vérification", "minline": "Retrait minimum : {n} TRX", "faqT": "❓ Règles et instructions importantes", "faqD": "💸 **Retrait:** Vous pouvez retirer après avoir atteint le minimum et apporté 1 vrai filleul complété.\n👥 **Parrainage:** Gagnez 3% à vie sur les gains de vos filleuls.\n🚫 **Annuler des offres:** Si vous annulez un abonnement ou supprimez une app, votre compte sera suspendu. Pour le débloquer, vous devez apporter 5 filleuls complétés OU compléter une nouvelle offre réussie.", "refT": "👥 Système de parrainage (3%)", "refCnt": "Filleuls actifs", "refD": "Partagez votre lien et gagnez 3% des gains de vos filleuls à vie. Un filleul compte seulement après une offre réussie.", "copy": "Copier le lien de parrainage 🔗", "copied": "Copié ! 📋", "noOffers": "Aucune offre disponible pour le moment.", "go": "Commencer ✅", "reward": "Récompense", "pendNote": "Crédité après vérification (24–72 h). Annuler = compte banni.", "wDesc": "Entrez votre adresse de portefeuille TRX (TRC20) :", "save": "Enregistrer 💾", "change": "Modifier 🔄", "wSaved": "Adresse enregistrée :", "noAddr": "Aucune adresse ajoutée", "wdBtn": "Demander le retrait 🚀", "wdInfo": "Tout votre solde est retiré. Il faut au minimum {n} TRX et un vrai filleul actif.", "lang": "🌐 Langue", "loading": "Chargement…", "c_auth": "Session expirée. Fermez l'app et rouvrez-la depuis le bot.", "c_banned": "Votre compte a été banni pour non-respect des conditions.", "c_vpn": "VPN/proxy détecté. Désactivez-le et utilisez les données mobiles.", "c_bad_address": "Adresse TRX invalide.", "c_ok_addr": "Adresse enregistrée 💾", "c_no_address": "Ajoutez d'abord votre adresse de portefeuille TRX.", "c_min_balance": "Votre solde est inférieur au retrait minimum.", "c_need_referral": "Il vous faut un vrai filleul ayant terminé sa première offre réussie.", "c_pending_exists": "Vous avez déjà un retrait en attente.", "c_ok_withdraw": "Demande de retrait envoyée 🚀", "c_err": "Une erreur s'est produite. Réessayez."},
-    "ru": {"home": "🏠 Главная", "ref": "👥 Рефералы", "phone": "📱 Подписка по телефону", "apps": "📲 Установка приложений", "sites": "🌐 Регистрация на сайтах", "wallet": "💳 Кошелёк", "withdraw": "💸 Вывод", "watch": "▶️ Смотреть и зарабатывать", "terms": "📜 Условия", "menu": "Меню ⚙️", "welcome": "Добро пожаловать", "bal": "Текущий баланс TRX", "pend": "На проверке", "minline": "Минимальный вывод: {n} TRX", "faqT": "❓ Важные правила и инструкции", "faqD": "💸 **Вывод:** Вы можете вывести средства после достижения минимума и привлечения 1 реального завершенного реферала.\n👥 **Рефералы:** Получайте 3% пожизненно от заработка ваших рефералов.\n🚫 **Отмена предложений:** Если вы отмените подписку или удалите приложение, ваш аккаунт будет заблокирован. Чтобы разблокировать его, вы должны привлечь 5 завершенных рефералов ИЛИ выполнить новое успешное предложение.", "refT": "👥 Реферальная система (3%)", "refCnt": "Активные рефералы", "refD": "Поделитесь ссылкой и получайте 3% от заработка рефералов пожизненно. Реферал засчитывается только после одного успешного задания.", "copy": "Копировать реферальную ссылку 🔗", "copied": "Скопировано! 📋", "noOffers": "Сейчас нет доступных предложений.", "go": "Начать ✅", "reward": "Награда", "pendNote": "Начисляется после проверки (24–72 ч). Отмена = блокировка аккаунта.", "wDesc": "Введите адрес вашего кошелька TRX (TRC20):", "save": "Сохранить 💾", "change": "Изменить 🔄", "wSaved": "Сохранённый адрес:", "noAddr": "Адрес ещё не добавлен", "wdBtn": "Запросить вывод 🚀", "wdInfo": "Выводится весь баланс. Нужно минимум {n} TRX и один реальный активный реферал.", "lang": "🌐 Язык", "loading": "Загрузка…", "c_auth": "Сессия истекла. Закройте приложение и откройте его снова через бота.", "c_banned": "Ваш аккаунт заблокирован за нарушение условий.", "c_vpn": "Обнаружен VPN/прокси. Отключите его и используйте мобильный интернет.", "c_bad_address": "Неверный адрес TRX.", "c_ok_addr": "Адрес сохранён 💾", "c_no_address": "Сначала добавьте адрес кошелька TRX.", "c_min_balance": "Ваш баланс ниже минимального для вывода.", "c_need_referral": "Нужен один реальный реферал, выполнивший первое успешное задание.", "c_pending_exists": "У вас уже есть заявка на вывод в обработке.", "c_ok_withdraw": "Заявка на вывод отправлена 🚀", "c_err": "Что-то пошло не так. Попробуйте ещё раз."},
-    "pt": {"home": "🏠 Início", "ref": "👥 Indicações", "phone": "📱 Assinatura por telefone", "apps": "📲 Instalar apps", "sites": "🌐 Registrar em sites", "wallet": "💳 Carteira", "withdraw": "💸 Sacar", "watch": "▶️ Assistir e ganhar", "terms": "📜 Termos", "menu": "Menu ⚙️", "welcome": "Bem-vindo", "bal": "Saldo atual de TRX", "pend": "Aguardando verificação", "minline": "Saque mínimo: {n} TRX", "faqT": "❓ Regras e instruções importantes", "faqD": "💸 **Saque:** Você pode sacar após atingir o mínimo e trazer 1 indicado real concluído.\n👥 **Indicações:** Ganhe 3% para sempre dos ganhos dos seus indicados.\n🚫 **Cancelar ofertas:** Se você cancelar uma assinatura ou excluir um app, sua conta será suspensa. Para desbloquear, você deve trazer 5 indicados concluídos OU concluir uma nova oferta bem-sucedida.", "refT": "👥 Sistema de indicações (3%)", "refCnt": "Indicações ativas", "refD": "Compartilhe seu link e ganhe 3% dos ganhos dos seus indicados para sempre. Uma indicação só conta depois de uma oferta bem-sucedida.", "copy": "Copiar link de indicação 🔗", "copied": "Copiado! 📋", "noOffers": "Nenhuma oferta disponível no momento.", "go": "Começar ✅", "reward": "Recompensa", "pendNote": "Creditado após a verificação (24–72 h). Cancelar = conta banida.", "wDesc": "Digite o endereço da sua carteira TRX (TRC20):", "save": "Salvar 💾", "change": "Alterar 🔄", "wSaved": "Endereço salvo:", "noAddr": "Nenhum endereço adicionado ainda", "wdBtn": "Solicitar saque 🚀", "wdInfo": "Todo o seu saldo é sacado. Exige no mínimo {n} TRX e um indicado real ativo.", "lang": "🌐 Idioma", "loading": "Carregando…", "c_auth": "Sessão expirada. Feche o app e abra-o novamente pelo bot.", "c_banned": "Sua conta foi banida por violar os termos.", "c_vpn": "VPN/proxy detectado. Desative e use dados móveis.", "c_bad_address": "Endereço TRX inválido.", "c_ok_addr": "Endereço salvo 💾", "c_no_address": "Adicione primeiro o endereço da sua carteira TRX.", "c_min_balance": "Seu saldo está abaixo do saque mínimo.", "c_need_referral": "Você precisa de um indicado real que tenha concluído a primeira oferta bem-sucedida.", "c_pending_exists": "Você já tem um saque pendente.", "c_ok_withdraw": "Pedido de saque enviado 🚀", "c_err": "Algo deu errado. Tente novamente."},
-    "nl": {"home": "🏠 Home", "ref": "👥 Referrals", "phone": "📱 Telefoonabonnement", "apps": "📲 Apps installeren", "sites": "🌐 Registreren op sites", "wallet": "💳 Wallet", "withdraw": "💸 Opnemen", "watch": "▶️ Kijken en verdienen", "terms": "📜 Voorwaarden", "menu": "Menu ⚙️", "welcome": "Welkom", "bal": "Huidig TRX-saldo", "pend": "In afwachting van verificatie", "minline": "Minimum opname: {n} TRX", "faqT": "❓ Belangrijke regels & instructies", "faqD": "💸 **Opname:** Je kunt opnemen na het bereiken van het minimum en het aanbrengen van 1 echte voltooide referral.\n👥 **Referrals:** Verdien levenslang 3% van de winst van je referrals.\n🚫 **Aanbiedingen annuleren:** Als je een abonnement opzegt of een app verwijdert, wordt je account geblokkeerd. Om het te deblokkeren, moet je 5 voltooide referrals aanbrengen OF een nieuwe succesvolle aanbieding voltooien.", "refT": "👥 Referralsysteem (3%)", "refCnt": "Actieve referrals", "refD": "Deel je link en verdien levenslang 3% van de winst van je referrals. Een referral telt pas na één geslaagde aanbieding.", "copy": "Referrallink kopiëren 🔗", "copied": "Gekopieerd! 📋", "noOffers": "Er zijn nu geen aanbiedingen beschikbaar.", "go": "Start ✅", "reward": "Beloning", "pendNote": "Bijgeschreven na verificatie (24–72 uur). Annuleren = account geblokkeerd.", "wDesc": "Voer je TRX-walletadres (TRC20) in:", "save": "Opslaan 💾", "change": "Wijzigen 🔄", "wSaved": "Opgeslagen adres:", "noAddr": "Nog geen adres toegevoegd", "wdBtn": "Opname aanvragen 🚀", "wdInfo": "Je hele saldo wordt opgenomen. Vereist minimaal {n} TRX en één echte actieve referral.", "lang": "🌐 Taal", "loading": "Laden…", "c_auth": "Sessie verlopen. Sluit de app en open hem opnieuw via de bot.", "c_banned": "Je account is geblokkeerd wegens schending van de voorwaarden.", "c_vpn": "VPN/proxy gedetecteerd. Schakel het uit en gebruik mobiele data.", "c_bad_address": "Ongeldig TRX-adres.", "c_ok_addr": "Adres opgeslagen 💾", "c_no_address": "Voeg eerst je TRX-walletadres toe.", "c_min_balance": "Je saldo is lager dan de minimale opname.", "c_need_referral": "Je hebt één echte referral nodig die zijn eerste geslaagde aanbieding heeft voltooid.", "c_pending_exists": "Je hebt al een openstaande opname.", "c_ok_withdraw": "Opnameverzoek verzonden 🚀", "c_err": "Er ging iets mis. Probeer het opnieuw."},
-    "pl": {"home": "🏠 Start", "ref": "👥 Polecenia", "phone": "📱 Subskrypcja telefoniczna", "apps": "📲 Instaluj aplikacje", "sites": "🌐 Rejestracja na stronach", "wallet": "💳 Portfel", "withdraw": "💸 Wypłata", "watch": "▶️ Oglądaj i zarabiaj", "terms": "📜 Regulamin", "menu": "Menu ⚙️", "welcome": "Witaj", "bal": "Aktualne saldo TRX", "pend": "Oczekuje na weryfikację", "minline": "Minimalna wypłata: {n} TRX", "faqT": "❓ Ważne zasady i instrukcje", "faqD": "💸 **Wypłata:** Możesz wypłacić po osiągnięciu minimum i przyprowadzeniu 1 prawdziwego ukończonego poleconego.\n👥 **Polecenia:** Zarabiaj 3% dożywotnio z zarobków swoich poleconych.\n🚫 **Anulowanie ofert:** Jeśli anulujesz subskrypcję lub usuniesz aplikację, Twoje konto zostanie zawieszone. Aby je odblokować, musisz przyprowadzić 5 ukończonych poleconych LUB ukończyć nową udaną ofertę.", "refT": "👥 System poleceń (3%)", "refCnt": "Aktywne polecenia", "refD": "Udostępnij swój link i zarabiaj dożywotnio 3% zarobków poleconych. Polecenie liczy się dopiero po jednej udanej ofercie.", "copy": "Kopiuj link polecający 🔗", "copied": "Skopiowano! 📋", "noOffers": "Brak dostępnych ofert.", "go": "Start ✅", "reward": "Nagroda", "pendNote": "Dodawane po weryfikacji (24–72 godz.). Anulowanie = blokada konta.", "wDesc": "Wpisz adres swojego portfela TRX (TRC20):", "save": "Zapisz 💾", "change": "Zmień 🔄", "wSaved": "Zapisany adres:", "noAddr": "Nie dodano jeszcze adresu", "wdBtn": "Złóż wniosek o wypłatę 🚀", "wdInfo": "Wypłacane jest całe saldo. Wymagane minimum {n} TRX i jeden prawdziwy aktywny polecony.", "lang": "🌐 Język", "loading": "Ładowanie…", "c_auth": "Sesja wygasła. Zamknij aplikację i otwórz ją ponownie przez bota.", "c_banned": "Twoje konto zostało zablokowane za naruszenie regulaminu.", "c_vpn": "Wykryto VPN/proxy. Wyłącz je i użyj danych mobilnych.", "c_bad_address": "Nieprawidłowy adres TRX.", "c_ok_addr": "Adres zapisany 💾", "c_no_address": "Najpierw dodaj adres portfela TRX.", "c_min_balance": "Twoje saldo jest niższe niż minimalna wypłata.", "c_need_referral": "Potrzebujesz jednego prawdziwego poleconego, który ukończył pierwszą udaną ofertę.", "c_pending_exists": "Masz już oczekującą wypłatę.", "c_ok_withdraw": "Wniosek o wypłatę wysłany 🚀", "c_err": "Coś poszło nie tak. Spróbuj ponownie."}
-}
+_UI_Z = """
+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
+"""
+UI = json.loads(zlib.decompress(base64.b64decode("".join(_UI_Z.split()))).decode("utf-8"))
 
 AD_UI = {
     "en": {"adInterT": "Rewarded video ad", "adPopT": "Quick rewarded ad", "adWatch": "Watch ad", "adWait": "Next ad in {s}s", "adStepOf": "Stage {a} of {b}", "adProgress": "{v} / {t} views", "adEarned": "Accumulated earnings: {r} TRX", "adDoneHint": "Stage complete! Collect your balance to continue.", "adCollect": "Collect your balance", "adLockedT": "All stages completed", "adLockedD": "You can watch ads again in:", "c_ok_collect": "Added to your balance: +{r} TRX 🎉", "c_ad_cooldown": "Please wait a little before the next ad.", "c_ad_early": "The ad wasn't completed, so it was not counted.", "c_ad_invalid": "The ad session expired. Please try again.", "c_ad_fail": "The ad could not be shown right now. Try again later.", "c_ad_sdk": "Ads are not available right now. Reload the app and try again.", "c_ad_locked": "Ads are locked until the timer ends.", "c_ad_collect": "Collect your balance first to continue.", "c_ad_notready": "This stage is not complete yet."},
@@ -843,15 +959,15 @@ AD_UI2 = {
 for _l, _d in AD_UI2.items():
     UI[_l].update(_d)
 AD_UI3 = {
-    'en': {"wdInfo": 'Your whole balance is withdrawn, whatever the amount.', "c_min_balance": 'You have no balance to withdraw.'},
-    'ar': {"wdInfo": 'يتم سحب كامل رصيدك مهما كان مقداره.', "c_min_balance": 'ليس لديك رصيد للسحب.'},
-    'es': {"wdInfo": 'Se retira todo tu saldo, sea cual sea el importe.', "c_min_balance": 'No tienes saldo para retirar.'},
-    'de': {"wdInfo": 'Dein gesamtes Guthaben wird ausgezahlt, egal wie hoch.', "c_min_balance": 'Du hast kein Guthaben zum Auszahlen.'},
-    'fr': {"wdInfo": 'Tout votre solde est retiré, quel que soit le montant.', "c_min_balance": "Vous n'avez aucun solde à retirer."},
-    'ru': {"wdInfo": 'Выводится весь баланс, независимо от суммы.', "c_min_balance": 'У вас нет средств для вывода.'},
-    'pt': {"wdInfo": 'Todo o seu saldo é sacado, qualquer que seja o valor.', "c_min_balance": 'Você não tem saldo para sacar.'},
-    'nl': {"wdInfo": 'Je hele saldo wordt opgenomen, ongeacht het bedrag.', "c_min_balance": 'Je hebt geen saldo om op te nemen.'},
-    'pl': {"wdInfo": 'Wypłacane jest całe saldo, niezależnie od kwoty.', "c_min_balance": 'Nie masz salda do wypłaty.'},
+    'en': {"wdPending": 'Withdrawal request under review: {r} TRX', "wdInfo": 'Your whole balance is withdrawn, whatever the amount.', "c_min_balance": 'You have no balance to withdraw.'},
+    'ar': {"wdPending": 'طلب سحب قيد المراجعة: {r} TRX', "wdInfo": 'يتم سحب كامل رصيدك مهما كان مقداره.', "c_min_balance": 'ليس لديك رصيد للسحب.'},
+    'es': {"wdPending": 'Solicitud de retiro en revisión: {r} TRX', "wdInfo": 'Se retira todo tu saldo, sea cual sea el importe.', "c_min_balance": 'No tienes saldo para retirar.'},
+    'de': {"wdPending": 'Auszahlungsantrag in Prüfung: {r} TRX', "wdInfo": 'Dein gesamtes Guthaben wird ausgezahlt, egal wie hoch.', "c_min_balance": 'Du hast kein Guthaben zum Auszahlen.'},
+    'fr': {"wdPending": "Demande de retrait en cours d'examen : {r} TRX", "wdInfo": 'Tout votre solde est retiré, quel que soit le montant.', "c_min_balance": "Vous n'avez aucun solde à retirer."},
+    'ru': {"wdPending": 'Заявка на вывод на проверке: {r} TRX', "wdInfo": 'Выводится весь баланс, независимо от суммы.', "c_min_balance": 'У вас нет средств для вывода.'},
+    'pt': {"wdPending": 'Pedido de saque em análise: {r} TRX', "wdInfo": 'Todo o seu saldo é sacado, qualquer que seja o valor.', "c_min_balance": 'Você não tem saldo para sacar.'},
+    'nl': {"wdPending": 'Opnameverzoek in beoordeling: {r} TRX', "wdInfo": 'Je hele saldo wordt opgenomen, ongeacht het bedrag.', "c_min_balance": 'Je hebt geen saldo om op te nemen.'},
+    'pl': {"wdPending": 'Wniosek o wypłatę w trakcie weryfikacji: {r} TRX', "wdInfo": 'Wypłacane jest całe saldo, niezależnie od kwoty.', "c_min_balance": 'Nie masz salda do wypłaty.'},
 }
 for _l, _d in AD_UI3.items():
     UI[_l].update(_d)
@@ -956,16 +1072,33 @@ def start(message):
 def is_admin(m):
     return ADMIN_ID and m.from_user.id == ADMIN_ID
 
+def wd_deadline(created):
+    """نص الموعد النهائي لتحويل السحب والوقت المتبقي (48 ساعة افتراضياً)."""
+    end = created + WITHDRAW_HOURS * 3600
+    left = end - int(time.time())
+    when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(end + ADMIN_TZ * 3600))
+    if left <= 0:
+        return "⏰ انتهت المهلة! (كان الموعد %s)" % when
+    return "⏳ المهلة: %d ساعة و%d دقيقة\n📅 آخر موعد للتحويل: %s" % (left // 3600, left % 3600 // 60, when)
+
+@bot.message_handler(commands=["myid"])
+def cmd_myid(m):
+    bot.reply_to(m, "آيديك: %d" % m.from_user.id)
+
 @bot.message_handler(commands=["withdrawals"])
 def cmd_withdrawals(m):
     if not is_admin(m):
+        bot.reply_to(m, "هذا الأمر للأدمن فقط. آيديك: %d\nضع هذا الرقم في ADMIN_ID على Render." % m.from_user.id)
         return
     with tx() as c:
-        rows = c.execute("SELECT * FROM withdrawals WHERE status='pending' ORDER BY id LIMIT 20").fetchall()
+        rows = c.execute("SELECT w.*, u.username AS uname FROM withdrawals w LEFT JOIN users u ON u.user_id=w.user_id WHERE w.status='pending' ORDER BY w.id LIMIT 20").fetchall()
     if not rows:
         bot.reply_to(m, "لا توجد طلبات سحب معلقة ✅")
         return
-    bot.reply_to(m, "\n\n".join(f"#{r['id']} | user {r['user_id']} | {r['amount'] / MICRO:.2f} TRX\n{r['address']}" for r in rows))
+    for r in rows:
+        bot.send_message(m.chat.id, "💸 طلب سحب #%d\n👤 %s | 🆔 %d\n💰 %.4f TRX\n📮 عنوان TRX:\n<code>%s</code>\n\n%s\n\n/paid %d  أو  /reject %d" % (
+            r["id"], ("@" + html.escape(r["uname"])) if r["uname"] else "-", r["user_id"], r["amount"] / MICRO,
+            html.escape(r["address"]), wd_deadline(r["created_at"]), r["id"], r["id"]), parse_mode="HTML")
 
 @bot.message_handler(commands=["paid", "reject"])
 def cmd_process(m):
