@@ -24,134 +24,134 @@ RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 import zlib, base64
 # الواجهة مضغوطة لتبقى ضمن حد اللصق (100 ألف حرف). لا تعدّلها يدوياً.
 _WEBAPP_Z = """
-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
+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
-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
-AA==
+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
+zcjXUeC1GuJFM4fi77b/X8oZMZk=
 """
 WEBAPP_HTML = zlib.decompress(base64.b64decode("".join(_WEBAPP_Z.split()))).decode("utf-8")
 
@@ -160,7 +160,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()   # رابط PostgreSQ
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
-MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "100"))
+MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "0"))
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
 IPQS_KEY = os.environ.get("IPQS_KEY", "")
 MICRO = 1_000_000
@@ -225,184 +225,38 @@ def tx_sqlite():
     finally:
         conn.close()
 
-DB_PG_SRC = r'''"""
-طبقة PostgreSQL: تجعل main.py يحفظ كل البيانات (الأرصدة، المستخدمون، الإحالات...) في قاعدة بيانات خارجية
-تبقى كما هي بعد كل نشر أو إعادة تشغيل. تُفعَّل فقط عند وضع المتغير DATABASE_URL.
-واجهتها تحاكي sqlite3 المستخدمة في main.py، فلا يتغير منطق البوت.
+_DBPG_Z = """
+eNqVWF1v29YZvtevOOAQlGxUwo6xFcggbIrNeEJlOZVlLIWdEjR1bBOmSJqHsuxhN0ntxDWKDbveZTA4yZq2QZdl6S8h/82e9xxS
+pL6clBcSefh+Pu/HeQ81Taul79IX2ZP0JXsQiuQg5ltftu+y9FX6ffo+O2cDxwvM6IxlV+nr7HH6P5Z9g9X0OjsH1xX+n6bX6Sum
+y5Xn6Zv0bfpj+jL9TpJkF+nPkPRD+mN2kV2CVC2n/0pfy39wmqZpsOxxdsVgw3X6nrjZhGiwX0Pu91h6WYM0GJt9S2ZcpNcsewbO
+9AXxKcvA9J/0DUufZ5cMet6DV0p8heVfsqvs3MR99ne48j77W/YP4ngMze8Ynp+SkMv0v+n7wvpXxANxa81e815zy7K3u22zBppr
+2PMMgp7BBlCRO9/AEnHsewlfmXEeFkgfczSBAx7Pyf6rsQ5A9DR9lz0pwL0EODUNAfIGURgn7HjIh7x4iMd3yWHMnb4XHNT243DA
+3DBI+Gnie3ssJ8hXBk7gHPBYUfW56w0cvyBZU4+1QmYkztwwOrhTq7U3V7+wv7C+Yg32+crSnaU7v1tm7DeIFdnPCN7s4i55obIl
+91suq/gS2k9BDKzTn5hE7nUeEZBesjxvfkjfIKg6eP8NMfes9VaHtTY2rLVWs2cp7JCXwNao1exWZ8vq9uzWemeza8GymJtuOIg8
+n+ux9vWu+FQR7Irbm138KDq66fQ2d4VWJ4aWUbM3mg/t3p83pyXs7uHFrq7vfK0bjz6tqz9j1ygZu1Zvu9uxW2s3KlfqbusjLzns
+x87I8cVfk9gJhOMmXhgIY3dvLLJWc31HCNYNR3oyjHxu3K0xXIh/+jZ7DISRs09QBs8p2wmzN4jBBYvD0c7SI8L1RV5RP+er2p7j
+O4HLNbxVqObJaUKHSXlF8vt8n9l2wEe2rbu+qLPAGXD8nTj+kIvcCLpiuCqGEY91w5xgyClLQtOWMkDveyLR5UPlNU+GccDiWkX9
+AU9g2AASBff36+yootfbZ57wApGQL/pRnYkkrryuiJSwmbPS6De3yfSCPj/Vj4wZexYxHxmloUf8TMjlKiyKXXpaUUQBJRYZbt9J
+uA7w64wL14l4oxcPK/GVnfVStaLz9BeUhsr0DzURtDe8/7ZgKrv3OLgUA+g1AZkXIW6xutF+ryn/ge1kLZkDJ3EP9WrcScYUkRju
+6ZpaYpTjDFmMRHDDYZA0lg12m2lss8NWNzv3263VHlvbZJ3N3p9anfXSrKL2pLBYW+9aqPOtnr67TGUmxvYpxCbNEWbMI99BOmi3
+QKzduqUZ5dIf5JLIXczjI6bjYff7vi6SQZK7KuXisZQDz6x1q8sedFsbze5XjJpgc7u32eqsdq0Nq9MjPfda64Ch1WxXySZVo76V
+j7t7uUhZ9sTakkLGyWIHw4F+khs0mfcn9aJHz+aeFyTgIoYT1miwEzMJbazxg9jxbVmdusG4Lzjb90OHaKvmnYxbz+owFmF8t1KX
+XuAl40pAA6umhcx1l/qfMzJdyaobk68hNUEn8vqg6oQBn3yLNzJj8PKz5bLI+Cl3h1QvqnapaiIndgaioRsV/U58QCGTZasrAgmB
+ulXuTuok6rnVKEV5ggVhIllKL0ZOkNjS/L0w9PWy7Y/rxGBO0GdaJds1KcdDypnDSLbLaivLJU72L8FuN1AySjqqhHl9bRpoc4xL
+XfpuLASzYCiWPqx+OlaFhH0OJwGIbmCLmc46Iqr0cPDmIZvZOYrdYKdPO9V+GLO+xCfX0kcY0JVoR5xRQrthviHt5NUhBZyQAKXo
+UaVBjw2ebtJznZpWRrEnkGJKBvkgs0gxkn/xtCrH9xfsBztVLmlyXPV5zG08KssvDIJfU3xYUtX3q2snt1HVu14IM8oUKxnLweQB
+KqDcsi4w/mKix6CHQQ5THqb+62Lee6vmWRwC/kmjMTYvvHkrx1tWUCl69fgTTfDPwXSOieaZWqORHzteMdlDBJ0fwPAOfzTET84v
+E1j1RQDnvb/wxm+nMcMrYIbfyeVjLMrp2mx7++GXdDfdywQfUAMpZm1ziw+c6DCMgRY0VRKDRqMFSVFM1ZgXg4C7iT5bhtL2/LWd
+eAMeDrGlLmEO4TxyfO+Ei8Zy9QnV7PPGylJ9Qlb1PXaCGKUyJcVWu/VKnYWy9ERD+8zFDojmOOBBqXtlCZdW8Q8D0rR7BUCm4x4P
+vbiKXRKfTTab0SEGZUYD0OT6XOLiIkCKEj42YYEdhCPHSyqKioufujzKz0qmNYiSBSIrXcyUITM+3hz0CLLIdP1Q8P58mtzsxAuG
+fL5PQ+pKSs707jlFNy5MbctqWxiolrXFtNKoRbJIWxz6/p7jHi2gyYEh0kXgWvIPSTPf9YW4jU24ycaP00FXhLZU+zi2cYbG3OfO
+jO7Y8QQvUzwaJnkrIWvrbM/pN+7j8MYrOT/jJJICdAyd/sbcuDHHFwLzcaBMACLZYPMsaV5G5CUpLbXtewH2pLMPQqem1YFzxO3k
+VEfLynGJsEUgp2mnkKsK0T9OfX8oUAZrtUXK3YwkUH1XICBQG0zCvxh8VUxzJ9FFNRQd2E7/xAPxmX2KA7nth6iJW4KOH3rx1aNu
+zAqaF6Mzj/t9uYPrtJNOJdeIPhAMJtrVzQGdmyQkZ0Htfjg9FIrUduck/o3xlyGhXIF+WQp5WItz82meDnILFu4h9kU9OcUGLG/z
+CNMXEBlw5gjmlgpoMKJTl5yNJIMpInykkEfUmfqS57P8LDvrYjkizznklXiVZFqz3cP5Dh/22hYbCh4L1lxbwyDf3t7Ax6f7dGhl
+1sPWVm+L4UvKAetZD3GYte43t9s99sknmlH7PxOo7Zw=
 """
-import queue
-import re
-import threading
-from contextlib import contextmanager
-from decimal import Decimal
-
-import psycopg2
-
-LOCK_KEY = 73020261  # قفل عام: يجعل المعاملات تنفَّذ واحدة تلو الأخرى (مثل BEGIN IMMEDIATE في SQLite)
-
-_INSERT_IGNORE = re.compile(r"^\s*INSERT\s+OR\s+IGNORE\s+INTO\s", re.I)
-_MAX_TWO = re.compile(r"\bMAX\(([^()]*,[^()]*)\)", re.I)
-_RETURN_ID = re.compile(r"^\s*INSERT\s+INTO\s+(withdrawals|transactions)\b", re.I)
-
-
-class Row(tuple):
-    """صف يُقرأ بالرقم row[0] وبالاسم row["balance"] مثل sqlite3.Row."""
-    def __new__(cls, names, values):
-        r = super().__new__(cls, values)
-        r._names = list(names)
-        return r
-
-    def __getitem__(self, k):
-        if isinstance(k, str):
-            return tuple.__getitem__(self, self._names.index(k))
-        return tuple.__getitem__(self, k)
-
-    def keys(self):
-        return list(self._names)
-
-
-def translate(sql, escape=True):
-    """يحوّل لغة SQLite المستخدمة في main.py إلى لغة PostgreSQL."""
-    s = sql.strip().rstrip(";")
-    if _INSERT_IGNORE.match(s):
-        s = _INSERT_IGNORE.sub("INSERT INTO ", s, count=1) + " ON CONFLICT DO NOTHING"
-    s = _MAX_TWO.sub(r"GREATEST(\1)", s)
-    if escape:
-        s = s.replace("%", "%%").replace("?", "%s")
-    return s
-
-
-def translate_ddl(stmt):
-    s = stmt.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY")
-    return re.sub(r"\bINTEGER\b", "BIGINT", s)
-
-
-def _num(v):
-    if isinstance(v, Decimal):
-        return int(v) if v == v.to_integral_value() else float(v)
-    return v
-
-
-class Cursor:
-    def __init__(self, raw):
-        self._c = raw.cursor()
-        self.lastrowid = None
-        self.rowcount = -1
-
-    def execute(self, sql, params=()):
-        args = tuple(params) if params else None
-        s = translate(sql, escape=args is not None)
-        want_id = bool(_RETURN_ID.match(s)) and "ON CONFLICT" not in s.upper()
-        if want_id:
-            s += " RETURNING id"
-        self._c.execute(s, args)
-        self.rowcount = self._c.rowcount
-        if want_id:
-            self.lastrowid = self._c.fetchone()[0]
-        return self
-
-    def _row(self, values):
-        names = [d[0] for d in self._c.description]
-        return Row(names, [_num(v) for v in values])
-
-    def fetchone(self):
-        r = self._c.fetchone()
-        return None if r is None else self._row(r)
-
-    def fetchall(self):
-        return [self._row(r) for r in self._c.fetchall()]
-
-
-class Conn:
-    def __init__(self, raw):
-        self.raw = raw
-
-    def execute(self, sql, params=()):
-        return Cursor(self.raw).execute(sql, params)
-
-
-class Pool:
-    """مجموعة اتصالات صغيرة؛ تتخلص من الاتصال الذي أغلقه الخادم بعد خمول طويل."""
-    def __init__(self, dsn, size=5):
-        self.dsn = dsn
-        self.q = queue.LifoQueue()
-        self.sem = threading.Semaphore(size)
-
-    def _new(self):
-        return psycopg2.connect(
-            self.dsn, connect_timeout=10, keepalives=1, keepalives_idle=30,
-            keepalives_interval=10, keepalives_count=3, options="-c statement_timeout=30000")
-
-    def get(self):
-        self.sem.acquire()
-        try:
-            while True:
-                try:
-                    conn = self.q.get_nowait()
-                except queue.Empty:
-                    return self._new()
-                try:
-                    if conn.closed:
-                        continue
-                    cur = conn.cursor()
-                    cur.execute("SELECT 1")
-                    cur.close()
-                    conn.rollback()
-                    return conn
-                except Exception:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
-        except Exception:
-            self.sem.release()
-            raise
-
-    def put(self, conn, bad=False):
-        try:
-            if bad or conn.closed:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-            else:
-                self.q.put(conn)
-        finally:
-            self.sem.release()
-
-
-def make_tx(dsn):
-    pool = Pool(dsn)
-
-    @contextmanager
-    def tx():
-        raw = pool.get()
-        bad = False
-        try:
-            cur = raw.cursor()
-            cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_KEY,))
-            cur.close()
-            yield Conn(raw)
-            raw.commit()
-        except Exception:
-            try:
-                raw.rollback()
-            except Exception:
-                bad = True
-            raise
-        finally:
-            pool.put(raw, bad)
-
-    return tx
-
-
-def init_schema(tx, schema):
-    with tx() as c:
-        for stmt in schema.split(";"):
-            if stmt.strip():
-                c.execute(translate_ddl(stmt))
-        c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT DEFAULT ''")
-'''
+DB_PG_SRC = zlib.decompress(base64.b64decode("".join(_DBPG_Z.split()))).decode("utf-8")
 
 if DATABASE_URL:
     import types
@@ -701,7 +555,7 @@ def api_withdraw():
         u = ensure_user(c, uid, g.user.get("username") or "")
         if u["banned"]: return jsonify(success=False, code="banned"), 403
         if not u["trx_address"]: return jsonify(success=False, code="no_address")
-        if u["balance"] < MIN_WITHDRAW * MICRO: return jsonify(success=False, code="min_balance")
+        if u["balance"] <= 0 or u["balance"] < MIN_WITHDRAW * MICRO: return jsonify(success=False, code="min_balance")
         if active_referrals(c, uid) < 1: return jsonify(success=False, code="need_referral")
         if c.execute("SELECT 1 FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone():
             return jsonify(success=False, code="pending_exists")
@@ -710,9 +564,14 @@ def api_withdraw():
         cur = c.execute("INSERT INTO withdrawals(user_id, amount, address, created_at) VALUES(?,?,?,?)", (uid, amount, u["trx_address"], int(time.time())))
         wid = cur.lastrowid
         address = u["trx_address"]
+        uname = u["username"] or ""
     if ADMIN_ID:
         try:
-            bot.send_message(ADMIN_ID, f"💸 طلب سحب جديد #{wid}\nالمستخدم: {uid}\nالمبلغ: {amount / MICRO:.2f} TRX\nالمحفظة: {address}\n\n/paid {wid}  أو  /reject {wid}")
+            fname = str(g.user.get("first_name") or "").strip() or "-"
+            bot.send_message(ADMIN_ID,
+                "💸 طلب سحب جديد #%d\n\n👤 الاسم: %s\n🔗 اليوزر: %s\n🆔 الآيدي: %d\n💰 المبلغ: %.4f TRX\n📮 عنوان TRX:\n<code>%s</code>\n\n/paid %d  أو  /reject %d"
+                % (wid, html.escape(fname), ("@" + html.escape(uname)) if uname else "-", uid, amount / MICRO, html.escape(address), wid, wid),
+                parse_mode="HTML")
         except Exception:
             pass
     return jsonify(success=True)
@@ -910,15 +769,15 @@ def postback_reverse():
 HEADS = {"ar": ["🌍 عن البوت", "⚠️ تنبيه مهم جداً", "💰 حد السحب الأدنى", "🚫 المحظورات", "⏳ التحقق من الأرباح", "👥 نظام الإحالة", "💸 السحب"], "en": ["🌍 About", "⚠️ Important warning", "💰 Minimum withdrawal", "🚫 Prohibited", "⏳ Earnings verification", "👥 Referrals", "💸 Withdrawals"], "es": ["🌍 Sobre el bot", "⚠️ Aviso importante", "💰 Retiro mínimo", "🚫 Prohibido", "⏳ Verificación", "👥 Referidos", "💸 Retiros"], "de": ["🌍 Über den Bot", "⚠️ Wichtige Warnung", "💰 Mindestauszahlung", "🚫 Verboten", "⏳ Verifizierung", "👥 Empfehlungen", "💸 Auszahlungen"], "fr": ["🌍 À propos", "⚠️ Avertissement important", "💰 Retrait minimum", "🚫 Interdit", "⏳ Vérification", "👥 Parrainage", "💸 Retraits"], "ru": ["🌍 О боте", "⚠️ Важное предупреждение", "💰 Минимум для вывода", "🚫 Запрещено", "⏳ Проверка начислений", "👥 Рефералы", "💸 Вывод"], "pt": ["🌍 Sobre o bot", "⚠️ Aviso importante", "💰 Saque mínimo", "🚫 Proibido", "⏳ Verificação", "👥 Indicações", "💸 Saques"], "nl": ["🌍 Over de bot", "⚠️ Belangrijke waarschuwing", "💰 Minimum opname", "🚫 Verboden", "⏳ Verificatie", "👥 Referrals", "💸 Opnames"], "pl": ["🌍 O bocie", "⚠️ Ważne ostrzeżenie", "💰 Minimalna wypłata", "🚫 Zakazy", "⏳ Weryfikacja", "👥 Polecenia", "💸 Wypłaty"]}
 
 BODIES = {
-    "ar": ["البوت منصة لتحقيق الربح من:\n🎬 مشاهدة الإعلانات\n📱 عروض الاشتراك برقم الهاتف\n📝 عروض التسجيل\n📲 تثبيت التطبيقات", "لا تدفع أي مبلغ لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل. أي جهة تطلب مالاً باسم البوت فهي احتيال، وسيتم حظر أي مستخدم يطلب أموالاً من غيره.", "الحد الأدنى لسحب الأرباح هو {min} TRX.", "❌ استخدام VPN أو البروكسي\n❌ استخدام الواي فاي (المطلوب بيانات الجوال)\n❌ أكثر من حساب للشخص الواحد\n❌ بيانات وهمية أو أرقام غير حقيقية\n❌ التلاعب بالعروض أو برامج الغش", "لا يُضاف رصيد تثبيت التطبيقات أو التسجيل أو الاشتراك برقم الهاتف إلا بعد التحقق، وتستغرق من 24 إلى 72 ساعة (حالياً {h} ساعة). إذا ألغيت الاشتراك أو حذفت التطبيق أو ألغيت التسجيل فسيُلغى حسابك مباشرة مع أرباحه.", "تحصل على 3% من أرباح كل من تدعوه، مدى الحياة. لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً ناجحاً واحداً على الأقل (اشتراك/تسجيل/تثبيت).", "لا يمكن السحب إلا بعد أن تُحضر مستخدماً حقيقياً يُكمل أول عرض ناجح له، وبعد بلوغ الحد الأدنى. تراجع الإدارة كل طلب قبل الدفع، ويحق لها حظر أي حساب مخالف وإلغاء أرباحه."],
-    "en": ["A platform to earn from:\n🎬 Watching ads\n📱 Phone-number subscription offers\n📝 Registration offers\n📲 App installs", "Never pay any money to any platform, website or person while using the bot. All tasks are completely free. Anyone asking for money in the bot's name is a scammer, and users who ask others for money will be banned.", "The minimum withdrawal is {min} TRX.", "❌ VPN or proxy of any kind\n❌ Wi-Fi (mobile data is required)\n❌ More than one account per person\n❌ Fake data or unreal numbers\n❌ Cheating or manipulating offers", "Rewards for app installs, registrations and phone subscriptions are credited only after verification, which takes 24 to 72 hours (currently {h}h). If you cancel the subscription, uninstall the app or cancel the registration, your account and its earnings are cancelled immediately.", "Earn 3% of your referrals' earnings for life. A referral counts only after the invited user completes at least one successful offer (subscription/registration/install).", "You can withdraw only after bringing a real user who completes their first successful offer, and after reaching the minimum. Every request is reviewed before payment, and accounts that break the rules may be banned and their earnings cancelled."],
-    "es": ["Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps", "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.", "El retiro mínimo es de {min} TRX.", "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas", "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.", "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.", "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar."],
-    "de": ["Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen", "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.", "Die Mindestauszahlung beträgt {min} TRX.", "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug", "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.", "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.", "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft."],
-    "fr": ["Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps", "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.", "Le retrait minimum est de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche", "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.", "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.", "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement."],
-    "ru": ["Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений", "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.", "Минимальная сумма вывода — {min} TRX.", "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман", "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.", "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.", "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется."],
-    "pt": ["Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps", "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.", "O saque mínimo é de {min} TRX.", "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças", "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.", "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.", "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento."],
-    "nl": ["Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties", "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.", "Minimum opname is {min} TRX.", "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen", "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.", "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.", "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld."],
-    "pl": ["Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji", "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.", "Minimalna wypłata to {min} TRX.", "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa", "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.", "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.", "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytkownik ukończy pierwszą udaną ofertę i osiągniesz minimum. Każdy wniosek jest sprawdzany."]
+    "ar": ["البوت منصة لتحقيق الربح من:\n🎬 مشاهدة الإعلانات\n📱 عروض الاشتراك برقم الهاتف\n📝 عروض التسجيل\n📲 تثبيت التطبيقات", "لا تدفع أي مبلغ لأي منصة أو موقع أو شخص أثناء استخدام البوت. كل المهام مجانية بالكامل. أي جهة تطلب مالاً باسم البوت فهي احتيال، وسيتم حظر أي مستخدم يطلب أموالاً من غيره.", "السحب متاح مهما كان رصيدك.", "❌ استخدام VPN أو البروكسي\n❌ استخدام الواي فاي (المطلوب بيانات الجوال)\n❌ أكثر من حساب للشخص الواحد\n❌ بيانات وهمية أو أرقام غير حقيقية\n❌ التلاعب بالعروض أو برامج الغش", "لا يُضاف رصيد تثبيت التطبيقات أو التسجيل أو الاشتراك برقم الهاتف إلا بعد التحقق، وتستغرق من 24 إلى 72 ساعة (حالياً {h} ساعة). إذا ألغيت الاشتراك أو حذفت التطبيق أو ألغيت التسجيل فسيُلغى حسابك مباشرة مع أرباحه.", "تحصل على 3% من أرباح كل من تدعوه، مدى الحياة. لا تُحتسب الإحالة إلا بعد أن يشترك المدعو ويُكمل عرضاً ناجحاً واحداً على الأقل (اشتراك/تسجيل/تثبيت).", "لا يمكن السحب إلا بعد أن تُحضر مستخدماً حقيقياً يُكمل أول عرض ناجح له، وبعد بلوغ الحد الأدنى. تراجع الإدارة كل طلب قبل الدفع، ويحق لها حظر أي حساب مخالف وإلغاء أرباحه."],
+    "en": ["A platform to earn from:\n🎬 Watching ads\n📱 Phone-number subscription offers\n📝 Registration offers\n📲 App installs", "Never pay any money to any platform, website or person while using the bot. All tasks are completely free. Anyone asking for money in the bot's name is a scammer, and users who ask others for money will be banned.", "Withdrawal is available at any balance.", "❌ VPN or proxy of any kind\n❌ Wi-Fi (mobile data is required)\n❌ More than one account per person\n❌ Fake data or unreal numbers\n❌ Cheating or manipulating offers", "Rewards for app installs, registrations and phone subscriptions are credited only after verification, which takes 24 to 72 hours (currently {h}h). If you cancel the subscription, uninstall the app or cancel the registration, your account and its earnings are cancelled immediately.", "Earn 3% of your referrals' earnings for life. A referral counts only after the invited user completes at least one successful offer (subscription/registration/install).", "You can withdraw only after bringing a real user who completes their first successful offer, and after reaching the minimum. Every request is reviewed before payment, and accounts that break the rules may be banned and their earnings cancelled."],
+    "es": ["Plataforma para ganar con:\n🎬 Ver anuncios\n📱 Suscripciones con número de teléfono\n📝 Registros\n📲 Instalar apps", "No pagues dinero a ninguna plataforma, sitio o persona. Todas las tareas son gratuitas. Quien pida dinero en nombre del bot es un estafador y será bloqueado.", "El retiro está disponible con cualquier saldo.", "❌ VPN o proxy\n❌ Wi-Fi (usa datos móviles)\n❌ Más de una cuenta por persona\n❌ Datos falsos\n❌ Trampas", "El saldo de instalaciones, registros y suscripciones telefónicas se acredita solo tras verificar (24–72 h, ahora {h} h). Si cancelas la suscripción, borras la app o anulas el registro, tu cuenta y ganancias se cancelan de inmediato.", "Ganas 3% de por vida de lo que ganen tus referidos. Un referido cuenta solo cuando completa al menos una oferta exitosa.", "Solo puedes retirar después de traer a un usuario real que complete su primera oferta exitosa y alcanzar el mínimo. Cada solicitud se revisa antes de pagar."],
+    "de": ["Plattform zum Verdienen durch:\n🎬 Werbung ansehen\n📱 Telefon-Abos\n📝 Registrierungen\n📲 App-Installationen", "Zahlen Sie niemals Geld an Plattformen, Websites oder Personen. Alle Aufgaben sind kostenlos. Wer im Namen des Bots Geld verlangt, ist ein Betrüger und wird gesperrt.", "Die Auszahlung ist bei jedem Guthaben möglich.", "❌ VPN oder Proxy\n❌ WLAN (Mobilfunkdaten nutzen)\n❌ Mehrere Konten pro Person\n❌ Falsche Daten\n❌ Betrug", "Belohnungen für Installationen, Registrierungen und Telefon-Abos werden erst nach Prüfung gutgeschrieben (24–72 Std., aktuell {h} Std.). Bei Kündigung, Deinstallation oder Abmeldung wird Ihr Konto sofort gelöscht.", "3% lebenslang auf die Einnahmen Ihrer Empfehlungen. Eine Empfehlung zählt erst nach mindestens einem erfolgreichen Angebot.", "Auszahlung nur, nachdem ein echter Nutzer sein erstes erfolgreiches Angebot abgeschlossen hat und das Minimum erreicht ist. Jeder Antrag wird vorher geprüft."],
+    "fr": ["Plateforme pour gagner avec :\n🎬 Pubs\n📱 Abonnements par téléphone\n📝 Inscriptions\n📲 Installations d'apps", "Ne payez jamais d'argent à une plateforme, un site ou une personne. Tout est gratuit. Quiconque demande de l'argent au nom du bot est un escroc et sera banni.", "Le retrait est disponible quel que soit le solde.", "❌ VPN ou proxy\n❌ Wi-Fi (utilisez les données mobiles)\n❌ Plusieurs comptes par personne\n❌ Fausses données\n❌ Triche", "Les gains d'installation, d'inscription et d'abonnement téléphonique sont crédités après vérification (24–72 h, actuellement {h} h). Si vous annulez l'abonnement, désinstallez l'app ou annulez l'inscription, votre compte est supprimé immédiatement.", "3% à vie sur les gains de vos filleuls. Un filleul compte seulement après au moins une offre réussie.", "Retrait possible uniquement après qu'un vrai utilisateur parrainé a terminé sa première offre réussie et que le minimum est atteint. Chaque demande est examinée avant paiement."],
+    "ru": ["Платформа для заработка на:\n🎬 Просмотре рекламы\n📱 Подписках по номеру телефона\n📝 Регистрациях\n📲 Установке приложений", "Никому не платите деньги. Все задания бесплатны. Тот, кто просит деньги от имени бота, — мошенник и будет заблокирован.", "Вывод доступен при любом балансе.", "❌ VPN или прокси\n❌ Wi-Fi (используйте мобильный интернет)\n❌ Несколько аккаунтов\n❌ Фейковые данные\n❌ Обман", "Начисления за установки, регистрации и подписки по телефону зачисляются только после проверки (24–72 ч, сейчас {h} ч). Если вы отмените подписку, удалите приложение или отмените регистрацию, аккаунт будет аннулирован сразу.", "3% пожизненно от заработка рефералов. Реферал засчитывается после хотя бы одного успешного задания.", "Вывод возможен только после того, как реальный приглашённый пользователь выполнит первое успешное задание, и при достижении минимума. Каждая заявка проверяется."],
+    "pt": ["Plataforma para ganhar com:\n🎬 Anúncios\n📱 Assinaturas por telefone\n📝 Registros\n📲 Instalação de apps", "Não pague dinheiro a nenhuma plataforma, site ou pessoa. Tudo é gratuito. Quem pedir dinheiro em nome do bot é golpista e será banido.", "O saque está disponível com qualquer saldo.", "❌ VPN ou proxy\n❌ Wi-Fi (use dados móveis)\n❌ Contas múltiplas\n❌ Dados falsos\n❌ Trapaças", "Os ganhos de instalações, registros e assinaturas por telefone só são creditados após verificação (24–72 h, atualmente {h} h). Se cancelar a assinatura, desinstalar o app ou cancelar o registro, sua conta será cancelada imediatamente.", "3% vitalício sobre os ganhos dos seus indicados. A indicação só conta após ao menos uma oferta bem-sucedida.", "O saque só é possível depois que um usuário real indicado concluir a primeira oferta bem-sucedida e o mínimo for atingido. Cada pedido é revisado antes do pagamento."],
+    "nl": ["Platform om te verdienen met:\n🎬 Advertenties\n📱 Telefoonabonnementen\n📝 Registraties\n📲 App-installaties", "Betaal nooit geld aan een platform, website of persoon. Alles is gratis. Wie namens de bot geld vraagt is een oplichter en wordt geblokkeerd.", "Opnemen is mogelijk bij elk saldo.", "❌ VPN of proxy\n❌ Wi-Fi (gebruik mobiele data)\n❌ Meerdere accounts\n❌ Nepgegevens\n❌ Valsspelen", "Beloningen voor installaties, registraties en telefoonabonnementen worden pas na verificatie bijgeschreven (24–72 uur, nu {h} uur). Bij opzeggen, verwijderen van de app of annuleren van de registratie wordt je account direct geannuleerd.", "3% levenslang van de winst van je referrals. Een referral telt pas na minstens één geslaagde aanbieding.", "Opnemen kan pas nadat een echte genodigde zijn eerste geslaagde aanbieding heeft voltooid en het minimum is bereikt. Elk verzoek wordt eerst beoordeeld."],
+    "pl": ["Platforma do zarabiania na:\n🎬 Reklamach\n📱 Subskrypcjach telefonicznych\n📝 Rejestracjach\n📲 Instalacji aplikacji", "Nigdy nie płać żadnej platformie, stronie ani osobie. Wszystko jest darmowe. Kto żąda pieniędzy w imieniu bota, jest oszustem i zostanie zablokowany.", "Wypłata jest dostępna przy każdym saldzie.", "❌ VPN lub proxy\n❌ Wi-Fi (używaj danych mobilnych)\n❌ Wiele kont\n❌ Fałszywe dane\n❌ Oszustwa", "Nagrody za instalacje, rejestracje i subskrypcje telefoniczne są dodawane dopiero po weryfikacji (24–72 godz., obecnie {h} godz.). Anulowanie subskrypcji, usunięcie aplikacji lub rejestracji natychmiast anuluje konto.", "3% dożywotnio od zarobków poleconych. Polecenie liczy się po co najmniej jednej udanej ofercie.", "Wypłata możliwa dopiero po tym, jak prawdziwy zaproszony użytkownik ukończy pierwszą udaną ofertę i osiągniesz minimum. Każdy wniosek jest sprawdzany."]
 }
 
 TERMS_TITLE = {"ar": "📜 شروط وأحكام TRX Earn Bot", "en": "📜 TRX Earn Bot Terms & Conditions", "es": "📜 Términos de TRX Earn Bot", "de": "📜 AGB von TRX Earn Bot", "fr": "📜 Conditions de TRX Earn Bot", "ru": "📜 Условия TRX Earn Bot", "pt": "📜 Termos do TRX Earn Bot", "nl": "📜 Voorwaarden van TRX Earn Bot", "pl": "📜 Regulamin TRX Earn Bot"}
@@ -974,6 +833,19 @@ AD_UI2 = {
     'pl': {"adInterT": 'Oglądaj i zarabiaj', "adPopT": 'Oglądaj i zarabiaj', "adLockedT": 'Etap ukończony ✓', "adLockedD": 'Odnowi się za 24 godziny:', "adClosedT": 'Otworzy się po ukończeniu i odebraniu poprzedniego etapu.', "c_ad_closed": 'Najpierw ukończ i odbierz poprzedni etap.'},
 }
 for _l, _d in AD_UI2.items():
+    UI[_l].update(_d)
+AD_UI3 = {
+    'en': {"wdInfo": 'Your whole balance is withdrawn, whatever the amount. Requires one real active referral.', "c_min_balance": 'You have no balance to withdraw.'},
+    'ar': {"wdInfo": 'يتم سحب كامل رصيدك مهما كان مقداره. الشرط: إحالة حقيقية نشطة.', "c_min_balance": 'ليس لديك رصيد للسحب.'},
+    'es': {"wdInfo": 'Se retira todo tu saldo, sea cual sea el importe. Requiere un referido real activo.', "c_min_balance": 'No tienes saldo para retirar.'},
+    'de': {"wdInfo": 'Dein gesamtes Guthaben wird ausgezahlt, egal wie hoch. Erfordert eine echte aktive Empfehlung.', "c_min_balance": 'Du hast kein Guthaben zum Auszahlen.'},
+    'fr': {"wdInfo": 'Tout votre solde est retiré, quel que soit le montant. Il faut un vrai filleul actif.', "c_min_balance": "Vous n'avez aucun solde à retirer."},
+    'ru': {"wdInfo": 'Выводится весь баланс, независимо от суммы. Нужен один реальный активный реферал.', "c_min_balance": 'У вас нет средств для вывода.'},
+    'pt': {"wdInfo": 'Todo o seu saldo é sacado, qualquer que seja o valor. Exige um indicado real ativo.', "c_min_balance": 'Você não tem saldo para sacar.'},
+    'nl': {"wdInfo": 'Je hele saldo wordt opgenomen, ongeacht het bedrag. Vereist één echte actieve referral.', "c_min_balance": 'Je hebt geen saldo om op te nemen.'},
+    'pl': {"wdInfo": 'Wypłacane jest całe saldo, niezależnie od kwoty. Wymagany jeden prawdziwy aktywny polecony.', "c_min_balance": 'Nie masz salda do wypłaty.'},
+}
+for _l, _d in AD_UI3.items():
     UI[_l].update(_d)
 
 LANG_NAMES = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch", "fr": "🇫🇷 Français", "ru": "🇷🇺 Русский", "pt": "🇧🇷 Português", "nl": "🇳🇱 Nederlands", "pl": "🇵🇱 Polski"}
@@ -1128,12 +1000,19 @@ def cmd_stats(m):
 
 @bot.message_handler(commands=["resetads"])
 def cmd_resetads(m):
-    """للأدمن: يصفّر المرحلة الثانية (عدّاد 24 ساعة وتقدّمها) لكل المستخدمين، مفيد عند تغيير الإعلان."""
+    """للأدمن: /resetads يصفّر مراحل الإعلانات وعدّاداتها لكل المستخدمين، و /resetads 123456 لمستخدم واحد."""
     if not is_admin(m):
         return
+    args = (m.text or "").split()
+    uid = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+    q1 = "UPDATE ad_stage SET views=0, earned=0, locked_until=0, opened=CASE WHEN stage=0 THEN 1 ELSE 0 END"
+    q2 = "UPDATE ad_progress SET last_view=0"
     with tx() as c:
-        c.execute("UPDATE ad_stage SET views=0, earned=0, locked_until=0, opened=0 WHERE stage=1")
-    bot.reply_to(m, "تم تصفير المرحلة الثانية للإعلانات لجميع المستخدمين ✅")
+        if uid:
+            c.execute(q1 + " WHERE user_id=?", (uid,)); c.execute(q2 + " WHERE user_id=?", (uid,))
+        else:
+            c.execute(q1); c.execute(q2)
+    bot.reply_to(m, "تم تصفير الإعلانات " + ("للمستخدم %d" % uid if uid else "لجميع المستخدمين") + " ✅")
 
 init_db()
 
