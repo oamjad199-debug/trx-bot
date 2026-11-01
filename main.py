@@ -514,7 +514,7 @@ def api_me():
         pwd = c.execute("SELECT COALESCE(SUM(amount),0) FROM withdrawals WHERE user_id=? AND status='pending'", (uid,)).fetchone()[0]
     return jsonify(
         success=True, pending_wd=pwd / MICRO, name=g.user.get("first_name", ""), balance=u["balance"] / MICRO,
-        pending=pending / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}",
+        pending=(pending + pwd) / MICRO, active_referrals=refs, ref_link=f"https://t.me/{bot_username()}?start={uid}",
         trx_address=u["trx_address"] or "", min_withdraw=MIN_WITHDRAW,
     )
 
@@ -579,11 +579,11 @@ def api_withdraw():
         body = ("💸 طلب سحب جديد #%d\n\n👤 الاسم: %s\n🔗 اليوزر: %s\n🆔 الآيدي: %d\n💰 المبلغ: %.4f TRX\n📮 عنوان TRX:\n%s\n\n%s\n\n/paid %d  أو  /reject %d"
                 % (wid, "%s", "%s", uid, amount / MICRO, "%s", wd_deadline(now_ts), wid, wid))
         try:
-            bot.send_message(ADMIN_ID, body % (html.escape(fname), ("@" + html.escape(uname)) if uname else "-", "<code>" + html.escape(address) + "</code>"), parse_mode="HTML")
+            bot.send_message(ADMIN_ID, body % (html.escape(fname), ("@" + html.escape(uname)) if uname else "-", "<code>" + html.escape(address) + "</code>"), parse_mode="HTML", reply_markup=wd_buttons(wid))
         except Exception as e:
             print("admin notify (html) failed:", e, flush=True)
             try:
-                bot.send_message(ADMIN_ID, body % (fname, ("@" + uname) if uname else "-", address))
+                bot.send_message(ADMIN_ID, body % (fname, ("@" + uname) if uname else "-", address), reply_markup=wd_buttons(wid))
             except Exception as e2:
                 print("admin notify failed:", e2, flush=True)
     return jsonify(success=True)
@@ -1098,7 +1098,33 @@ def cmd_withdrawals(m):
     for r in rows:
         bot.send_message(m.chat.id, "💸 طلب سحب #%d\n👤 %s | 🆔 %d\n💰 %.4f TRX\n📮 عنوان TRX:\n<code>%s</code>\n\n%s\n\n/paid %d  أو  /reject %d" % (
             r["id"], ("@" + html.escape(r["uname"])) if r["uname"] else "-", r["user_id"], r["amount"] / MICRO,
-            html.escape(r["address"]), wd_deadline(r["created_at"]), r["id"], r["id"]), parse_mode="HTML")
+            html.escape(r["address"]), wd_deadline(r["created_at"]), r["id"], r["id"]), parse_mode="HTML", reply_markup=wd_buttons(r["id"]))
+
+def wd_buttons(wid):
+    """أزرار تحت رسالة السحب: تم الدفع / إلغاء الطلب."""
+    mk = telebot.types.InlineKeyboardMarkup()
+    mk.add(telebot.types.InlineKeyboardButton("✅ تم الدفع", callback_data="wd:p:%d" % wid),
+           telebot.types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data="wd:r:%d" % wid))
+    return mk
+
+def process_withdrawal(wid, paid, note=""):
+    """ينفّذ الدفع أو الرفض (مع إرجاع الرصيد) ويُعلم المستخدم. يرجع None إن لم يوجد الطلب."""
+    with tx() as c:
+        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
+        if not w:
+            return None
+        lang = user_lang(c, w["user_id"])
+        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
+        if not paid:
+            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    try:
+        if paid:
+            bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
+        else:
+            bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+    except Exception:
+        pass
+    return w
 
 @bot.message_handler(commands=["paid", "reject"])
 def cmd_process(m):
@@ -1109,24 +1135,33 @@ def cmd_process(m):
         bot.reply_to(m, "الاستخدام: /paid 12 [رقم العملية]  أو  /reject 12")
         return
     wid, paid = int(args[1]), args[0].startswith("/paid")
-    note = " ".join(args[2:])
-    with tx() as c:
-        w = c.execute("SELECT * FROM withdrawals WHERE id=? AND status='pending'", (wid,)).fetchone()
-        if not w:
-            bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
-            return
-        lang = user_lang(c, w["user_id"])
-        c.execute("UPDATE withdrawals SET status=?, note=?, processed_at=? WHERE id=?", ("paid" if paid else "rejected", note, int(time.time()), wid))
-        if not paid:
-            c.execute("UPDATE users SET balance=balance+? WHERE user_id=? AND banned=0", (w["amount"], w["user_id"]))
+    w = process_withdrawal(wid, paid, " ".join(args[2:]))
+    if not w:
+        bot.reply_to(m, "الطلب غير موجود أو تمت معالجته.")
+        return
     bot.reply_to(m, f"تم {'الدفع' if paid else 'الرفض وإرجاع الرصيد'} للطلب #{wid} ✅")
+
+@bot.callback_query_handler(func=lambda call: (call.data or "").startswith("wd:"))
+def cb_withdrawal(call):
+    if not (ADMIN_ID and call.from_user.id == ADMIN_ID):
+        bot.answer_callback_query(call.id, "للأدمن فقط")
+        return
     try:
-        if paid:
-            bot.send_message(w["user_id"], msg_for(lang, "paid", amt=f"{w['amount'] / MICRO:.2f}", note=note))
-        else:
-            bot.send_message(w["user_id"], msg_for(lang, "rejected", id=wid, note=note))
+        _, kind, wid = call.data.split(":")
+        wid, paid = int(wid), kind == "p"
+    except Exception:
+        bot.answer_callback_query(call.id, "خطأ")
+        return
+    w = process_withdrawal(wid, paid)
+    try:
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except Exception:
         pass
+    if not w:
+        bot.answer_callback_query(call.id, "الطلب غير موجود أو تمت معالجته")
+        return
+    bot.answer_callback_query(call.id, "تم الدفع ✅" if paid else "تم الإلغاء وإرجاع الرصيد ❌")
+    bot.send_message(call.message.chat.id, ("✅ تم الدفع للطلب #%d (%.4f TRX) وتم إشعار المستخدم." if paid else "❌ تم إلغاء الطلب #%d وأُرجع %.4f TRX لرصيد المستخدم.") % (wid, w["amount"] / MICRO))
 
 @bot.message_handler(commands=["stats"])
 def cmd_stats(m):
