@@ -124,35 +124,36 @@ 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
-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
+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
+vy//X4WaaAc=
 """
 WEBAPP_HTML = zlib.decompress(base64.b64decode("".join(_WEBAPP_Z.split()))).decode("utf-8")
 
@@ -165,7 +166,7 @@ WITHDRAW_HOURS = int(os.environ.get("WITHDRAW_HOURS", "48"))   # مهلة تنف
 ADMIN_TZ = int(os.environ.get("ADMIN_TZ_HOURS", "3"))          # فرق التوقيت لعرض الموعد (الأردن +3)
 MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "0"))
 REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"   # شرط الإحالة للسحب: ضع 1 لتفعيله
-ADS_ENABLED = os.environ.get("ADS_ENABLED", "0") == "1"             # الإعلانات متوقفة مؤقتاً: ضع 1 لتفعيلها
+ADS_ENABLED = os.environ.get("ADS_ENABLED", "1") == "1"             # ضع 0 لإيقاف الإعلانات مؤقتاً
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
 IPQS_KEY = os.environ.get("IPQS_KEY", "")
 MICRO = 1_000_000
@@ -181,8 +182,7 @@ MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
 OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-admanager/tma.js")   # Onclicka
 OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "61543161") if ch.isalnum()) or "61543161"
 AD_STAGES = [
-    {"fmt": "interstitial", "views": int(os.environ.get("AD_STAGE1_VIEWS", "25")), "reward": float(os.environ.get("AD_REWARD_INTERSTITIAL", "0.0005")), "min": 5},
-    {"fmt": "oc", "views": int(os.environ.get("AD_STAGE2_VIEWS", "25")), "reward": float(os.environ.get("AD_REWARD_OC", "0.0005")), "min": 2},
+    {"fmt": "oc", "views": int(os.environ.get("AD_VIEWS", "25")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
 ]
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))   # الفاصل بين مشاهدة وأخرى
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # قفل كل مرحلة بعد جمع رصيدها
@@ -1015,8 +1015,7 @@ def webapp():
             .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
             .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False))
             .replace("__AD_ZONE__", MONETAG_ZONE).replace("__OC_SPOT__", OC_SPOT)
-            .replace("__AD_SDK__", ('<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE)
-                     + '<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)) if ADS_ENABLED else ""))
+            .replace("__AD_SDK__", ('<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)) if ADS_ENABLED else ""))
     resp = Response(page, mimetype="text/html")
     resp.headers["Cache-Control"] = "no-store"
     return resp
