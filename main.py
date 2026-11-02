@@ -188,11 +188,8 @@ MONETAG_ZONE = "".join(ch for ch in os.environ.get("MONETAG_ZONE", "12130531") i
 MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
 OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-admanager/tma.js")   # Onclicka
 OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154316") if ch.isalnum()) or "6154316"
-AD_NET = os.environ.get("AD_NET", "mt").strip().lower()
-AD_NET = AD_NET if AD_NET in ("mt", "oc") else "mt"   # mt = Monetag ، oc = Onclicka
-AD_STAGES = [
-    {"fmt": AD_NET, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
-]
+AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "oc,mt").lower().split(",")) if x in ("mt", "oc")] or ["oc", "mt"]   # oc = Onclicka ، mt = Monetag (بالترتيب)
+AD_STAGES = [{"fmt": n, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2} for n in AD_NETS]
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))   # الفاصل بين مشاهدة وأخرى
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # قفل كل مرحلة بعد جمع رصيدها
 
@@ -1025,7 +1022,10 @@ def webapp():
             .replace("__TERMS__", json.dumps(terms, ensure_ascii=False).replace("</", "<\\/"))
             .replace("__LANG_NAMES__", json.dumps(LANG_NAMES, ensure_ascii=False))
             .replace("__AD_ZONE__", MONETAG_ZONE).replace("__OC_SPOT__", OC_SPOT)
-            .replace("__AD_SDK__", (('<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)) if AD_NET == "oc" else ('<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE))) if ADS_ENABLED else ""))
+            .replace("__AD_SDK__", "".join(
+                ('<script src="%s"></script>' % html.escape(OC_SDK_URL, quote=True)) if n == "oc" else
+                ('<script src="%s" data-zone="%s" data-sdk="show_%s"></script>' % (html.escape(MONETAG_SDK_URL, quote=True), MONETAG_ZONE, MONETAG_ZONE))
+                for n in AD_NETS) if ADS_ENABLED else ""))
     resp = Response(page, mimetype="text/html")
     resp.headers["Cache-Control"] = "no-store"
     return resp
