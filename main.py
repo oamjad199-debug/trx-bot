@@ -201,13 +201,12 @@ AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))   # الفاصل �
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # قفل كل مرحلة بعد جمع رصيدها
 
 def load_offers():
-    # تم وضع رابط الـ Smartlink الخاص بك هنا مباشرة
     return {
         "gg_offers": {
             "id": "gg_offers",
             "kind": "phone",
             "title": "الربح من الاشتراك برقم هاتف",
-            "reward": 0.1,
+            "reward": 0,
             "url": "https://jnzvlsm.com/cl/6f9309c0648adc27?p1={user_id}"
         }
     }
