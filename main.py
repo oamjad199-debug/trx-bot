@@ -201,24 +201,16 @@ AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))   # الفاصل �
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # قفل كل مرحلة بعد جمع رصيدها
 
 def load_offers():
-    try:
-        raw = json.loads(os.environ.get("OFFERS_JSON", "[]"))
-    except Exception:
-        raw = []
-    if not isinstance(raw, list):
-        return {}
-    offers = {}
-    for o in raw:
-        if not isinstance(o, dict):
-            continue
-        try:
-            reward = float(o.get("reward", 0))
-        except (ValueError, TypeError):
-            continue
-        if (o.get("id") and o.get("kind") in KINDS
-                and str(o.get("url", "")).startswith("https://") and reward > 0):
-            offers[str(o["id"])] = o
-    return offers
+    # تم وضع رابط الـ Smartlink الخاص بك هنا مباشرة
+    return {
+        "gg_offers": {
+            "id": "gg_offers",
+            "kind": "phone",
+            "title": "الربح من الاشتراك برقم هاتف",
+            "reward": 0.1,
+            "url": "https://jnzvlsm.com/cl/6f9309c0648adc27?p1={user_id}"
+        }
+    }
 
 OFFERS = load_offers()
 
@@ -818,6 +810,7 @@ def postback():
     else:
         user_amount = int(float(offer["reward"]) * MICRO)
 
+    # تم إلغاء شرط الـ 5 ترون كما طلبت، يضاف أي مبلغ
     if user_amount <= 0: return Response("no payout", 200)
 
     with tx() as c:
