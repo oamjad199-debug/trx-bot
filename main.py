@@ -174,19 +174,20 @@ POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
 WITHDRAW_HOURS = int(os.environ.get("WITHDRAW_HOURS", "48"))   # مهلة تنفيذ السحب يدوياً
 ADMIN_TZ = int(os.environ.get("ADMIN_TZ_HOURS", "3"))          # فرق التوقيت لعرض الموعد (الأردن +3)
-MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "100"))   # ⬅️ تم تعديل الحد الأدنى للسحب إلى 100 TRX
+MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "100"))   # الحد الأدنى للسحب 100 ترون
 REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"   # شرط الإحالة للسحب: ضع 1 لتفعيله
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "1") == "1"             # ضع 0 لإيقاف الإعلانات مؤقتاً
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
 IPQS_KEY = os.environ.get("IPQS_KEY", "")
 MICRO = 1_000_000
+TRX_USD_PRICE = float(os.environ.get("TRX_USD_PRICE", "0.34")) # سعر التترون مقابل الدولار
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 server = Flask(__name__)
 
 KINDS = ("phone", "app", "site", "ad")
 
-# إعلانات Monetag: إبقاء المرحلة الأولى فقط وإلغاء المراحل الثانية والثالثة
+# إعلانات Monetag: مرحلتان (الأولى فيديو 50 مشاهدة، الثانية سريع 100 مشاهدة). كل القيم قابلة للتغيير من متغيرات البيئة
 MONETAG_ZONE = "".join(ch for ch in os.environ.get("MONETAG_ZONE", "12130531") if ch.isdigit()) or "12130531"
 MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
 OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-admanager/tma.js")   # Onclicka
@@ -195,7 +196,6 @@ ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "57655") if ch.isdigit()) or "57655"
 # oc = Onclicka ، mt = Monetag ، ab = AdsGram (إعلان يُرسل لمحادثة البوت؛ لا يعمل إلا مع ADSGRAM_TOKEN) — بالترتيب
 AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "oc,mt,ab").lower().split(",")) if x in ("mt", "oc") or (x == "ab" and ADSGRAM_TOKEN)] or ["oc", "mt"]
-AD_NETS = AD_NETS[:1] # ⬅️ الاحتفاظ بالمرحلة الأولى فقط وإلغاء الثانية والثالثة
 AD_STAGES = [{"fmt": n, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6 if n == "ab" else 2} for n in AD_NETS]
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))   # الفاصل بين مشاهدة وأخرى
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))        # قفل كل مرحلة بعد جمع رصيدها
@@ -785,25 +785,52 @@ def _check_secret():
     if not hmac.compare_digest(request.args.get("secret", ""), POSTBACK_SECRET): return Response("forbidden", 403)
     return None
 
+# ================= دوال استقبال أرباح GG Agency المعدلة =================
 @server.route("/postback")
 def postback():
     bad = _check_secret()
     if bad: return bad
     txid = request.args.get("txid", "").strip()
-    offer = OFFERS.get(request.args.get("offer_id", ""))
+    offer_id = request.args.get("offer_id", "")
+    offer = OFFERS.get(offer_id)
+    
     try:
         uid = int(request.args.get("user_id", ""))
     except ValueError:
         return Response("bad user", 400)
+    
     if not txid or not offer: return Response("bad request", 400)
+    
     now = int(time.time())
     hold = 0 if offer["kind"] == "ad" else VERIFY_HOURS * 3600
-    amount = int(float(offer["reward"]) * MICRO)
+    
+    # قراءة مبلغ العمولة بالدولار من المنصة
+    try:
+        platform_payout_usd = float(request.args.get("payout", 0))
+    except (ValueError, TypeError):
+        platform_payout_usd = 0
+
+    # حساب 25% للمستخدم وتحويلها إلى ترون بناءً على سعر الصرف المتغير
+    if platform_payout_usd > 0:
+        user_usd = platform_payout_usd * 0.25
+        user_trx = user_usd / TRX_USD_PRICE if TRX_USD_PRICE > 0 else 0
+        user_amount = int(user_trx * MICRO)
+    else:
+        user_amount = int(float(offer["reward"]) * MICRO)
+
+    if user_amount <= 0: return Response("no payout", 200)
+
     with tx() as c:
         u = c.execute("SELECT banned FROM users WHERE user_id=?", (uid,)).fetchone()
         if not u or u["banned"]: return Response("ignored", 200)
-        cur = c.execute("INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) VALUES(?,?,?,?,?,'pending',?,?)", (txid, uid, offer["kind"], offer["id"], amount, now, now + hold))
+        
+        cur = c.execute(
+            "INSERT OR IGNORE INTO transactions(txid,user_id,kind,offer_id,amount,status,created_at,release_at) "
+            "VALUES(?,?,?,?,?,'pending',?,?)", 
+            (txid, uid, offer["kind"], offer["id"], user_amount, now, now + hold)
+        )
         if not cur.rowcount: return Response("duplicate", 200)
+        
     if hold == 0: release_matured()
     return Response("OK", 200)
 
@@ -816,19 +843,31 @@ def postback_reverse():
     with tx() as c:
         t = c.execute("SELECT * FROM transactions WHERE txid=? AND kind!='referral'", (txid,)).fetchone()
         if not t or t["status"] == "reversed": return Response("OK", 200)
+        
         uid = t["user_id"]
+        # 1. إلغاء العملية
         c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (t["id"],))
+        
+        # 2. إذا كان المستخدم قد استلم الرصيد، نسحبه منه
+        if t["status"] == "approved":
+            c.execute("UPDATE users SET balance=MAX(balance-?,0) WHERE user_id=?", (t["amount"], uid))
+        
+        # 3. سحب عمولة الإحالة إن وجدت
         r = c.execute("SELECT * FROM transactions WHERE txid=? AND status='approved'", ("ref:" + txid,)).fetchone()
         if r:
             c.execute("UPDATE transactions SET status='reversed' WHERE id=?", (r["id"],))
             c.execute("UPDATE users SET balance=MAX(balance-?,0) WHERE user_id=?", (r["amount"], r["user_id"]))
+            
+        # 4. حظر المستخدم (كما طلبت ليفتح الحساب بجلب 5 إحالات)
         ban_user(c, uid, "offer_reversed")
         lang = user_lang(c, uid)
     try:
-        bot.send_message(uid, msg_for(lang, "reversed"))
+        # إرسال رسالة للمستخدم
+        bot.send_message(uid, "🚫 تم إيقاف حسابك لأنك ألغيت اشتراكاً. لفتح الحساب، يجب أن تجلب 5 إحالات مكتملة.")
     except Exception:
         pass
     return Response("OK", 200)
+# ======================================================================
 
 # ======================================================================
 # النصوص والترجمات
