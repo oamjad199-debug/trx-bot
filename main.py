@@ -24,14 +24,15 @@ from flask import Flask, request, jsonify, Response, g
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
+# مسار قاعدة البيانات (SQLite)
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
 WITHDRAW_HOURS = int(os.environ.get("WITHDRAW_HOURS", "48"))
 ADMIN_TZ = int(os.environ.get("ADMIN_TZ_HOURS", "3"))
-MIN_WITHDRAW = int(os.environ.get("MIN_WITHDRAW", "100"))
+MIN_WITHDRAW = 0 # تم جعل الحد الأدنى 0 للسحب المتاح دائماً
 REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "1") == "1"
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
@@ -53,10 +54,10 @@ OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154812") if ch.isa
 ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
 
-# === الترتيب الجديد: Monetag أولاً (mt)، ثم Adsgram (ab) ===
+# === الترتيب: Monetag أولاً (mt)، ثم Adsgram (ab) ===
 AD_NETS = ["mt", "ab"]
 
-# === تم التعديل هنا: عدد المشاهدات 3 للمرحلتين ===
+# === عدد المشاهدات 3 ===
 AD_STAGES = [
     {"fmt": "mt", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
     {"fmt": "ab", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
@@ -1026,164 +1027,23 @@ for _l, _d in json.loads(UIX_JSON).items():
     UI[_l].update(_d)
 
 # ======================================================================
-# قاعدة البيانات (PostgreSQL / SQLite)
+# قاعدة البيانات (SQLite فقط الآن)
 # ======================================================================
-if DATABASE_URL:
-    import types
-    import psycopg2
-    import queue
-    from decimal import Decimal
-
-    LOCK_KEY = 73020261
-    _INSERT_IGNORE = re.compile(r"^\s*INSERT\s+OR\s+IGNORE\s+INTO\s", re.I)
-    _MAX_TWO = re.compile(r"\bMAX\(([^()]*,[^()]*)\)", re.I)
-    _RETURN_ID = re.compile(r"^\s*INSERT\s+INTO\s+(withdrawals|transactions)\b", re.I)
-
-    class PgRow(tuple):
-        def __new__(cls, names, values):
-            r = super().__new__(cls, values)
-            r._names = list(names)
-            return r
-        def __getitem__(self, k):
-            if isinstance(k, str):
-                return tuple.__getitem__(self, self._names.index(k))
-            return tuple.__getitem__(self, k)
-        def keys(self):
-            return list(self._names)
-
-    def translate(sql, escape=True):
-        s = sql.strip().rstrip(";")
-        if _INSERT_IGNORE.match(s):
-            s = _INSERT_IGNORE.sub("INSERT INTO ", s, count=1) + " ON CONFLICT DO NOTHING"
-        s = _MAX_TWO.sub(r"GREATEST(\1)", s)
-        if escape:
-            s = s.replace("%", "%%").replace("?", "%s")
-        return s
-
-    def translate_ddl(stmt):
-        s = stmt.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY")
-        return re.sub(r"\bINTEGER\b", "BIGINT", s)
-
-    def _num(v):
-        if isinstance(v, Decimal):
-            return int(v) if v == v.to_integral_value() else float(v)
-        return v
-
-    class Cursor:
-        def __init__(self, raw):
-            self._c = raw.cursor()
-            self.lastrowid = None
-            self.rowcount = -1
-        def execute(self, sql, params=()):
-            args = tuple(params) if params else None
-            s = translate(sql, escape=args is not None)
-            want_id = bool(_RETURN_ID.match(s)) and "ON CONFLICT" not in s.upper()
-            if want_id:
-                s += " RETURNING id"
-            self._c.execute(s, args)
-            self.rowcount = self._c.rowcount
-            if want_id:
-                self.lastrowid = self._c.fetchone()[0]
-            return self
-        def _row(self, values):
-            names = [d[0] for d in self._c.description]
-            return PgRow(names, [_num(v) for v in values])
-        def fetchone(self):
-            r = self._c.fetchone()
-            return None if r is None else self._row(r)
-        def fetchall(self):
-            return [self._row(r) for r in self._c.fetchall()]
-
-    class Conn:
-        def __init__(self, raw):
-            self.raw = raw
-        def execute(self, sql, params=()):
-            return Cursor(self.raw).execute(sql, params)
-
-    class Pool:
-        def __init__(self, dsn, size=5):
-            self.dsn = dsn
-            self.q = queue.LifoQueue()
-            self.sem = threading.Semaphore(size)
-        def _new(self):
-            return psycopg2.connect(
-                self.dsn, connect_timeout=10, keepalives=1, keepalives_idle=30,
-                keepalives_interval=10, keepalives_count=3, options="-c statement_timeout=30000")
-        def get(self):
-            self.sem.acquire()
-            try:
-                while True:
-                    try:
-                        conn = self.q.get_nowait()
-                    except queue.Empty:
-                        return self._new()
-                    try:
-                        if conn.closed:
-                            continue
-                        cur = conn.cursor()
-                        cur.execute("SELECT 1")
-                        cur.close()
-                        conn.rollback()
-                        return conn
-                    except Exception:
-                        try: conn.close()
-                        except Exception: pass
-            except Exception:
-                self.sem.release()
-                raise
-        def put(self, conn, bad=False):
-            try:
-                if bad or conn.closed:
-                    try: conn.close()
-                    except Exception: pass
-                else:
-                    self.q.put(conn)
-            finally:
-                self.sem.release()
-
-    _pool = Pool(DATABASE_URL)
-
-    @contextmanager
-    def tx():
-        raw = _pool.get()
-        bad = False
-        try:
-            cur = raw.cursor()
-            cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_KEY,))
-            cur.close()
-            yield Conn(raw)
-            raw.commit()
-        except Exception:
-            try: raw.rollback()
-            except Exception: bad = True
-            raise
-        finally:
-            _pool.put(raw, bad)
-
-    def init_schema_pg(tx_fn, schema):
-        with tx_fn() as c:
-            for stmt in schema.split(";"):
-                if stmt.strip():
-                    c.execute(translate_ddl(stmt))
-            c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT DEFAULT ''")
-else:
-    @contextmanager
-    def tx_sqlite():
-        conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("BEGIN IMMEDIATE")
-            yield conn
-            conn.execute("COMMIT")
-        except Exception:
-            try: conn.execute("ROLLBACK")
-            except Exception: pass
-            raise
-        finally:
-            conn.close()
-
-    tx = tx_sqlite
+@contextmanager
+def tx():
+    conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("BEGIN IMMEDIATE")
+        yield conn
+        conn.execute("COMMIT")
+    except Exception:
+        try: conn.execute("ROLLBACK")
+        except Exception: pass
+        raise
+    finally:
+        conn.close()
 
 def init_db():
     d = os.path.dirname(DB_PATH)
@@ -1249,9 +1109,6 @@ def init_db():
             PRIMARY KEY (user_id, stage)
         );
         """
-    if DATABASE_URL:
-        init_schema_pg(tx, schema)
-        return
     with tx() as c:
         for stmt in schema.split(";"):
             if stmt.strip():
