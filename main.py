@@ -49,18 +49,18 @@ MONETAG_ZONE = "".join(ch for ch in os.environ.get("MONETAG_ZONE", "12130531") i
 MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
 OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-admanager/tma.js")
 
-# تم تصحيح الرقم ليكون 7 أرقام كما في صورتك
-OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154812") if ch.isalnum()) or "6154812"
-
+# هنا نضع رقم Adsgram الخاص بك
 ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
-ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "57655") if ch.isdigit()) or "57655"
-AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "oc,mt,ab").lower().split(",")) if x in ("mt", "oc") or (x == "ab" and ADSGRAM_TOKEN)] or ["oc", "mt"]
+ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
+
+AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "ab,mt").lower().split(",")) if x in ("mt", "oc") or (x == "ab" and ADSGRAM_TOKEN)] or ["ab", "mt"]
 
 # === إعداد المرحلتين ===
-STAGE1_NET = AD_NETS[0] if AD_NETS else "oc"
+# المرحلة 1: Adsgram (ab)
+# المرحلة 2: Monetag (mt)
 AD_STAGES = [
-    {"fmt": STAGE1_NET, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6 if STAGE1_NET == "ab" else 2},
-    {"fmt": "oc", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2}
+    {"fmt": "ab", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6},
+    {"fmt": "mt", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2}
 ]
 
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))
@@ -335,79 +335,48 @@ async function refreshAds(){
   if(o.success){state.offers=o.offers; adApply(o.ads||null);}
   if(state.tab==='ad') render();
 }
-
-// === الدوال المحدثة لشبكة Onclicka ===
-let ocP = null;
-function ocShow() {
-  return new Promise((resolve, reject) => {
-    if (typeof window.initCdTma !== 'function') {
-      return reject(new Error('sdk_oc_not_loaded'));
+let ocP=null;
+function ocShow(){
+  if(!ocP){
+    if(typeof window.initCdTma!=='function') return Promise.reject(new Error('sdk'));
+    ocP=Promise.resolve(window.initCdTma({id:OC_SPOT})).catch(e=>{ocP=null;throw e;});
+  }
+  return ocP.then(r=>{
+    let f=null;
+    if(typeof r==='function') f=r;
+    else if(r&&typeof r==='object'){
+      const k=['show','showAd','showVideo','showRewarded','play','run','start','open'].find(n=>typeof r[n]==='function')
+        ||Object.keys(r).find(n=>typeof r[n]==='function');
+      if(k) f=r[k].bind(r);
     }
-
-    const runShow = (showFn) => {
-      if (typeof showFn === 'function') {
-        Promise.resolve(showFn())
-          .then(resolve)
-          .catch(reject);
-      } else {
-        reject(new Error('no_show_method_oc'));
-      }
-    };
-
-    if (ocP) {
-      ocP.then(r => {
-        let f = typeof r === 'function' ? r : (r && typeof r.show === 'function' ? r.show.bind(r) : null);
-        if (!f && typeof window.show === 'function') f = window.show;
-        runShow(f);
-      }).catch(reject);
-    } else {
-      ocP = Promise.resolve(window.initCdTma({ id: OC_SPOT })).catch(e => {
-        ocP = null;
-        throw e;
-      });
-      
-      ocP.then(r => {
-        let f = typeof r === 'function' ? r : (r && typeof r.show === 'function' ? r.show.bind(r) : null);
-        if (!f && typeof window.show === 'function') f = window.show;
-        runShow(f);
-      }).catch(reject);
-    }
+    if(!f&&typeof window.show==='function') f=window.show;
+    if(!f){ocP=null;throw new Error('no show() from SDK | result='+typeof r+(r&&typeof r==='object'?' keys='+Object.keys(r).join(','):' value='+String(r))+' | window.show='+typeof window.show+' | spot='+OC_SPOT);}
+    return f();
   });
 }
-
 async function watchAd(btn,i){
   if(adBusy) return;
-  const showM=window['show_'+AD_ZONE];
+  const show=window['show_'+AD_ZONE];
   const fid=(state.ads&&state.ads.stages[i].id)||'';
-  
-  if(fid==='oc' && typeof window.initCdTma!=='function') {msg(T('c_ad_sdk'));return;}
-  if(fid==='mt' && typeof showM!=='function') {msg(T('c_ad_sdk'));return;}
-
+  if(fid==='oc'?typeof window.initCdTma!=='function':(fid==='mt'&&typeof show!=='function')){msg(T('c_ad_sdk'));return;}
   adBusy=true; btn.disabled=true;
   try{
     state.adErr='';
     const s=await api('/api/ad/start',{stage:i});
     if(!s.success){msg(codeMsg(s.code)); state.adErr=s.detail||''; await refreshAds(); return;}
     if(s.fmt==='ab'){state.ab={token:s.token,i:i,at:Date.now()}; msg(T('adSent')); return;}
-    
     try{
-      if(s.fmt==='oc'){ 
-        await ocShow(); 
-      } else { 
-        await showM(); 
-      }
+      if(s.fmt==='oc'){ await ocShow(); } else { await show(); }
     }catch(e){
       let r=''; try{r=(e&&(e.message||e.error||e.description||e.reason||e.code))||(typeof e==='string'?e:JSON.stringify(e)||'');}catch(_){}
       msg(T('c_ad_fail')); state.adErr=String(r||'').slice(0,300); return;
     }
-    
     const d=await api('/api/ad/complete',{token:s.token});
     if(d.success){adApply(d.ads);} else {msg(codeMsg(d.code)); await refreshAds();}
   }finally{
     adBusy=false; if(state.tab==='ad') render();
   }
 }
-
 async function confirmAb(btn){
   if(adBusy||!state.ab) return;
   adBusy=true; btn.disabled=true;
@@ -418,7 +387,6 @@ async function confirmAb(btn){
     adBusy=false; if(state.tab==='ad') render();
   }
 }
-
 async function collectAd(btn,i){
   if(adBusy) return;
   adBusy=true; btn.disabled=true;
@@ -430,7 +398,6 @@ async function collectAd(btn,i){
     adBusy=false; if(state.tab==='ad') render();
   }
 }
-
 function adCards(root){
   const a=state.ads; if(!a) return;
   const names=[T('adInterT'),T('adPopT')];
@@ -493,6 +460,7 @@ setInterval(()=>{
     if(w<=0) a.wait=0;
   }
 },1000);
+
 
 
 function phoneInfo(){
