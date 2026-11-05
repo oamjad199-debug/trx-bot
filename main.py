@@ -53,9 +53,9 @@ ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "57655") if ch.isdigit()) or "57655"
 AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "oc,mt,ab").lower().split(",")) if x in ("mt", "oc") or (x == "ab" and ADSGRAM_TOKEN)] or ["oc", "mt"]
 
-# === تم التعديل هنا: إعداد مرحلتين ===
+# === إعداد المرحلتين ===
 # المرحلة 1: تعتمد على AD_NETS[0] (oc افتراضياً)
-# المرحلة 2: تعتمد على OC (Onclicka)
+# المرحلة 2: تعتمد على oc (Onclicka)
 STAGE1_NET = AD_NETS[0] if AD_NETS else "oc"
 AD_STAGES = [
     {"fmt": STAGE1_NET, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6 if STAGE1_NET == "ab" else 2},
@@ -334,10 +334,12 @@ async function refreshAds(){
   if(o.success){state.offers=o.offers; adApply(o.ads||null);}
   if(state.tab==='ad') render();
 }
+
+// دالة عرض إعلانات Onclicka (المرحلة الثانية)
 let ocP=null;
 function ocShow(){
   if(!ocP){
-    if(typeof window.initCdTma!=='function') return Promise.reject(new Error('sdk'));
+    if(typeof window.initCdTma!=='function') return Promise.reject(new Error('sdk_oc_not_loaded'));
     ocP=Promise.resolve(window.initCdTma({id:OC_SPOT})).catch(e=>{ocP=null;throw e;});
   }
   return ocP.then(r=>{
@@ -349,27 +351,39 @@ function ocShow(){
       if(k) f=r[k].bind(r);
     }
     if(!f&&typeof window.show==='function') f=window.show;
-    if(!f){ocP=null;throw new Error('no show() from SDK | result='+typeof r+(r&&typeof r==='object'?' keys='+Object.keys(r).join(','):' value='+String(r))+' | window.show='+typeof window.show+' | spot='+OC_SPOT);}
+    if(!f){ocP=null;throw new Error('no_show_method_oc');}
     return f();
   });
 }
+
 async function watchAd(btn,i){
   if(adBusy) return;
-  const show=window['show_'+AD_ZONE];
+  const showM=window['show_'+AD_ZONE];
   const fid=(state.ads&&state.ads.stages[i].id)||'';
-  if(fid==='oc'?typeof window.initCdTma!=='function':(fid==='mt'&&typeof show!=='function')){msg(T('c_ad_sdk'));return;}
+  
+  // التحقق من وجود SDK
+  if(fid==='oc' && typeof window.initCdTma!=='function') {msg(T('c_ad_sdk'));return;}
+  if(fid==='mt' && typeof showM!=='function') {msg(T('c_ad_sdk'));return;}
+
   adBusy=true; btn.disabled=true;
   try{
     state.adErr='';
     const s=await api('/api/ad/start',{stage:i});
     if(!s.success){msg(codeMsg(s.code)); state.adErr=s.detail||''; await refreshAds(); return;}
     if(s.fmt==='ab'){state.ab={token:s.token,i:i,at:Date.now()}; msg(T('adSent')); return;}
+    
+    // تشغيل الإعلان حسب نوع الشبكة
     try{
-      if(s.fmt==='oc'){ await ocShow(); } else { await show(); }
+      if(s.fmt==='oc'){ 
+        await ocShow(); 
+      } else { 
+        await showM(); 
+      }
     }catch(e){
       let r=''; try{r=(e&&(e.message||e.error||e.description||e.reason||e.code))||(typeof e==='string'?e:JSON.stringify(e)||'');}catch(_){}
       msg(T('c_ad_fail')); state.adErr=String(r||'').slice(0,300); return;
     }
+    
     const d=await api('/api/ad/complete',{token:s.token});
     if(d.success){adApply(d.ads);} else {msg(codeMsg(d.code)); await refreshAds();}
   }finally{
@@ -399,7 +413,7 @@ async function collectAd(btn,i){
 }
 function adCards(root){
   const a=state.ads; if(!a) return;
-  const names=[T('adInterT'),T('adPopT'),T('adInterT')];
+  const names=[T('adInterT'),T('adPopT')];
   a.stages.forEach((s,i)=>{
     const head=[...(a.stages.length>1?[h('div',{class:'adstep'},T('adStepOf').replace('{a}',i+1).replace('{b}',a.stages.length))]:[]),h('b',{},names[i]||'')];
     if(s.lock_left>0){
