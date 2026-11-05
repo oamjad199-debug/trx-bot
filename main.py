@@ -24,8 +24,8 @@ from flask import Flask, request, jsonify, Response, g
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-# مسار قاعدة البيانات (SQLite)
-DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
+# مسار قاعدة البيانات (يُحفظ في القرص الدائم /data)
+DB_PATH = os.environ.get("DB_PATH", "/data/bot_database.db")
 
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
@@ -1024,7 +1024,7 @@ for _l, _d in json.loads(UIX_JSON).items():
     UI[_l].update(_d)
 
 # ======================================================================
-# قاعدة البيانات (SQLite فقط)
+# قاعدة البيانات (SQLite فقط الآن)
 # ======================================================================
 @contextmanager
 def tx():
