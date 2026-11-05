@@ -53,8 +53,14 @@ ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "57655") if ch.isdigit()) or "57655"
 AD_NETS = [x for x in dict.fromkeys(t.strip() for t in os.environ.get("AD_NET", "oc,mt,ab").lower().split(",")) if x in ("mt", "oc") or (x == "ab" and ADSGRAM_TOKEN)] or ["oc", "mt"]
 
-# تم تعديل هذا السطر لجعلها مرحلة واحدة فقط
-AD_STAGES = [{"fmt": AD_NETS[0] if AD_NETS else "oc", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6 if (AD_NETS and AD_NETS[0] == "ab") else 2}]
+# === تم التعديل هنا: إعداد مرحلتين ===
+# المرحلة 1: تعتمد على AD_NETS[0] (oc افتراضياً)
+# المرحلة 2: تعتمد على OC (Onclicka)
+STAGE1_NET = AD_NETS[0] if AD_NETS else "oc"
+AD_STAGES = [
+    {"fmt": STAGE1_NET, "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6 if STAGE1_NET == "ab" else 2},
+    {"fmt": "oc", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2}
+]
 
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))
 AD_LOCK_HOURS = int(os.environ.get("AD_LOCK_HOURS", "24"))
@@ -393,7 +399,7 @@ async function collectAd(btn,i){
 }
 function adCards(root){
   const a=state.ads; if(!a) return;
-  const names=[T('adInterT')];
+  const names=[T('adInterT'),T('adPopT'),T('adInterT')];
   a.stages.forEach((s,i)=>{
     const head=[...(a.stages.length>1?[h('div',{class:'adstep'},T('adStepOf').replace('{a}',i+1).replace('{b}',a.stages.length))]:[]),h('b',{},names[i]||'')];
     if(s.lock_left>0){
@@ -894,7 +900,7 @@ UIX_JSON = r'''{
  },
  "ar": {
   "adInterT": "شاهد لتربح", "adPopT": "شاهد لتربح", "adWatch": "شاهد الإعلان",
-  "adWait": "الإعلان التالي بعد {s} ث", "adStepOf": "شاهد الإعلان", "adProgress": "{v} / {t} مشاهدة",
+  "adWait": "الإعلان التالي بعد {s} ث", "adStepOf": "المرحلة {a} من {b}", "adProgress": "{v} / {t} مشاهدة",
   "adEarned": "الأرباح المتراكمة: {r} TRX", "adDoneHint": "اكتملت المرحلة! اجمع رصيدك للمتابعة.",
   "adCollect": "اجمع رصيدك", "adLockedT": "اكتملت هذه المرحلة ✓", "adLockedD": "سوف تتجدد بعد 24 ساعة:",
   "c_ok_collect": "تمت إضافة {r} TRX إلى رصيدك 🎉", "c_ad_cooldown": "انتظر قليلاً قبل الإعلان التالي.",
