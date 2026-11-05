@@ -24,7 +24,8 @@ from flask import Flask, request, jsonify, Response, g
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
+# تم تغيير مسار قاعدة البيانات ليحفظ في القرص الدائم /data
+DB_PATH = os.environ.get("DB_PATH", "/data/bot_database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
@@ -54,10 +55,8 @@ ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
 
 # === تم التبديل هنا ===
-# الترتيب الجديد: Monetag أولاً (mt)، ثم Adsgram (ab)
 AD_NETS = ["mt", "ab"]
 
-# === إعداد المرحلتين بالترتيب الجديد ===
 AD_STAGES = [
     {"fmt": "mt", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
     {"fmt": "ab", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
