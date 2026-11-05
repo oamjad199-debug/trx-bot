@@ -51,16 +51,16 @@ OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-
 OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154812") if ch.isalnum()) or "6154812"
 
 ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
-# رقم الكتلة الخاص بك
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
 
-# الترتيب الجديد: Adsgram أولاً، ثم Monetag
-AD_NETS = ["ab", "mt"]
+# === تم التبديل هنا ===
+# الترتيب الجديد: Monetag أولاً (mt)، ثم Adsgram (ab)
+AD_NETS = ["mt", "ab"]
 
-# === إعداد المرحلتين ===
+# === إعداد المرحلتين بالترتيب الجديد ===
 AD_STAGES = [
-    {"fmt": "ab", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6},
-    {"fmt": "mt", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2}
+    {"fmt": "mt", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
+    {"fmt": "ab", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
 ]
 
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))
