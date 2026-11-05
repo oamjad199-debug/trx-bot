@@ -32,7 +32,7 @@ POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
 VERIFY_HOURS = min(72, max(24, int(os.environ.get("VERIFY_HOURS", "48"))))
 WITHDRAW_HOURS = int(os.environ.get("WITHDRAW_HOURS", "48"))
 ADMIN_TZ = int(os.environ.get("ADMIN_TZ_HOURS", "3"))
-MIN_WITHDRAW = 0 # تم جعل الحد الأدنى 0 للسحب المتاح دائماً
+MIN_WITHDRAW = 0 # السحب متاح دائماً
 REQUIRE_REFERRAL = os.environ.get("REQUIRE_REFERRAL", "0") == "1"
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "1") == "1"
 REF_PERCENT = float(os.environ.get("REF_PERCENT", "0.03"))
@@ -51,16 +51,13 @@ MONETAG_SDK_URL = os.environ.get("MONETAG_SDK_URL", "https://libtl.com/sdk.js")
 OC_SDK_URL = os.environ.get("OC_SDK_URL", "https://js.onclckvd.com/in-stream-ad-admanager/tma.js")
 OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154812") if ch.isalnum()) or "6154812"
 
-ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
-ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
-
-# === الترتيب: Monetag أولاً (mt)، ثم Adsgram (ab) ===
-AD_NETS = ["mt", "ab"]
+# === الترتيب: Monetag أولاً (mt)، ثم Onclicka (oc) ===
+AD_NETS = ["mt", "oc"]
 
 # === عدد المشاهدات 3 ===
 AD_STAGES = [
     {"fmt": "mt", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
-    {"fmt": "ab", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
+    {"fmt": "oc", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
 ]
 
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))
@@ -1027,7 +1024,7 @@ for _l, _d in json.loads(UIX_JSON).items():
     UI[_l].update(_d)
 
 # ======================================================================
-# قاعدة البيانات (SQLite فقط الآن)
+# قاعدة البيانات (SQLite فقط)
 # ======================================================================
 @contextmanager
 def tx():
