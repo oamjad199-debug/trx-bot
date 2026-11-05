@@ -24,7 +24,6 @@ from flask import Flask, request, jsonify, Response, g
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-# تم إصلاح المسار ليعمل في المجلد الرئيسي بدون أخطاء صلاحيات
 DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
@@ -57,9 +56,10 @@ ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if
 # === الترتيب الجديد: Monetag أولاً (mt)، ثم Adsgram (ab) ===
 AD_NETS = ["mt", "ab"]
 
+# === تم التعديل هنا: عدد المشاهدات 3 للمرحلتين ===
 AD_STAGES = [
-    {"fmt": "mt", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
-    {"fmt": "ab", "views": int(os.environ.get("AD_VIEWS", "10")), "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
+    {"fmt": "mt", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 2},
+    {"fmt": "ab", "views": 3, "reward": float(os.environ.get("AD_REWARD", "0.0005")), "min": 6}
 ]
 
 AD_COOLDOWN = int(os.environ.get("AD_COOLDOWN_SECONDS", "2"))
