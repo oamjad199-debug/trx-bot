@@ -24,8 +24,8 @@ from flask import Flask, request, jsonify, Response, g
 TOKEN = os.environ["TOKEN"]
 RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-# تم تغيير مسار قاعدة البيانات ليحفظ في القرص الدائم /data
-DB_PATH = os.environ.get("DB_PATH", "/data/bot_database.db")
+# تم إصلاح المسار ليعمل في المجلد الرئيسي بدون أخطاء صلاحيات
+DB_PATH = os.environ.get("DB_PATH", "bot_database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0") or 0)
 POSTBACK_SECRET = os.environ.get("POSTBACK_SECRET", "")
@@ -54,7 +54,7 @@ OC_SPOT = "".join(ch for ch in os.environ.get("OC_SPOT_ID", "6154812") if ch.isa
 ADSGRAM_TOKEN = os.environ.get("ADSGRAM_TOKEN", "").strip()
 ADSGRAM_BLOCK = "".join(ch for ch in os.environ.get("ADSGRAM_BLOCK", "58142") if ch.isdigit()) or "58142"
 
-# === تم التبديل هنا ===
+# === الترتيب الجديد: Monetag أولاً (mt)، ثم Adsgram (ab) ===
 AD_NETS = ["mt", "ab"]
 
 AD_STAGES = [
@@ -1187,7 +1187,7 @@ else:
 
 def init_db():
     d = os.path.dirname(DB_PATH)
-    if d:
+    if d and d != ".":
         os.makedirs(d, exist_ok=True)
     schema = """
         CREATE TABLE IF NOT EXISTS users (
