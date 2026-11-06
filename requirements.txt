@@ -1,4 +1,5 @@
-flask
+Flask
 requests
 pyTelegramBotAPI
 psycopg2-binary
+gunicorn==21.2.0
